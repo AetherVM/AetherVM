@@ -1,0 +1,319 @@
+// Copyright (c) 2020 Trail of Bits, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+syntax = "proto2";
+
+/* Examples can be found in test directory.
+  Hard part is finding all the references. Forgetting some, or adding
+  some extra is often hard to notice as it could be located in some
+  not often executed code.
+
+  For externals, relocations must be calculated. Instead of ea of thunk
+  some new address is invented (not in original binary). This new address
+  is then written in .got & .got.plt using information about relocations.
+  This step is not required, lifted code that is not position independent can
+  work with external having addresses from thunks, but this is not guaranteed.
+*/
+
+
+package mcsema;
+
+message PreservationRange {
+  required int64 begin_ea = 1;
+  optional int64 end_ea = 2;
+}
+
+message PreservedRegisters {
+  // List of registers that are preserved.
+  repeated string registers = 1;
+
+  // Address of a call instruction around which the registers are preserved,
+  // or of function bodies. In the case of function bodies, we will have
+  // one range per (entry, exit) pair, i.e. if a function has N returns,
+  // then we'll have N ranges.
+  repeated PreservationRange ranges = 2;
+}
+
+// A cross-reference contained within an instruction.
+// Similar to reference from Segment
+message CodeReference {
+  enum OperandType {
+    // Example: mov    $0x617400,%r8d
+    ImmediateOperand = 0;
+
+    // Absolute and PC-relative accesses.
+    // Example: movzwl 0x2151b9(%rip),%edx  # 617800 <stderr@@GLIBC_2.2.5+0x10>
+    MemoryOperand = 1;
+
+    // Example: jmpq   *0x413d20(,%rcx,8)
+    MemoryDisplacementOperand = 2;
+
+    // E.g. Function call target.
+    // Example: callq  406000 <__sprintf_chk@plt+0x4250>
+    ControlFlowOperand = 3;
+
+    // For a jump table. Big enough switch statements get converted to jump
+    // table. It may be hard to find this, requiring some heuristics
+    OffsetTable = 4;
+  }
+
+  required  OperandType operand_type = 1;
+  required  int64       ea = 2;
+
+  // For aarch64 since instruction are 32-bit and there may be the need to build
+  // up 64-bit address across multiple instructions using immediate/displacement operands.
+  optional  int64       mask = 3;
+}
+
+// An instruction inside of a block.
+message Instruction {
+  required  int64           ea = 1;
+  repeated  CodeReference   xrefs = 2;
+
+  // Address of the landing pad
+  optional  uint64          lp_ea = 3;
+}
+
+// A basic block of instructions inside of a function.
+message Block {
+  required  int64       ea = 1;
+  repeated  Instruction instructions = 2;
+  repeated  int64       successor_eas = 3;
+  required  bool        is_referenced_by_data = 4;
+}
+
+// The location of something stored in a relative position in memory.
+message MemoryLocation {
+  required string register = 1;  // Base register.
+  optional int64  offset = 2;  // Displacement from the base register.
+}
+
+message ValueDecl {
+  required  string type = 1;
+
+  // The value is either resident in memory or in a register.
+  optional  MemoryLocation memory = 2;
+  optional  string register = 3;
+
+  optional  string name = 4;
+}
+
+enum CallingConvention {
+  C = 0;
+  X86_StdCall = 64;
+  X86_FastCall = 65;
+  X86_ThisCall = 70;
+  X86_64_SysV = 78;
+  Win64 = 79;
+  X86_VectorCall = 80;
+  X86_RegCall = 92;
+  AArch64_VectorCall = 97;
+}
+
+message FunctionDecl {
+  repeated ValueDecl parameters = 1;
+  repeated ValueDecl return_values = 2;
+  required ValueDecl return_address = 3;
+  required ValueDecl return_stack_pointer = 4;
+  required bool is_variadic = 5;
+  required bool is_noreturn = 6;
+  required CallingConvention calling_convention = 7;
+}
+
+// A function with an implementation inside of the binary.
+message Function {
+  required  int64       ea = 1;
+  repeated  Block       blocks = 2;
+
+  // Can someone else link against the code and use this function?
+  required  bool        is_entrypoint = 3;
+  optional  string      name = 4;
+  repeated  ExceptionFrame     eh_frame = 5;
+
+  // Anvill specification of this function.
+  optional  FunctionDecl decl = 6;
+}
+
+/* A function that is used or referenced within binary, but not implemented
+  within the binary. Classical example would be printf, or other functions from
+  standard library.
+  Some information about externals can be found in tools/mcsema_disass/{USED_OS}.txt
+  If function is later supplied via --abi_libraries attributes get rewritten
+  using this more precise information
+*/
+message ExternalFunction {
+  enum CallingConvention {
+    CallerCleanup = 0;
+    CalleeCleanup = 1;
+    FastCall = 2;
+  }
+
+  required  string            name = 1;
+
+  // Address of relocation. Other entry with ea of thunk can be added as well
+  required  int64             ea = 2;
+
+  required  CallingConvention cc = 3;
+  
+  // Does this function return?
+  required  bool              has_return = 4;
+  required  bool              no_return = 5;
+  required  int32             argument_count = 6;
+
+  // Linkage information
+  required  bool              is_weak = 7;
+
+  // Anvill specification of this function.
+  optional  FunctionDecl decl = 8;
+}
+
+// A named symbol defined outside of the binary. For example, `stderr`.
+message ExternalVariable {
+  required  string      name = 1;
+  // E.g. address of the relocation in the binary.
+  required  int64       ea = 2;
+  required  int32       size = 3;
+  required  bool        is_weak = 4;
+  required  bool        is_thread_local = 5;
+}
+
+/* A cross-reference contained within a data segment. This represents some
+  code- or data-reference embedded within the data segment.
+  for example piece of .data:
+
+  0x00400f80: 800c4000 00000000 e00c4000 00000000 ..@.......@.....
+
+  There are 2 references: at 0x400f80 targeting 400c80 which is in .text
+                          at 0x400f88 targeting 400ce0 which is in .text
+  Both of them are actually function pointers. This can be a hint where
+  does functions start in stripped binary
+
+  McSema needs this information so that address of lifted symbol can be
+  inserted there instead of old value, which had meaning only in original
+  binary.
+*/
+message DataReference {
+  enum TargetFixupKind {
+    Absolute = 0;
+    OffsetFromThreadBase = 1;
+  };
+
+  // Location of the cross-reference.
+  required  int64               ea = 1;
+
+  // How many bytes wide is this cross-reference? Not to be confused with the
+  // size of the data to which this reference points.
+  // This will often be size of pointer
+  required  int32               width = 2;
+
+  // Information about the target of the cross-reference.
+  required  int64               target_ea = 3;
+  required  TargetFixupKind     target_fixup_kind = 4;
+}
+
+/* Represents a named location within a data segment. Variables will often
+  be the targets of cross-references, either within other parts of the
+  data segments, or from code.
+  Actual data in segment if they can be isolated
+  For example
+
+  Hex dump of section '.rodata':
+  0x000009c0: 01000200 476c6f62 616c0056 61726961 ....Global.Varia
+  0x000009d0: 626c6520 6e616d65 2025730a 00636c61 ble name %s..cla
+
+  At 0x9c4 beginning of variable can be seen
+*/
+message Variable {
+  required  int64       ea = 1;
+  required  string      name = 2;
+}
+
+message Reference {
+  required  uint64   inst_ea = 1;
+  required  int64    offset = 2;
+}
+
+message ExceptionFrame {
+
+  enum Action {
+    Cleanup = 0;
+    Catch = 1;
+  }
+
+  required uint64     func_ea = 1;
+  required uint64     start_ea = 3;
+  required uint64     end_ea = 4;
+  required uint64     lp_ea = 5;
+  required Action     action = 6;
+  repeated ExternalVariable ttype = 7;
+}
+
+// Global variable from original binary
+message GlobalVariable {
+  required int64      ea = 1;
+  required string     name = 2;
+  required int64      size = 3;
+}
+
+// The data section is a verbatim copy of all the data in a given segment. This
+// copy will be "instantiated" into the LLVM module as a packed struct, where
+// the elements of the struct will be opaque sequences of bytes interspered
+// with cross-reference pointers.
+message Segment {
+  // Start of the segment
+  required  int64           ea = 1;
+
+  // Verbatim copy of all data in the segment,
+  // in case of offset tables after applying relocations!
+  required  bytes           data = 2;
+  required  bool            read_only = 3;
+  required  bool            is_external = 4;
+
+  required  string          name = 5;
+  optional  string          variable_name = 6;
+  required  bool            is_exported = 7;
+  required  bool            is_thread_local = 8;
+
+  // References to other data (their addresses) possibly in different segment
+  repeated  DataReference   xrefs = 9;
+
+  // Variables inside segment, often targets of references
+  repeated  Variable        vars = 10;
+
+}
+
+// Root of the structure. Represents collection of all information about
+// binary to be lifted.
+message Module {
+  required  string              name = 1;
+
+  // Functions with implementation in binary
+  repeated  Function            funcs = 2;
+
+  // Sections of binary (.got, .data, .rodata, ...)
+  repeated  Segment             segments = 3;
+
+  // Possible source of these outside of binary itselfs
+  // is in tools/mcsema_disass/defs/{USED_OS}.txt
+  // Some of them may be supplied later via --abi_libraries
+  repeated  ExternalFunction    external_funcs = 4;
+  repeated  ExternalVariable    external_vars = 5;
+
+  repeated  GlobalVariable      global_vars = 8;
+
+  repeated  PreservedRegisters  preserved_regs = 9;
+  repeated  PreservedRegisters  dead_regs = 10;
+}
