@@ -29,9 +29,10 @@ std::string dqpath(std::string_view path) {
 }
 
 bool build_prepare(const fs::path &root) {
+  auto build_dir_name = std::format("build-{}", build_type);
   auto aebi_root = root.parent_path() / "AetherBinary";
   auto llvm = aebi_root / "build-llvm/install";
-  auto aebi = aebi_root / "build-Release/install";
+  auto aebi = aebi_root / build_dir_name / "install";
   if (!fs::exists(llvm)) {
     std::println(
         R"(The following paths should exist, you can clone and build https://github.com/AetherVM/AetherBinary to generate them:
@@ -43,7 +44,7 @@ bool build_prepare(const fs::path &root) {
   install_llvm = llvm.string();
   install_aebi = aebi.string();
   this_root = root.string();
-  build_root = (root / std::format("build-{}", build_type)).string();
+  build_root = (root / build_dir_name).string();
   return true;
 }
 

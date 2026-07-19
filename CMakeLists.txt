@@ -19,8 +19,9 @@ include(CMakePackageConfigHelpers)
 
 set(PROJECT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
-# find the dependent LLVM package, which is built in the previous step
+# find the dependent packages built in AetherBinary project
 find_package(LLVM CONFIG REQUIRED)
+find_package(AetherBinary CONFIG REQUIRED)
 
 configure_file(
   "${CMAKE_SOURCE_DIR}/include/Version.h.in"
@@ -30,6 +31,9 @@ configure_file(
 
 set(HEADER_FILES
   include/AetherVM.h
+  include/Event.h
+  include/Register.h
+  ${CMAKE_BINARY_DIR}/generated/Version.h
 )
 
 set(SOURCE_FILES
@@ -48,6 +52,8 @@ if(MSVC)
 else()
   target_link_libraries(AetherVM PRIVATE LLVM)
 endif()
+  
+target_link_libraries(AetherVM PRIVATE AetherBinary::AetherBinary)
 
 target_include_directories(AetherVM PRIVATE 
   ${LLVM_INCLUDE_DIRS}
