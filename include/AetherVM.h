@@ -7,6 +7,7 @@
 
 #include <AetherBinary.h>
 #include <span>
+#include <vector>
 
 #include "Event.h"
 #include "Register.h"
@@ -52,6 +53,18 @@ public:
 
   // Set the value of a specified register.
   void setRegister(Register reg, RegisterValue val);
+
+  // Map memory for VM guest.
+  uint64_t mapMemory(size_t size);
+
+  // Unmap memory from VM guest.
+  bool unmapMemory(uint64_t addr);
+
+  // Read memory from VM guest, return empty if addr is not valid VM memory
+  std::vector<uint8_t> readMemory(uint64_t addr, size_t size);
+
+  // Write memory to VM guest, return false if addr is not valid VM memory
+  bool writeMemory(uint64_t addr, std::span<uint8_t> buff);
 
   // Add an event callback.
   int registerCallback(EventCallback callback);

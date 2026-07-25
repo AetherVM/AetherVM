@@ -40,6 +40,7 @@ set(HEADER_FILES
   include/AetherVM.h
   include/Event.h
   include/Register.h
+  include/Utils.h
   ${CMAKE_BINARY_DIR}/generated/Version.h
 )
 
@@ -47,6 +48,7 @@ set(SOURCE_FILES
   src/AetherVM.cpp
   src/Intrinsic.cpp
   src/Undefine.cpp
+  src/Utils.cpp
   src/HandlerAArch64.cpp
   src/HandlerX86.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp

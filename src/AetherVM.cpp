@@ -34,6 +34,19 @@ const RegisterValue *BinaryEngine::getRegister(Register reg) { return nullptr; }
 
 void BinaryEngine::setRegister(Register reg, RegisterValue val) {}
 
+uint64_t BinaryEngine::mapMemory(size_t size) { return 0; }
+
+bool BinaryEngine::unmapMemory(uint64_t addr) { return false; }
+
+std::vector<uint8_t> BinaryEngine::readMemory(uint64_t addr, size_t size) {
+  std::vector<uint8_t> buff;
+  return buff;
+}
+
+bool BinaryEngine::writeMemory(uint64_t addr, std::span<uint8_t> buff) {
+  return false;
+}
+
 int BinaryEngine::registerCallback(EventCallback callback) { return -1; }
 
 } // namespace aether
