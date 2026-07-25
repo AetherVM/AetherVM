@@ -29,6 +29,13 @@ configure_file(
   @ONLY
 )
 
+# generate handlers for aarch64 and x86_64
+execute_process(COMMAND ${ICPP_PATH} 
+  ${CMAKE_SOURCE_DIR}/tool/handler_generator.cc 
+  ${CMAKE_SOURCE_DIR}/third/remill 
+  ${CMAKE_BINARY_DIR}/generated
+)
+
 set(HEADER_FILES
   include/AetherVM.h
   include/Event.h
@@ -38,6 +45,12 @@ set(HEADER_FILES
 
 set(SOURCE_FILES
   src/AetherVM.cpp
+  src/Intrinsic.cpp
+  src/Undefine.cpp
+  src/HandlerAArch64.cpp
+  src/HandlerX86.cpp
+  ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp
+  ${CMAKE_BINARY_DIR}/generated/HandlerX86.cpp
 )
 
 add_library(AetherVM SHARED
@@ -56,6 +69,9 @@ endif()
 target_link_libraries(AetherVM PRIVATE AetherBinary::AetherBinary)
 
 target_include_directories(AetherVM PRIVATE 
+  include
+  third/remill
+  third/remill/include
   ${LLVM_INCLUDE_DIRS}
 )
 
@@ -69,6 +85,8 @@ if(APPLE)
     -Wl,-rpath,@executable_path
     -Wl,-rpath,@executable_path/../lib
   )
+elseif(MSVC)
+else()
 endif()
 
 target_include_directories(AetherVM PUBLIC

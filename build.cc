@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+/*
+Build AetherVM in one go, usage: icpp build.cc [Debug]
+*/
+
 #include <icpp.hpp>
 
 namespace {
@@ -118,11 +122,13 @@ bool build_remill() {
 bool build_aethervm() {
   auto cmake = std::format("-DCMAKE_PREFIX_PATH=\"{};{};{}\" "
                            "-DCMAKE_INSTALL_PREFIX={} "
+                           "-DICPP_PATH={} "
                            "-S {} "
                            "-B {} ",
                            install_llvm, install_aebi, install_remill,
                            dqpath((fs::path(build_root) / "install").string()),
-                           dqpath(this_root), dqpath(build_root));
+                           dqpath(icpp::program()), dqpath(this_root),
+                           dqpath(build_root));
   return cmake_init(cmake, false) ? cmake_build(build_root) : false;
 }
 

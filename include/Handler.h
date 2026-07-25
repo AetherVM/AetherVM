@@ -1,0 +1,27 @@
+// AetherVM - Lift. Instrument. Emulate. Recover.
+// Copyright (c) 2026 Jesse Liu <neoliu2011@gmail.com>
+// SPDX-License-Identifier: Apache License, Version 2.0
+// See LICENSE file in the root directory for full license text.
+
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define ISEL_NAME(name) ISEL_##name
+#define ISEL_DECL(name) extern const void **ISEL_NAME(name)
+#define ISEL_RAW_ITEM(name) {#name, ISEL_NAME(name)}
+
+namespace aether {
+
+struct HandlerRaw {
+  const char *name;
+  const void **handler;
+};
+
+extern HandlerRaw HandlerAArch64[];
+extern HandlerRaw HandlerX86[];
+extern const size_t HandlerAArch64Num;
+extern const size_t HandlerX86Num;
+
+} // namespace aether
