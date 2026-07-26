@@ -9,7 +9,7 @@
 
 namespace aether {
 
-enum class Register {
+enum class Register : int {
   PC,
 
   // AArch64
@@ -86,6 +86,7 @@ enum class Register {
   SP = X31,
 
   // X86_64
+  RIP = PC,
   RAX,
   RBP,
   RBX,
@@ -94,7 +95,6 @@ enum class Register {
   RDX,
   RSI,
   RSP,
-  RIP,
   R8,
   R9,
   R10,
@@ -115,6 +115,17 @@ enum class Register {
   ST6,
   ST7,
 
+  MM0,
+  MM1,
+  MM2,
+  MM3,
+  MM4,
+  MM5,
+  MM6,
+  MM7,
+
+  // XMM is the base of YMM, which is the base of ZMM, so XMM/YMM/ZMM share the
+  // same XMM0-XMM31 name in AetherVM.
   XMM0,
   XMM1,
   XMM2,
@@ -189,6 +200,48 @@ union RegisterValue {
 
   // string pointer
   const char *str;
+
+  // only for aarch64
+  struct {
+    uint64_t _0 : 28;
+    uint64_t v : 1; // Result overflowed, bit 28.
+    uint64_t c : 1; // Result produced a carry.
+    uint64_t z : 1; // Result is zero.
+    uint64_t n : 1; // Result is negative, bit 31.
+    uint64_t _1 : 32;
+  } NZCV;
+
+  // only for x86_64
+  struct {
+    uint32_t cf : 1; // bit 0.
+    uint32_t must_be_1 : 1;
+    uint32_t pf : 1;
+    uint32_t must_be_0a : 1;
+
+    uint32_t af : 1; // bit 4.
+    uint32_t must_be_0b : 1;
+    uint32_t zf : 1;
+    uint32_t sf : 1;
+
+    uint32_t tf : 1;  // bit 8.
+    uint32_t _if : 1; // underscore to avoid token clash.
+    uint32_t df : 1;
+    uint32_t of : 1;
+
+    uint32_t iopl : 2; // A 2-bit field, bits 12-13.
+    uint32_t nt : 1;
+    uint32_t must_be_0c : 1;
+
+    uint32_t rf : 1; // bit 16.
+    uint32_t vm : 1;
+    uint32_t ac : 1; // Alignment check.
+    uint32_t vif : 1;
+
+    uint32_t vip : 1;              // bit 20.
+    uint32_t id : 1;               // bit 21.
+    uint32_t reserved_eflags : 10; // bits 22-31.
+    uint32_t reserved_rflags;      // bits 32-63.
+  } rflags;
 };
 
 } // namespace aether

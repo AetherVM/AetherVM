@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 #define ISEL_NAME(name) ISEL_##name
 #define ISEL_DECL(name) extern const void **ISEL_NAME(name)
@@ -17,6 +18,17 @@ namespace aether {
 struct HandlerRaw {
   const char *name;
   const void **handler;
+};
+
+struct Handler {
+  size_t hash;
+  const void *impl;
+
+  static void loadAArch64();
+  static void loadX86();
+
+  static std::vector<Handler> aarch64;
+  static std::vector<Handler> x86;
 };
 
 extern HandlerRaw HandlerAArch64[];

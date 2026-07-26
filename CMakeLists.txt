@@ -41,6 +41,7 @@ set(HEADER_FILES
   include/Event.h
   include/Register.h
   include/Utils.h
+  include/Handler.h
   include/Memory.h
   include/Platform.h
   include/AArch64.h
@@ -53,6 +54,7 @@ set(SOURCE_FILES
   src/Intrinsic.cpp
   src/Undefine.cpp
   src/Utils.cpp
+  src/Handler.cpp
   src/HandlerAArch64.cpp
   src/HandlerX86.cpp
   src/Memory.cpp

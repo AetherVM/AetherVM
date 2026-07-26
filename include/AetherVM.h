@@ -49,11 +49,12 @@ public:
   // prototype and call without manually setting register contexts;
   const void *makeExecutable(std::span<const uint8_t> raw);
 
-  // Get the readonly pointer of a specified register.
+  // Get the readonly pointer of a specified register, return nullptr if reg is
+  // not invalid for this instance.
   const RegisterValue *getRegister(Register reg);
 
   // Set the value of a specified register.
-  void setRegister(Register reg, RegisterValue val);
+  bool setRegister(Register reg, RegisterValue val);
 
   // Map memory for VM guest, return 0 means OOM.
   addr_t mapMemory(size_t size);
