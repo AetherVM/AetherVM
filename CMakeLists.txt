@@ -41,6 +41,10 @@ set(HEADER_FILES
   include/Event.h
   include/Register.h
   include/Utils.h
+  include/Memory.h
+  include/Platform.h
+  include/AArch64.h
+  include/X86.h
   ${CMAKE_BINARY_DIR}/generated/Version.h
 )
 
@@ -51,6 +55,10 @@ set(SOURCE_FILES
   src/Utils.cpp
   src/HandlerAArch64.cpp
   src/HandlerX86.cpp
+  src/Memory.cpp
+  src/Platform.cpp
+  src/AArch64.cpp
+  src/X86.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerX86.cpp
 )

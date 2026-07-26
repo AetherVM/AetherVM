@@ -31,9 +31,10 @@ public:
   virtual ~BinaryEngine();
 
   // Execute raw machine opcodes.
-  bool execute(std::span<uint8_t> raw);
+  bool execute(std::span<const uint8_t> raw);
 
-  // Execute opcodes of target which belongs to the current attached binary.
+  // Execute opcodes of target which belongs to the current attached binary, or
+  // any other mapMemory returned vm address.
   bool execute(addr_t target);
 
   // Execute the main function of an executable binary file which the current
@@ -46,7 +47,7 @@ public:
   // like: 1.the target of relocation is directly called by host system; 2.the
   // callback passes to host runtime; 3.you want to directly convert to a known
   // prototype and call without manually setting register contexts;
-  const void *makeExecutable(std::span<uint8_t> raw);
+  const void *makeExecutable(std::span<const uint8_t> raw);
 
   // Get the readonly pointer of a specified register.
   const RegisterValue *getRegister(Register reg);
@@ -54,19 +55,18 @@ public:
   // Set the value of a specified register.
   void setRegister(Register reg, RegisterValue val);
 
-  // Map memory for VM guest.
-  uint64_t mapMemory(size_t size);
+  // Map memory for VM guest, return 0 means OOM.
+  addr_t mapMemory(size_t size);
 
-  // Unmap memory from VM guest.
-  bool unmapMemory(uint64_t addr);
+  // Read memory from VM guest, return empty if addr is not valid VM memory.
+  std::vector<uint8_t> readMemory(addr_t addr, size_t size);
 
-  // Read memory from VM guest, return empty if addr is not valid VM memory
-  std::vector<uint8_t> readMemory(uint64_t addr, size_t size);
-
-  // Write memory to VM guest, return false if addr is not valid VM memory
-  bool writeMemory(uint64_t addr, std::span<uint8_t> buff);
+  // Write memory to VM guest, return false if addr is not valid VM memory.
+  bool writeMemory(addr_t addr, std::span<const uint8_t> buff);
 
   // Add an event callback.
+  // This's not thread-safe, only register any callbacks before executing the
+  // guest code.
   int registerCallback(EventCallback callback);
 
 protected:
