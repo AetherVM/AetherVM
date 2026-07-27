@@ -7,6 +7,7 @@
 // for both of them
 #include <remill/Arch/Runtime/State.h>
 #include <remill/Arch/Runtime/Types.h>
+#include <remill/BC/Util.h>
 #include <remill/OS/OS.h>
 
 #include <AArch64.h>
@@ -21,7 +22,10 @@
 
 #include <llvm/MC/MCInst.h>
 
+#include <filesystem>
 #include <mutex>
+
+namespace fs = std::filesystem;
 
 namespace aether {
 
@@ -34,6 +38,7 @@ struct BinaryEngineImpl {
 
   llvm::LLVMContext llvmContext;
   remill::Arch::ArchPtr remillArch;
+  std::unique_ptr<llvm::Module> remillSemantic;
 
   BinaryEngineImpl(ArchType arch, FileType os);
   ~BinaryEngineImpl();
@@ -405,6 +410,8 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
     break;
   }
   remillArch = remill::Arch::Get(llvmContext, os_name, arch_name);
+  remillSemantic = remill::LoadArchSemantics(
+      remillArch.get(), {fs::path(self_path()).parent_path() / "bitcode"});
   CPU.runtime = this;
 }
 
@@ -531,7 +538,8 @@ int BinaryEngine::registerCallback(EventCallback callback) {
 }
 
 void BinaryEngine::liftOpcodes(std::span<const uint8_t> opcodes) {
-  Lifter lifter{const_cast<remill::Arch *>(engine->remillArch.get())};
+  Lifter lifter{const_cast<remill::Arch *>(engine->remillArch.get()),
+                engine->remillSemantic.get()};
   auto arch = m_machine ? m_machine->archType() : m_binary->archType();
   if (arch == ARM64) {
     // arm64 has fixed 4 bytes instruction set

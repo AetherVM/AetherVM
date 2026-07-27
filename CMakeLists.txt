@@ -175,3 +175,9 @@ install(FILES
   "${CMAKE_BINARY_DIR}/generated/AetherVMConfigVersion.cmake"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/AetherVM
 )
+
+install(FILES
+  "${remill_DIR}/../../../share/remill/22/semantics/aarch64.bc"
+  "${remill_DIR}/../../../share/remill/22/semantics/amd64_avx512.bc"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/bitcode
+)

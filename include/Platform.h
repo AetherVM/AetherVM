@@ -7,16 +7,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #if defined(_WIN32) || defined(_WIN64)
 #define AETHER_OS_WINDOWS 1
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
 #else
 #define AETHER_OS_POSIX 1
-#include <sys/mman.h>
-#include <unistd.h>
 #if defined(__APPLE__)
 #define AETHER_OS_MACOS 1
 #else
@@ -40,5 +36,6 @@ uintptr_t page_alloc(size_t size);
 bool page_commit(void *hostptr, size_t size, bool read, bool write, bool exec);
 bool page_decommit(void *hostptr, size_t size);
 void page_dealloc(uintptr_t pagestart, size_t size);
+std::string self_path();
 
 } // namespace aether

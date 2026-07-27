@@ -5,6 +5,16 @@
 
 #include <Platform.h>
 
+#if AETHER_OS_WINDOWS
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#else
+#include <dlfcn.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
 namespace aether {
 
 size_t page_size() {
@@ -97,6 +107,23 @@ void page_dealloc(uintptr_t pagestart, size_t size) {
   ::VirtualFree(hostptr, 0, MEM_RELEASE);
 #elif defined(AETHER_OS_POSIX)
   munmap(hostptr, size);
+#endif
+}
+
+std::string self_path() {
+#if AETHER_OS_WINDOWS
+  HMODULE hModule = NULL;
+  ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCSTR>(&self_path), &hModule);
+  std::vector<char> buffer(MAX_PATH);
+  DWORD length = ::GetModuleFileNameA(hModule, buffer.data(),
+                                      static_cast<DWORD>(buffer.size()));
+  return std::string(buffer.data(), length);
+#else
+  Dl_info dli;
+  dladdr((void *)self_path, &dli);
+  return dli.dli_fname;
 #endif
 }
 

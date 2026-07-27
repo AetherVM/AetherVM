@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <llvm/IR/Module.h>
 #include <remill/Arch/Arch.h>
 #include <remill/Arch/Name.h>
 #include <remill/BC/InstructionLifter.h>
@@ -42,8 +43,10 @@ struct Lifter {
 
   remill::Arch *arch = nullptr;
   std::set<HandlerDynamic> *handlers = nullptr;
+  const llvm::Module *prebuilt = nullptr;
+  llvm::Module module;
 
-  Lifter(remill::Arch *ptr);
+  Lifter(remill::Arch *ptr, const llvm::Module *pre);
   ~Lifter();
 
   void transform(std::span<const uint8_t> opcode);
