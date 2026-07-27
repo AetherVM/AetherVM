@@ -28,17 +28,29 @@ struct BinaryEngineImpl {
   std::vector<EventCallback> eventCallbacks;
 
   BinaryEngineImpl(ArchType arch);
+  ~BinaryEngineImpl();
+
+  bool startVM(addr_t entry);
 };
 
 struct CPUState {
+  // 1MB stack size for each thread
+  static constexpr size_t stackSize = 1 * 1024 * 1024;
+
+  BinaryEngineImpl *runtime = nullptr;
+  char *stack = nullptr;
   union {
     aarch64::State aarch64;
     x86::State x86;
   };
-  BinaryEngineImpl *runtime = nullptr;
 
   CPUState() {}
   ~CPUState() {}
+
+  bool initContext(addr_t entry);
+
+  // should be explicitly called after child thread has exited
+  void freeContext();
 
   const RegisterValue *getRegisterAArch64(Register reg);
   bool setRegisterAArch64(Register reg, RegisterValue val);
@@ -46,6 +58,31 @@ struct CPUState {
   const RegisterValue *getRegisterX86(Register reg);
   bool setRegisterX86(Register reg, RegisterValue val);
 };
+
+bool CPUState::initContext(addr_t entry) {
+  // init stack buffer if necessary
+  if (!stack) {
+    if (!(stack = new char[stackSize]))
+      return false;
+  }
+
+  auto setRegister = [this](Register reg, RegisterValue val) {
+    runtime->arch == ARM64 ? setRegisterAArch64(reg, val)
+                           : setRegisterX86(reg, val);
+  };
+  RegisterValue pc{.b8 = entry};
+  RegisterValue sp{.ptr = stack + stackSize};
+  // reset SP and PC
+  setRegister(Register::PC, pc);
+  setRegister(Register::SP, sp);
+  return true;
+}
+
+void CPUState::freeContext() {
+  delete[] stack;
+  stack = nullptr;
+  runtime = nullptr;
+}
 
 const RegisterValue *CPUState::getRegisterAArch64(Register reg) {
   const void *ptr = nullptr;
@@ -332,6 +369,9 @@ bool CPUState::setRegisterX86(Register reg, RegisterValue val) {
 // execution state for each thread
 static thread_local CPUState CPU;
 
+// shortcuts for engine implementation
+#define lock_on() std::lock_guard<std::mutex> _lock_(mutex)
+
 BinaryEngineImpl::BinaryEngineImpl(ArchType type) : arch(type) {
   // lazily load handlers, only support AArch64 and X86_64
   if (arch == ARM64)
@@ -342,9 +382,16 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type) : arch(type) {
   CPU.runtime = this;
 }
 
-// shortcuts for engine implementation
+BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
+
+bool BinaryEngineImpl::startVM(addr_t entry) {
+  if (!CPU.initContext(entry))
+    return false;
+  return false;
+}
+
+// shortcuts for engine implementation stub
 #define engine ((BinaryEngineImpl *)m_impl)
-#define lock_on() std::lock_guard<std::mutex> _lock_(engine->mutex)
 #define callbacks (engine->eventCallbacks)
 #define memory (engine->guestMemory)
 
@@ -387,9 +434,7 @@ bool BinaryEngine::execute(addr_t target) {
   if (!memory.valid(target, 1))
     return false;
 
-  RegisterValue pc{.b8 = target};
-  setRegister(Register::PC, pc);
-  return false;
+  return engine->startVM(target);
 }
 
 bool BinaryEngine::runMain() { return false; }
@@ -404,6 +449,9 @@ const RegisterValue *BinaryEngine::getRegister(Register reg) {
 }
 
 bool BinaryEngine::setRegister(Register reg, RegisterValue val) {
+  // automatically set and managed by each thread cpu state
+  if (reg == Register::SP)
+    return false;
   return engine->arch == ARM64 ? CPU.setRegisterAArch64(reg, val)
                                : CPU.setRegisterX86(reg, val);
 }

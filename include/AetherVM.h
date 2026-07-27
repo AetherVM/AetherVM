@@ -54,6 +54,7 @@ public:
   const RegisterValue *getRegister(Register reg);
 
   // Set the value of a specified register.
+  // Don't reset SP register which is automatically set for each thread.
   bool setRegister(Register reg, RegisterValue val);
 
   // Map memory for VM guest, return 0 means OOM.

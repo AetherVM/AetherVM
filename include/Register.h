@@ -10,6 +10,7 @@
 namespace aether {
 
 enum class Register : int {
+  // General: PC,SP,FP
   PC,
 
   // AArch64
@@ -87,14 +88,14 @@ enum class Register : int {
 
   // X86_64
   RIP = PC,
+  RBP = FP,
+  RSP = SP,
   RAX,
-  RBP,
   RBX,
   RCX,
   RDI,
   RDX,
   RSI,
-  RSP,
   R8,
   R9,
   R10,
