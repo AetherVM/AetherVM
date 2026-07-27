@@ -7,11 +7,13 @@
 // for both of them
 #include <remill/Arch/Runtime/State.h>
 #include <remill/Arch/Runtime/Types.h>
+#include <remill/OS/OS.h>
 
 #include <AArch64.h>
 #include <AetherVM.h>
 #include <Event.h>
 #include <Handler.h>
+#include <Lifter.h>
 #include <Memory.h>
 #include <Utils.h>
 #include <X86.h>
@@ -27,7 +29,10 @@ struct BinaryEngineImpl {
   std::mutex mutex;
   std::vector<EventCallback> eventCallbacks;
 
-  BinaryEngineImpl(ArchType arch);
+  llvm::LLVMContext llvmContext;
+  remill::Arch::ArchPtr remillArch;
+
+  BinaryEngineImpl(ArchType arch, FileType os);
   ~BinaryEngineImpl();
 
   bool startVM(addr_t entry);
@@ -372,13 +377,31 @@ static thread_local CPUState CPU;
 // shortcuts for engine implementation
 #define lock_on() std::lock_guard<std::mutex> _lock_(mutex)
 
-BinaryEngineImpl::BinaryEngineImpl(ArchType type) : arch(type) {
+BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
+  using enum remill::ArchName;
+  using enum remill::OSName;
+  remill::OSName os_name;
+  remill::ArchName arch_name;
   // lazily load handlers, only support AArch64 and X86_64
-  if (arch == ARM64)
+  if (arch == ARM64) {
     Handler::loadAArch64();
-  else
+    arch_name = kArchAArch64LittleEndian;
+  } else {
     Handler::loadX86();
-
+    arch_name = kArchAMD64_AVX512;
+  }
+  switch (os) {
+  case MachO:
+    os_name = kOSmacOS;
+    break;
+  case ELF:
+    os_name = kOSLinux;
+    break;
+  default:
+    os_name = kOSWindows;
+    break;
+  }
+  remillArch = remill::Arch::Get(llvmContext, os_name, arch_name);
   CPU.runtime = this;
 }
 
@@ -396,11 +419,20 @@ bool BinaryEngineImpl::startVM(addr_t entry) {
 #define memory (engine->guestMemory)
 
 BinaryEngine::BinaryEngine(const Machine *mach) : m_machine(mach) {
-  m_impl = new BinaryEngineImpl(mach->archType());
+#if AETHER_OS_MACOS
+  auto os = MachO;
+#elif AETHER_OS_LINUX
+  auto os = ELF;
+#elif AETHER_OS_WINDOWS
+  auto os = PE;
+#else
+#error AetherVM only supports macOS, Linux, and Windows
+#endif
+  m_impl = new BinaryEngineImpl(mach->archType(), os);
 }
 
 BinaryEngine::BinaryEngine(const Binary *bin) : m_binary(bin) {
-  m_impl = new BinaryEngineImpl(bin->archType());
+  m_impl = new BinaryEngineImpl(bin->archType(), bin->fileType());
   // use the image base from bin so that we can directly map section memory
   memory.baseGuest = bin->imageBase();
   // calculate the total page size of all the sections

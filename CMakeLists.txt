@@ -22,6 +22,7 @@ set(PROJECT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${
 # find the dependent packages built in AetherBinary project
 find_package(LLVM CONFIG REQUIRED)
 find_package(AetherBinary CONFIG REQUIRED)
+find_package(remill CONFIG REQUIRED)
 
 configure_file(
   "${CMAKE_SOURCE_DIR}/include/Version.h.in"
@@ -46,6 +47,7 @@ set(HEADER_FILES
   include/Platform.h
   include/AArch64.h
   include/X86.h
+  include/Lifter.h
   ${CMAKE_BINARY_DIR}/generated/Version.h
 )
 
@@ -61,6 +63,7 @@ set(SOURCE_FILES
   src/Platform.cpp
   src/AArch64.cpp
   src/X86.cpp
+  src/Lifter.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerX86.cpp
 )
@@ -78,7 +81,10 @@ else()
   target_link_libraries(AetherVM PRIVATE LLVM)
 endif()
   
-target_link_libraries(AetherVM PRIVATE AetherBinary::AetherBinary)
+target_link_libraries(AetherVM PRIVATE 
+  AetherBinary::AetherBinary
+  remill
+)
 
 target_include_directories(AetherVM PRIVATE 
   include

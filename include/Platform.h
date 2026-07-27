@@ -24,6 +24,14 @@
 #endif
 #endif
 
+#if __arm64__ || __aarch64__
+#define AETHER_ARCH_ARM64 1
+#elif __x86_64__ || __x64__ || _M_AMD64 || _M_X64
+#define AETHER_ARCH_X64 1
+#else
+#error AetherVM only supports AArch64 and X86_64
+#endif
+
 namespace aether {
 
 size_t page_size();

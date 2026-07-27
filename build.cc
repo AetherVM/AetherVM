@@ -120,15 +120,15 @@ bool build_remill() {
 }
 
 bool build_aethervm() {
-  auto cmake = std::format("-DCMAKE_PREFIX_PATH=\"{};{};{}\" "
-                           "-DCMAKE_INSTALL_PREFIX={} "
-                           "-DICPP_PATH={} "
-                           "-S {} "
-                           "-B {} ",
-                           install_llvm, install_aebi, install_remill,
-                           dqpath((fs::path(build_root) / "install").string()),
-                           dqpath(icpp::program()), dqpath(this_root),
-                           dqpath(build_root));
+  auto cmake = std::format(
+      "-DCMAKE_PREFIX_PATH=\"{};{};{};{}\" "
+      "-DCMAKE_INSTALL_PREFIX={} "
+      "-DICPP_PATH={} "
+      "-S {} "
+      "-B {} ",
+      install_llvm, install_aebi, install_remill_deps, install_remill,
+      dqpath((fs::path(build_root) / "install").string()),
+      dqpath(icpp::program()), dqpath(this_root), dqpath(build_root));
   return cmake_init(cmake, false) ? cmake_build(build_root) : false;
 }
 
