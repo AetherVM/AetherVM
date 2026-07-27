@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string_view>
 
 namespace aether {
 
@@ -29,5 +30,7 @@ template <typename T> constexpr T align_up(T value, size_t align_size) {
 template <typename T> constexpr T align_down(T value, size_t align_size) {
   return value & ~(align_size - 1);
 }
+
+size_t hash_value(std::string_view str);
 
 } // namespace aether

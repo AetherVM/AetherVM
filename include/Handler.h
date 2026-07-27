@@ -24,6 +24,9 @@ struct Handler {
   size_t hash;
   const void *impl;
 
+  bool operator<(const Handler &rhs) const { return hash < rhs.hash; }
+  bool operator==(const Handler &rhs) const { return hash == rhs.hash; }
+
   static void loadAArch64();
   static void loadX86();
 
@@ -31,8 +34,8 @@ struct Handler {
   static std::vector<Handler> x86;
 };
 
-extern HandlerRaw HandlerAArch64[];
-extern HandlerRaw HandlerX86[];
+extern const HandlerRaw HandlerAArch64[];
+extern const HandlerRaw HandlerX86[];
 extern const size_t HandlerAArch64Num;
 extern const size_t HandlerX86Num;
 

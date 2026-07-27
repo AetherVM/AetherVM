@@ -4,5 +4,13 @@
 // See LICENSE file in the root directory for full license text.
 
 #include <Utils.h>
+#include <functional>
 
-namespace aether {}
+namespace aether {
+
+size_t hash_value(std::string_view str) {
+  std::hash<std::string_view> hasher;
+  return hasher(str);
+}
+
+} // namespace aether

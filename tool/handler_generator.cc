@@ -74,7 +74,7 @@ void generate_handler(std::string_view remill, std::string_view arch,
 
   gencode += std::format(R"(
 namespace aether {{
-HandlerRaw Handler{}[] = {{
+const HandlerRaw Handler{}[] = {{
 )",
                          arch);
 
