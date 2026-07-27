@@ -62,6 +62,7 @@ public:
 
   // Read memory from VM guest, return empty if addr is not valid VM memory.
   std::vector<uint8_t> readMemory(addr_t addr, size_t size);
+  uint64_t readUInt64(addr_t addr);
 
   // Write memory to VM guest, return false if addr is not valid VM memory.
   bool writeMemory(addr_t addr, std::span<const uint8_t> buff);
@@ -74,6 +75,9 @@ public:
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement....
   virtual bool recursiveLoad() { return false; }
+
+  // Lift the opcodes for engine runtime.
+  void liftOpcodes(std::span<const uint8_t> opcodes);
 
 protected:
   // Make it directly visible for subclasses.

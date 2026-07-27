@@ -11,12 +11,15 @@
 
 #include <AArch64.h>
 #include <AetherVM.h>
+#include <Disassembler.h>
 #include <Event.h>
 #include <Handler.h>
 #include <Lifter.h>
 #include <Memory.h>
 #include <Utils.h>
 #include <X86.h>
+
+#include <llvm/MC/MCInst.h>
 
 #include <mutex>
 
@@ -448,6 +451,8 @@ BinaryEngine::BinaryEngine(const Binary *bin) : m_binary(bin) {
       continue;
     auto sectbuff = reinterpret_cast<const uint8_t *>(bin->addrBuff(sect.addr));
     writeMemory(sect.addr, {sectbuff, sect.size});
+    if (sect.type == TEXT)
+      liftOpcodes({sectbuff, sect.size});
   }
 }
 
@@ -459,6 +464,7 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
     return false;
 
   writeMemory(vmaddr, raw);
+  liftOpcodes(raw);
   return execute(vmaddr);
 }
 
@@ -503,6 +509,14 @@ std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
   return buff;
 }
 
+uint64_t BinaryEngine::readUInt64(addr_t addr) {
+  uint64_t result = 0;
+  if (memory.valid(addr, sizeof(result)))
+    std::memcpy(&result, reinterpret_cast<void *>(memory.host(addr)),
+                sizeof(result));
+  return result;
+}
+
 bool BinaryEngine::writeMemory(addr_t addr, std::span<const uint8_t> buff) {
   if (!memory.valid(addr, buff.size()))
     return false;
@@ -514,6 +528,33 @@ bool BinaryEngine::writeMemory(addr_t addr, std::span<const uint8_t> buff) {
 int BinaryEngine::registerCallback(EventCallback callback) {
   callbacks.push_back(callback);
   return (int)callbacks.size();
+}
+
+void BinaryEngine::liftOpcodes(std::span<const uint8_t> opcodes) {
+  Lifter lifter{const_cast<remill::Arch *>(engine->remillArch.get())};
+  auto arch = m_machine ? m_machine->archType() : m_binary->archType();
+  if (arch == ARM64) {
+    // arm64 has fixed 4 bytes instruction set
+    constexpr size_t oplen = 4;
+    for (auto opc : std::span<const uint32_t>{
+             reinterpret_cast<const uint32_t *>(opcodes.data()),
+             opcodes.size() / oplen})
+      lifter.transform({reinterpret_cast<const uint8_t *>(&opc), oplen});
+  } else {
+    Disassembler diser{Binary::arch(X86_64)};
+    MachineX86 mx86;
+    llvm::MCInst inst;
+    // iterate each x86 instruction
+    for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
+      size_t oplen = diser.disassemble(ptr, 16, inst);
+      if (!oplen) {
+        oplen = mx86.defaultSize();
+        ptr += oplen;
+        continue;
+      }
+      lifter.transform({ptr, oplen});
+    }
+  }
 }
 
 } // namespace aether
