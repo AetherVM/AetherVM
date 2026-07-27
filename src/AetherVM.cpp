@@ -388,7 +388,8 @@ static thread_local CPUState CPU;
 BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
   using enum remill::ArchName;
   using enum remill::OSName;
-  remill::OSName os_name;
+  // use windows coff as our in-memory object anyway
+  remill::OSName os_name = kOSWindows;
   remill::ArchName arch_name;
   // lazily load handlers, only support AArch64 and X86_64
   if (arch == ARM64) {
@@ -397,17 +398,6 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
   } else {
     Handler::loadX86();
     arch_name = kArchAMD64_AVX512;
-  }
-  switch (os) {
-  case MachO:
-    os_name = kOSmacOS;
-    break;
-  case ELF:
-    os_name = kOSLinux;
-    break;
-  default:
-    os_name = kOSWindows;
-    break;
   }
   remillArch = remill::Arch::Get(llvmContext, os_name, arch_name);
   remillSemantic = remill::LoadArchSemantics(
@@ -538,20 +528,22 @@ int BinaryEngine::registerCallback(EventCallback callback) {
 }
 
 void BinaryEngine::liftOpcodes(std::span<const uint8_t> opcodes) {
+  llvm::MCInst inst;
   Lifter lifter{const_cast<remill::Arch *>(engine->remillArch.get()),
                 engine->remillSemantic.get()};
   auto arch = m_machine ? m_machine->archType() : m_binary->archType();
   if (arch == ARM64) {
     // arm64 has fixed 4 bytes instruction set
     constexpr size_t oplen = 4;
-    for (auto opc : std::span<const uint32_t>{
-             reinterpret_cast<const uint32_t *>(opcodes.data()),
-             opcodes.size() / oplen})
-      lifter.transform({reinterpret_cast<const uint8_t *>(&opc), oplen});
+    Disassembler diser{Binary::arch(ARM64)};
+    for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;
+         ptr += oplen) {
+      if (diser.disassemble(ptr, 16, inst) == oplen)
+        lifter.transform({ptr, oplen});
+    }
   } else {
     Disassembler diser{Binary::arch(X86_64)};
     MachineX86 mx86;
-    llvm::MCInst inst;
     // iterate each x86 instruction
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
       size_t oplen = diser.disassemble(ptr, 16, inst);

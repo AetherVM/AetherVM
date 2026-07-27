@@ -6,6 +6,7 @@
 #pragma once
 
 #include <llvm/IR/Module.h>
+#include <map>
 #include <remill/Arch/Arch.h>
 #include <remill/Arch/Name.h>
 #include <remill/BC/InstructionLifter.h>
@@ -38,6 +39,13 @@ struct HandlerDynamic {
 };
 
 struct Lifter {
+  // callee stubs of dynamic handlers for raw handlers
+  static std::vector<uintptr_t> stubs;
+  static size_t stub_pageoff;
+
+  // in-memory object as dynamic handler container
+  static std::map<uintptr_t, size_t> objects;
+
   static std::set<HandlerDynamic> arch64;
   static std::set<HandlerDynamic> x86;
 
@@ -50,6 +58,9 @@ struct Lifter {
   ~Lifter();
 
   void transform(std::span<const uint8_t> opcode);
+
+private:
+  void apply(uintptr_t pagestart, size_t pagesize);
 };
 
 } // namespace aether

@@ -5,8 +5,17 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstddef>
+#include <ctime>
+#include <format>
+#include <iomanip>
+#include <iostream>
 #include <string_view>
+
+#if DEBUG || _DEBUG || !NDEBUG
+#define AETHER_DEBUG 1
+#endif
 
 namespace aether {
 
@@ -29,6 +38,43 @@ template <typename T> constexpr T align_up(T value, size_t align_size) {
 
 template <typename T> constexpr T align_down(T value, size_t align_size) {
   return value & ~(align_size - 1);
+}
+
+enum LogType {
+  Develop,
+  Runtime,
+  Ignore,
+};
+
+template <typename... Args>
+inline void log_print(LogType type, std::format_string<Args...> format,
+                      Args &&...args) {
+  bool commit = false;
+  char tchar = ' ';
+  switch (type) {
+  case Develop:
+#if AETHER_DEBUG
+    commit = true;
+    tchar = 'D';
+#endif
+    break;
+  case Runtime:
+    commit = true;
+    tchar = 'R';
+    break;
+  case Ignore:
+    return;
+  default:
+    return;
+  }
+  if (!commit)
+    return;
+
+  auto now = std::time(nullptr);
+  std::cout << std::put_time(std::localtime(&now), "%T") << " " << tchar
+            << " - ";
+  auto msg = std::vformat(format.get(), std::make_format_args(args...));
+  std::cout << msg << std::endl;
 }
 
 size_t hash_value(std::string_view str);
