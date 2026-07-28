@@ -403,6 +403,12 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
   remillSemantic = remill::LoadArchSemantics(
       remillArch.get(), {fs::path(self_path()).parent_path() / "bitcode"});
   CPU.runtime = this;
+  // remove all the handlers' definition as we have built them into AetherVM
+  // itself
+  for (llvm::Function &F : *remillSemantic) {
+    if (!F.isDeclaration())
+      F.deleteBody();
+  }
 }
 
 BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }

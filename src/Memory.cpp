@@ -9,7 +9,7 @@ namespace aether {
 
 GuestMemory::GuestMemory() {
   basePointer = page_alloc(GUEST_SIZE);
-  m_offset = basePointer;
+  m_offset = 0;
 }
 
 GuestMemory::~GuestMemory() {

@@ -32,33 +32,7 @@ namespace aether {
 
 namespace {
 
-llvm::Function *isel_function(llvm::Module &module, std::string_view function) {
-  std::stringstream ss;
-  ss << "ISEL_" << function;
-  auto isel_name = ss.str();
-
-  auto isel = remill::FindGlobaVariable(&module, isel_name);
-  auto sem = isel->getInitializer()->stripPointerCasts();
-  return llvm::dyn_cast_or_null<llvm::Function>(sem);
-}
-
-llvm::Function *copy_decl(const llvm::Function &srcFunc,
-                          llvm::Module &dstModule) {
-  // Check if declaration already exists
-  if (auto existing = dstModule.getFunction(srcFunc.getName()))
-    return existing;
-
-  llvm::Function *dstFunc = llvm::Function::Create(
-      srcFunc.getFunctionType(), srcFunc.getLinkage(),
-      srcFunc.getAddressSpace(), srcFunc.getName(), &dstModule);
-
-  // Copy attributes & calling convention
-  dstFunc->setCallingConv(srcFunc.getCallingConv());
-  dstFunc->setVisibility(srcFunc.getVisibility());
-  dstFunc->setAttributes(srcFunc.getAttributes());
-
-  return dstFunc;
-}
+constexpr std::string_view dyn_prefix{"aethervm_"};
 
 std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
   auto triple = module.getTargetTriple();
@@ -70,7 +44,7 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
   auto targetMachine =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
           triple, "generic", "+all", opt, llvm::Reloc::PIC_, std::nullopt,
-          llvm::CodeGenOptLevel::Default));
+          llvm::CodeGenOptLevel::Aggressive));
 
   llvm::SmallVector<char, 0> buffer;
   llvm::raw_svector_ostream os(buffer);
@@ -94,21 +68,18 @@ std::map<uintptr_t, size_t> Lifter::objects;
 std::set<HandlerDynamic> Lifter::arch64;
 std::set<HandlerDynamic> Lifter::x86;
 
-Lifter::Lifter(remill::Arch *ptr, const llvm::Module *pre)
-    : arch(ptr), prebuilt(pre), module("aethervm", pre->getContext()) {
-  arch->PrepareModule(&module);
-
+Lifter::Lifter(remill::Arch *ptr, llvm::Module *pre) : arch(ptr), module(pre) {
   if (!stubs.size())
     stubs.push_back(page_alloc(page_size()));
 }
 
 Lifter::~Lifter() {
   // optimize the lifted dynamic handlers
-  remill::OptimizeModule(arch, &module,
+  remill::OptimizeModule(arch, module,
                          []() -> llvm::Function * { return nullptr; });
 
   // compile to in-memory object
-  auto memobj = generate_object(module);
+  auto memobj = generate_object(*module);
 #if AETHER_DEBUG
   auto savepath = fs::temp_directory_path() / "aethervm.obj";
   std::ofstream outf(savepath, std::ios::binary);
@@ -133,19 +104,21 @@ Lifter::~Lifter() {
 
   // relocate the raw handler references and cache the newly generated handlers
   apply(pagestart, pagesize);
+  // remove all the dynamically lifted handlers
+  clear();
 }
 
 void Lifter::transform(std::span<const uint8_t> opcode) {
-  std::string name{"aethervm_"};
+  std::string name{dyn_prefix};
   for (auto b : opcode)
     name += std::format("{:02x}", b);
 
   auto intrinsics = arch->GetInstrinsicTable();
-  auto func = arch->DeclareLiftedFunction(name, &module);
+  auto func = arch->DeclareLiftedFunction(name, module);
   arch->InitializeEmptyLiftedFunction(func);
 
   auto state_ptr = remill::NthArgument(func, remill::kStatePointerArgNum);
-  auto body = llvm::BasicBlock::Create(module.getContext(), "", func);
+  auto body = llvm::BasicBlock::Create(module->getContext(), "", func);
   if (auto entry_block = &(func->front())) {
     auto pc = remill::LoadProgramCounterArg(func);
     auto [next_pc_ref, next_pc_ref_type] =
@@ -166,9 +139,6 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
       arch->CreateInitialContext());
 
   auto lifter = inst.GetLifter();
-  auto isel_func = isel_function(module, inst.function);
-  copy_decl(*isel_func, module);
-
   auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
   auto tailcall = remill::kLiftedInstruction == lift_status
                       ? intrinsics->function_return
@@ -198,6 +168,20 @@ void Lifter::apply(uintptr_t pagestart, size_t pagesize) {
     return;
   }
   objects.insert(std::make_pair(pagestart, pagesize));
+}
+
+void Lifter::clear() {
+  std::vector<llvm::Function *> newdyns;
+
+  for (llvm::Function &F : *module) {
+    if (F.getName().starts_with(dyn_prefix))
+      newdyns.push_back(&F);
+  }
+
+  for (llvm::Function *F : newdyns) {
+    F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
+    F->eraseFromParent();
+  }
 }
 
 } // namespace aether

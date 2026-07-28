@@ -51,16 +51,16 @@ struct Lifter {
 
   remill::Arch *arch = nullptr;
   std::set<HandlerDynamic> *handlers = nullptr;
-  const llvm::Module *prebuilt = nullptr;
-  llvm::Module module;
+  llvm::Module *module = nullptr;
 
-  Lifter(remill::Arch *ptr, const llvm::Module *pre);
+  Lifter(remill::Arch *ptr, llvm::Module *pre);
   ~Lifter();
 
   void transform(std::span<const uint8_t> opcode);
 
 private:
   void apply(uintptr_t pagestart, size_t pagesize);
+  void clear();
 };
 
 } // namespace aether
