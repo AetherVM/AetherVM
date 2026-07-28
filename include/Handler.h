@@ -20,6 +20,11 @@ struct HandlerRaw {
   const void **handler;
 };
 
+struct IntrinsicRaw {
+  const char *name;
+  const void *handler;
+};
+
 struct Handler {
   size_t hash;
   const void *impl;
@@ -32,11 +37,14 @@ struct Handler {
 
   static std::vector<Handler> aarch64;
   static std::vector<Handler> x86;
+  static std::vector<Handler> intrinsic;
 };
 
 extern const HandlerRaw HandlerAArch64[];
 extern const HandlerRaw HandlerX86[];
+extern const IntrinsicRaw HandlerIntrinsic[];
 extern const size_t HandlerAArch64Num;
 extern const size_t HandlerX86Num;
+extern const size_t HandlerIntrinsicNum;
 
 } // namespace aether
