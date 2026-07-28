@@ -8,6 +8,9 @@
 #include <Utils.h>
 
 #include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Object/ObjectFile.h>
@@ -58,6 +61,38 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
       llvm::StringRef(buffer.data(), buffer.size()), "aethervm_object");
 }
 
+void create_trampoline(llvm::Module &M, llvm::Function *TargetFn,
+                       uint64_t targetAddress) {
+  std::string TempName{dyn_prefix};
+  TempName += TargetFn->getName();
+  llvm::LLVMContext &Ctx = M.getContext();
+  llvm::FunctionType *FnTy = TargetFn->getFunctionType();
+  llvm::Function *TrampolineFn = llvm::Function::Create(
+      FnTy, llvm::GlobalValue::ExternalLinkage, TempName, &M);
+  // don't let optimizer inline our trampoline function
+  TrampolineFn->addFnAttr(llvm::Attribute::NoInline);
+
+  llvm::BasicBlock *BB = llvm::BasicBlock::Create(Ctx, "entry", TrampolineFn);
+  llvm::IRBuilder<> Builder(BB);
+  llvm::ConstantInt *AddrInt = Builder.getInt64(targetAddress);
+  llvm::Value *FnPtr =
+      Builder.CreateIntToPtr(AddrInt, llvm::PointerType::getUnqual(Ctx));
+
+  std::vector<llvm::Value *> Args;
+  for (llvm::Argument &Arg : TrampolineFn->args()) {
+    Args.push_back(&Arg);
+  }
+  llvm::CallInst *Call = Builder.CreateCall(FnTy, FnPtr, Args);
+  Call->setTailCallKind(llvm::CallInst::TCK_Tail);
+
+  if (FnTy->getReturnType()->isVoidTy())
+    Builder.CreateRetVoid();
+  else
+    Builder.CreateRet(Call);
+
+  TargetFn->replaceAllUsesWith(TrampolineFn);
+}
+
 } // namespace
 
 std::vector<uintptr_t> Lifter::stubs;
@@ -65,12 +100,20 @@ size_t Lifter::stub_pageoff = 0;
 
 std::map<uintptr_t, size_t> Lifter::objects;
 
-std::set<HandlerDynamic> Lifter::arch64;
+std::set<HandlerDynamic> Lifter::aarch64;
 std::set<HandlerDynamic> Lifter::x86;
 
 Lifter::Lifter(remill::Arch *ptr, llvm::Module *pre) : arch(ptr), module(pre) {
   if (!stubs.size())
     stubs.push_back(page_alloc(page_size()));
+
+  if (arch->arch_name == remill::kArchAArch64LittleEndian) {
+    isel_handlers = &Handler::aarch64;
+    handlers = &Lifter::aarch64;
+  } else {
+    isel_handlers = &Handler::x86;
+    handlers = &Lifter::x86;
+  }
 }
 
 Lifter::~Lifter() {
@@ -166,6 +209,37 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
                       ? intrinsics->function_return
                       : intrinsics->error;
   remill::AddTerminatingTailCall(body, tailcall, *intrinsics);
+
+  for (auto &I : llvm::instructions(*func)) {
+    // CallBase covers both CallInst and InvokeInst
+    if (auto *CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+      llvm::Function *CalledFn = CB->getCalledFunction();
+      if (CalledFn) {
+        auto name = CalledFn->getName();
+        if (name.starts_with(dyn_prefix))
+          continue; // already replaced
+
+        uint64_t target = reinterpret_cast<uint64_t>(&abort);
+        auto find_target = [&target](const std::vector<Handler> *handlers,
+                                     std::string_view name) {
+          Handler key{hash_value(name), nullptr};
+          auto base = handlers->data();
+          auto found = binary_search(base, handlers->size(), key);
+          if (found != base + handlers->size() && *found == key)
+            target = reinterpret_cast<uint64_t>(found->impl);
+        };
+        if (name[0] == '.') {
+          // isel handler, skip .ISEL_
+          std::string_view iselname{name.data() + 6, name.size() - 6};
+          find_target(isel_handlers, iselname);
+        } else {
+          // intrinsic handler
+          find_target(&Handler::intrinsic, name);
+        }
+        create_trampoline(*module, CalledFn, target);
+      }
+    }
+  }
 }
 
 void Lifter::apply(uintptr_t pagestart, size_t pagesize) {

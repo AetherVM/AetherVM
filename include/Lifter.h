@@ -5,11 +5,14 @@
 
 #pragma once
 
+#include "Handler.h"
+
 #include <llvm/IR/Module.h>
-#include <map>
 #include <remill/Arch/Arch.h>
 #include <remill/Arch/Name.h>
 #include <remill/BC/InstructionLifter.h>
+
+#include <map>
 #include <set>
 #include <span>
 
@@ -46,10 +49,11 @@ struct Lifter {
   // in-memory object as dynamic handler container
   static std::map<uintptr_t, size_t> objects;
 
-  static std::set<HandlerDynamic> arch64;
+  static std::set<HandlerDynamic> aarch64;
   static std::set<HandlerDynamic> x86;
 
   remill::Arch *arch = nullptr;
+  const std::vector<Handler> *isel_handlers = nullptr;
   std::set<HandlerDynamic> *handlers = nullptr;
   llvm::Module *module = nullptr;
 
