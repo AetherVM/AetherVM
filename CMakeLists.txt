@@ -97,11 +97,13 @@ if(APPLE)
   set_target_properties(AetherVM PROPERTIES
     SKIP_BUILD_RPATH TRUE
     SKIP_INSTALL_RPATH TRUE
-    MACOSX_RPATH OFF
   )
   target_link_options(AetherVM PRIVATE
     -Wl,-rpath,@executable_path
     -Wl,-rpath,@executable_path/../lib
+    -Wl,-rpath,@loader_path
+    -Wl,-rpath,@loader_path/../lib
+    -Wl,-install_name,@rpath/libAetherVM.dylib
   )
 elseif(MSVC)
 else()
