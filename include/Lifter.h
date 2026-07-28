@@ -8,6 +8,8 @@
 #include "Handler.h"
 
 #include <llvm/IR/Module.h>
+#include <llvm/Support/MemoryBuffer.h>
+
 #include <remill/Arch/Arch.h>
 #include <remill/Arch/Name.h>
 #include <remill/BC/InstructionLifter.h>
@@ -27,9 +29,7 @@ struct HandlerDynamic {
   // the dynamic handler entry of this raw opcode
   uintptr_t entry;
   // the length of the opcode
-  uint32_t oplen;
-  // the size of the dynamic handler
-  uint32_t entsize;
+  size_t oplen;
 
   HandlerDynamic() { std::memset(this, 0, sizeof(*this)); }
 
@@ -42,12 +42,8 @@ struct HandlerDynamic {
 };
 
 struct Lifter {
-  // callee stubs of dynamic handlers for raw handlers
-  static std::vector<uintptr_t> stubs;
-  static size_t stub_pageoff;
-
-  // in-memory object as dynamic handler container
-  static std::map<uintptr_t, size_t> objects;
+  // in-memory dynamic handler pages
+  static std::map<uintptr_t, size_t> dynhandlers;
 
   static std::set<HandlerDynamic> aarch64;
   static std::set<HandlerDynamic> x86;
@@ -55,6 +51,7 @@ struct Lifter {
   remill::Arch *arch = nullptr;
   const std::vector<Handler> *isel_handlers = nullptr;
   std::set<HandlerDynamic> *handlers = nullptr;
+  std::map<std::string, HandlerDynamic *> name_handlers;
   llvm::Module *module = nullptr;
 
   Lifter(remill::Arch *ptr, llvm::Module *pre);
@@ -64,7 +61,7 @@ struct Lifter {
   void transform(std::span<const uint8_t> opcode);
 
 private:
-  void apply(uintptr_t pagestart, size_t pagesize);
+  void apply(llvm::MemoryBuffer *mbuf);
   void clear();
 };
 

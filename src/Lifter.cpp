@@ -15,7 +15,6 @@
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/CodeGen.h>
-#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -95,18 +94,12 @@ void create_trampoline(llvm::Module &M, llvm::Function *TargetFn,
 
 } // namespace
 
-std::vector<uintptr_t> Lifter::stubs;
-size_t Lifter::stub_pageoff = 0;
-
-std::map<uintptr_t, size_t> Lifter::objects;
+std::map<uintptr_t, size_t> Lifter::dynhandlers;
 
 std::set<HandlerDynamic> Lifter::aarch64;
 std::set<HandlerDynamic> Lifter::x86;
 
 Lifter::Lifter(remill::Arch *ptr, llvm::Module *pre) : arch(ptr), module(pre) {
-  if (!stubs.size())
-    stubs.push_back(page_alloc(page_size()));
-
   if (arch->arch_name == remill::kArchAArch64LittleEndian) {
     isel_handlers = &Handler::aarch64;
     handlers = &Lifter::aarch64;
@@ -131,22 +124,8 @@ Lifter::~Lifter() {
   log_print(Develop, "Saved in-memory object {}.", savepath.string());
 #endif
 
-  // put the dynamic handlers into executable page
-  auto pagesize = align_up(memobj->getBufferSize(), page_size());
-  auto pagestart = page_alloc(pagesize);
-  auto pagebuff = reinterpret_cast<void *>(pagestart);
-  // rw
-  if (!page_commit(pagebuff, pagesize, true, true, false)) {
-    log_print(
-        Runtime,
-        "Fatal error, failed to allocate in-memory object buffer, size {}.",
-        pagesize);
-    return;
-  }
-  std::memcpy(pagebuff, memobj->getBufferStart(), memobj->getBufferSize());
-
-  // relocate the raw handler references and cache the newly generated handlers
-  apply(pagestart, pagesize);
+  // parse and cache the newly generated handlers
+  apply(memobj.get());
   // remove all the dynamically lifted handlers
   clear();
 }
@@ -174,9 +153,19 @@ void Lifter::resetSemantic(llvm::Module &M) {
 }
 
 void Lifter::transform(std::span<const uint8_t> opcode) {
+  HandlerDynamic placeholder;
+  placeholder.entry = reinterpret_cast<uintptr_t>(&abort);
+  placeholder.oplen = opcode.size();
+  std::memcpy(&placeholder.opc4, opcode.data(), opcode.size());
+  if (handlers->find(placeholder) != handlers->end())
+    return; // already lifted
+
   std::string name{dyn_prefix};
   for (auto b : opcode)
     name += std::format("{:02x}", b);
+  auto [newit, result] = handlers->insert(placeholder);
+  name_handlers.insert(
+      std::make_pair(name, const_cast<HandlerDynamic *>(&*newit)));
 
   auto intrinsics = arch->GetInstrinsicTable();
   auto func = arch->DeclareLiftedFunction(name, module);
@@ -242,19 +231,44 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
   }
 }
 
-void Lifter::apply(uintptr_t pagestart, size_t pagesize) {
-  auto pagebuff = reinterpret_cast<char *>(pagestart);
-  llvm::StringRef bufferData(pagebuff, pagesize);
-  llvm::MemoryBufferRef bufferRef(bufferData, "aethervm-object");
+void Lifter::apply(llvm::MemoryBuffer *mbuf) {
+  llvm::MemoryBufferRef bufferRef(*mbuf);
   auto expObject = llvm::object::ObjectFile::createObjectFile(bufferRef);
   if (!expObject) {
     log_print(Runtime, "Fatal error, failed to create llvm object.");
     return;
   }
+  uint64_t textaddr = 0;
+  llvm::StringRef textbuff;
   for (auto sect : expObject.get()->sections()) {
-    // parse relocations
+    auto expName = sect.getName();
+    if (expName && expName.get() == ".text") {
+      auto expBuff = sect.getContents();
+      if (expBuff) {
+        textbuff = expBuff.get();
+        textaddr = sect.getAddress();
+        break;
+      }
+    }
+  }
+  if (!textbuff.size()) {
+    log_print(Runtime, "Fatal error, failed to parse .text section.");
+    return;
   }
 
+  // put the dynamic handlers into executable page
+  auto pagesize = align_up(textbuff.size(), page_size());
+  auto pagestart = page_alloc(pagesize);
+  auto pagebuff = reinterpret_cast<void *>(pagestart);
+  // rw
+  if (!page_commit(pagebuff, pagesize, true, true, false)) {
+    log_print(
+        Runtime,
+        "Fatal error, failed to allocate in-memory object buffer, size {}.",
+        pagesize);
+    return;
+  }
+  std::memcpy(pagebuff, textbuff.data(), textbuff.size());
   // rx
   if (!page_commit(pagebuff, pagesize, true, false, true)) {
     log_print(Runtime,
@@ -263,7 +277,43 @@ void Lifter::apply(uintptr_t pagestart, size_t pagesize) {
               (void *)pagebuff);
     return;
   }
-  objects.insert(std::make_pair(pagestart, pagesize));
+  dynhandlers.insert(std::make_pair(pagestart, pagesize));
+
+  using SymbolRef = llvm::object::SymbolRef;
+  for (auto sym : expObject.get()->symbols()) {
+    auto expType = sym.getType();
+    if (!expType)
+      continue;
+    if (expType.get() != SymbolRef::ST_Function)
+      continue;
+    auto expFlags = sym.getFlags();
+    if (!expFlags)
+      continue;
+    auto flags = expFlags.get();
+    if ((flags & SymbolRef::SF_Undefined) || (flags & SymbolRef::SF_Common) ||
+        (flags & SymbolRef::SF_Indirect) ||
+        (flags & SymbolRef::SF_FormatSpecific)) {
+      continue;
+    }
+    auto expAddr = sym.getAddress();
+    auto expName = sym.getName();
+    if (!expAddr || !expName)
+      continue;
+    auto addr = expAddr.get();
+    auto name = expName.get().str();
+    auto opcode = name.data() + dyn_prefix.size();
+    // find and reset the entry of newly created handler
+    if (isxdigit(opcode[0])) {
+      auto found = name_handlers.find(name);
+      if (found == name_handlers.end()) {
+        // should never happen
+        log_print(Runtime, "Failed to find {}.", name);
+        continue;
+      }
+      // reset entry
+      found->second->entry = pagestart + addr - textaddr;
+    }
+  }
 }
 
 void Lifter::clear() {
