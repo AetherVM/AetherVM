@@ -108,6 +108,28 @@ Lifter::~Lifter() {
   clear();
 }
 
+void Lifter::resetSemantic(llvm::Module &M) {
+  for (llvm::Function &F : M) {
+    if (!F.isDeclaration())
+      F.deleteBody();
+  }
+
+  for (auto &GV : M.globals()) {
+    if (!GV.hasInitializer())
+      continue;
+    if (!GV.getName().starts_with("ISEL_"))
+      continue;
+
+    std::string TargetName{"."};
+    TargetName += GV.getName().str();
+    llvm::GlobalValue *ReferencedValue =
+        llvm::dyn_cast<llvm::GlobalValue>(GV.getInitializer());
+    // rename C++ name to the .ISEL name so that we can easily use binary search
+    // later to find the real raw handler runtime address
+    ReferencedValue->setName(TargetName);
+  }
+}
+
 void Lifter::transform(std::span<const uint8_t> opcode) {
   std::string name{dyn_prefix};
   for (auto b : opcode)

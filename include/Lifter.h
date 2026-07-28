@@ -56,6 +56,7 @@ struct Lifter {
   Lifter(remill::Arch *ptr, llvm::Module *pre);
   ~Lifter();
 
+  static void resetSemantic(llvm::Module &M);
   void transform(std::span<const uint8_t> opcode);
 
 private:

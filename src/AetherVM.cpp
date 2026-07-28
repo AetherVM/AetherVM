@@ -404,11 +404,8 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
       remillArch.get(), {fs::path(self_path()).parent_path() / "bitcode"});
   CPU.runtime = this;
   // remove all the handlers' definition as we have built them into AetherVM
-  // itself
-  for (llvm::Function &F : *remillSemantic) {
-    if (!F.isDeclaration())
-      F.deleteBody();
-  }
+  // itself, and rename ISEL handler to the final one we need
+  Lifter::resetSemantic(*remillSemantic);
 }
 
 BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
