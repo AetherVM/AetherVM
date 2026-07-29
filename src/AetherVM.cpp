@@ -20,6 +20,9 @@ namespace aether {
 #define callbacks (engine->eventCallbacks)
 #define memory (engine->guestMemory)
 
+// run to an invalid vm address
+void terminate_execution() { abort(); };
+
 BinaryEngine::BinaryEngine(const Machine *mach) : m_machine(mach) {
 #if AETHER_OS_MACOS
   auto os = MachO;

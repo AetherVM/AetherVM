@@ -229,7 +229,7 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
           Handler key{hash_value(name), nullptr};
           auto base = handlers->data();
           auto found = binary_search(base, handlers->size(), key);
-          if (found != base + handlers->size() && *found == key)
+          if (is_exact(found, base, handlers->size(), key))
             target = reinterpret_cast<uint64_t>(found->impl);
         };
         if (name[0] == '.') {

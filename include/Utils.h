@@ -35,6 +35,11 @@ const T *binary_search(const T *arr, size_t size, const T &key) {
   return (*base < key) ? base + 1 : base;
 }
 
+template <typename T>
+inline bool is_exact(const T *found, const T *arr, size_t size, const T &key) {
+  return found != arr + size && *found == key;
+}
+
 template <typename T> constexpr T align_up(T value, size_t align_size) {
   return (value + align_size - 1) & ~(align_size - 1);
 }
