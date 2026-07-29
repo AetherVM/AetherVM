@@ -39,8 +39,19 @@ using BlockChains = std::vector<BlockChain>;
 
 class Orchestrator {
 public:
-  // the current used chain cache
-  BlockChain *current = nullptr;
+  struct Cache {
+    // the current used chain cache
+    const BlockChain *current;
+    // for fast lookup
+    struct {
+      addr_t vmaddr;
+      const Instruction *insn;
+    } L1[256];
+  };
+
+  // the cache
+  static thread_local Cache cache;
+
   // all the encoded chains
   BlockChains chains;
 
@@ -54,7 +65,7 @@ public:
   void encode(const Binary *bin, addr_t addend);
 
   // find the target Instruction of the given vmaddr
-  const Instruction *find(addr_t vmaddr);
+  const Instruction *find(addr_t vmaddr) const;
 
 private:
   // returned if find with an invalid vmaddr
@@ -62,6 +73,11 @@ private:
 
   Orchestrator();
   ~Orchestrator() {}
+
+  static const Instruction *findCache(const BasicBlock &tmpbb);
+
+  Orchestrator(const Orchestrator &) = delete;
+  Orchestrator &operator=(const Orchestrator &) = delete;
 };
 
 void terminate_execution();

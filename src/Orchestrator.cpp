@@ -8,20 +8,41 @@
 
 namespace aether {
 
+thread_local Orchestrator::Cache Orchestrator::cache{.current = nullptr};
+
 Orchestrator::Orchestrator() {
   terminate.handler = reinterpret_cast<uintptr_t>(terminate_execution);
 }
 
 void Orchestrator::encode(const Binary *bin, addr_t addend) {
-  current = chains.data();
+  cache.current = chains.data();
 }
 
-const Instruction *Orchestrator::find(addr_t vmaddr) {
+static inline addr_t cache_index(addr_t vmaddr) { return vmaddr & 0xFF; }
+
+const Instruction *Orchestrator::findCache(const BasicBlock &tmpbb) {
+  // L1 cache
+  auto index = cache_index(tmpbb.vmaddr);
+  auto &ref = cache.L1[index];
+  if (ref.vmaddr == tmpbb.vmaddr)
+    return ref.insn;
+
+  // the current whole chain
+  auto current = cache.current;
+  auto found = binary_search(current->data(), current->size(), tmpbb);
+  if (is_exact(found, current->data(), current->size(), tmpbb))
+    return found->handlers.data();
+
+  return nullptr;
+}
+
+const Instruction *Orchestrator::find(addr_t vmaddr) const {
   auto tmpbb = reinterpret_cast<BasicBlock *>(&vmaddr);
   // find in the current cache
-  auto found = binary_search(current->data(), current->size(), *tmpbb);
-  if (is_exact(found, current->data(), current->size(), *tmpbb))
-    return found->handlers.data();
+  if (cache.current) {
+    if (auto found = findCache(*tmpbb))
+      return found;
+  }
 
   // find in the whole chains
   for (auto &c : chains) {
@@ -40,7 +61,7 @@ const Instruction *Orchestrator::find(addr_t vmaddr) {
     if (vmaddr < start || vmaddr >= end)
       continue;
     // cache the selected chain
-    current = &c;
+    cache.current = &c;
 
     auto found = binary_search(c.data(), c.size(), *tmpbb);
     if (is_exact(found, c.data(), c.size(), *tmpbb))
@@ -53,12 +74,19 @@ const Instruction *Orchestrator::find(addr_t vmaddr) {
       // x86_64
       for (auto &insn : found->handlers) {
         addr += insn.oplen;
-        if (addr == vmaddr)
+        if (addr == vmaddr) {
+          // cache the target insn
+          cache.L1[cache_index(vmaddr)] = {vmaddr, &insn};
           return &insn;
+        }
       }
+      break;
     } else {
       // arm64
-      return &found->handlers[(vmaddr - addr) / 4];
+      auto insn = &found->handlers[(vmaddr - addr) / 4];
+      // cache the target insn
+      cache.L1[cache_index(vmaddr)] = {vmaddr, insn};
+      return insn;
     }
   }
 
