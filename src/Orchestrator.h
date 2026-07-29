@@ -6,37 +6,51 @@
 #pragma once
 
 #include <AetherBinary.h>
+#include <Event.h>
 
 namespace aether {
+
+using hooker_func_t = void (*)(void);
 
 // an executable instruction
 struct Instruction {
   // the handler of this instruction
-  uintptr_t handler : 60;
+  uintptr_t handler : 59;
+  // insn/block before/after hooker flag
+  uintptr_t hooker : 1;
   // the original raw opcode length for x86_64
   // it's always 0 for arm64
   uintptr_t oplen : 4;
+
+  Instruction(hooker_func_t func) {
+    handler = reinterpret_cast<uintptr_t>(func);
+    hooker = true;
+    oplen = 0;
+  }
+
+  Instruction(uintptr_t entry, uintptr_t size) {
+    handler = entry;
+    hooker = false;
+    oplen = size;
+  }
 };
 
 // instruction sequence
 using Instructions = std::vector<Instruction>;
 
 // the executable representation of an AetherBinary instance
-struct BlockChain {
+struct BasicBlocks {
   // the guest basic block vm address
   std::vector<addr_t> vmaddrs;
   // the dynamic handlers represent original instructions in those blocks
   std::vector<Instructions> handlers;
 };
 
-// chains for multiple binaries
-using BlockChains = std::vector<BlockChain>;
-
 class Orchestrator {
 public:
   struct Cache {
-    // the current used chain cache
-    const BlockChain *current;
+    // the current used blocks cache
+    const BasicBlocks *current;
     // for fast lookup
     struct {
       addr_t vmaddr;
@@ -47,8 +61,8 @@ public:
   // the cache
   static thread_local Cache cache;
 
-  // all the encoded chains
-  BlockChains chains;
+  // all the encoded basic blocks
+  std::vector<BasicBlocks> basicblocks;
 
 public:
   static Orchestrator *inst() {
@@ -56,8 +70,8 @@ public:
     return &single;
   }
 
-  // encode the bin into a BlockChain
-  void encode(const Binary *bin, addr_t addend);
+  // encode the bin into a sequence of blocks
+  void encode(const Binary *bin, addr_t addend, EventConfig eventcfg);
 
   // find the target Instruction of the given vmaddr
   const Instruction *find(addr_t vmaddr) const;
@@ -70,12 +84,17 @@ private:
   ~Orchestrator() {}
 
   static const Instruction *findCache(addr_t vmaddr);
-  static const Instruction *findChain(const BlockChain &chain, addr_t vmaddr);
+  static const Instruction *findBlocks(const BasicBlocks &blocks,
+                                       addr_t vmaddr);
 
   Orchestrator(const Orchestrator &) = delete;
   Orchestrator &operator=(const Orchestrator &) = delete;
 };
 
+void exec_insn_before();
+void exec_insn_after();
+void exec_block_before();
+void exec_block_after();
 void terminate_execution();
 
 } // namespace aether

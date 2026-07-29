@@ -34,6 +34,9 @@ public:
 
   virtual ~BinaryEngine();
 
+  // Configure the event system.
+  void setConfig(EventConfig eventcfg);
+
   // Execute raw machine opcodes.
   bool execute(std::span<const uint8_t> raw);
 

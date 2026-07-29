@@ -53,6 +53,27 @@ enum class EventResult {
   Terminate,
 };
 
+struct EventConfig {
+  // lift event
+  bool lift;
+  // memory operation event
+  bool memory;
+  // basic block event
+  bool block;
+  // instruction/syscall/trap event
+  bool insn;
+  // vm-host bridge event
+  bool bridge;
+
+  EventConfig() {
+    lift = false;
+    memory = false;
+    block = false;
+    insn = false;
+    bridge = false;
+  }
+};
+
 struct EventRuntime {
   EventType type; // the runtime operation type
   uint64_t addr;  // the vm address where this event happen

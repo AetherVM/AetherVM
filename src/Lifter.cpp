@@ -170,7 +170,6 @@ Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
 void Lifter::transform(std::span<const uint8_t> opcode) {
   HandlerDynamic placeholder;
   placeholder.entry = reinterpret_cast<uintptr_t>(&abort);
-  placeholder.oplen = opcode.size();
   std::memcpy(&placeholder.opc4, opcode.data(), opcode.size());
   if (handlers->find(placeholder) != handlers->end())
     return; // already lifted

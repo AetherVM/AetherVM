@@ -23,13 +23,12 @@ namespace aether {
 struct HandlerDynamic {
   // the raw opcode
   union {
+    uint64_t opc8;
     uint32_t opc4;     // for arm64
     uint8_t opc16[16]; // for x86_64
   };
   // the dynamic handler entry of this raw opcode
   uintptr_t entry;
-  // the length of the opcode
-  size_t oplen;
 
   HandlerDynamic() { std::memset(this, 0, sizeof(*this)); }
 

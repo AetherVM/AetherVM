@@ -17,6 +17,7 @@
 namespace aether {
 
 struct BinaryEngineImpl {
+  EventConfig eventConf;
   ArchType arch;
   GuestMemory guestMemory;
 

@@ -20,6 +20,14 @@ namespace aether {
 #define callbacks (engine->eventCallbacks)
 #define memory (engine->guestMemory)
 
+void exec_insn_before() {}
+
+void exec_insn_after() {}
+
+void exec_block_before() {}
+
+void exec_block_after() {}
+
 // run to an invalid vm address
 void terminate_execution() { abort(); };
 
@@ -45,6 +53,10 @@ BinaryEngine::BinaryEngine(const Binary *bin) : m_binary(bin) {
 }
 
 BinaryEngine::~BinaryEngine() {}
+
+void BinaryEngine::setConfig(EventConfig eventcfg) {
+  engine->eventConf = eventcfg;
+}
 
 bool BinaryEngine::execute(std::span<const uint8_t> raw) {
   llvm::Module module("aethervm-object", engine->remillSemantic->getContext());
@@ -178,7 +190,7 @@ void BinaryEngine::orchBinary(const Binary *bin, addr_t addend) {
       liftOpcodes({sectbuff, sect.size});
   }
 
-  Orchestrator::inst()->encode(bin, addend);
+  Orchestrator::inst()->encode(bin, addend, engine->eventConf);
 }
 
 } // namespace aether
