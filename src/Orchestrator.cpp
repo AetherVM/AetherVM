@@ -15,79 +15,90 @@ Orchestrator::Orchestrator() {
 }
 
 void Orchestrator::encode(const Binary *bin, addr_t addend) {
-  cache.current = chains.data();
+  chains.push_back(BlockChain{});
+
+  auto &current = *chains.rbegin();
+  for (auto &func : bin->functions()) {
+  }
+
+  cache.current = &current;
 }
 
 static inline addr_t cache_index(addr_t vmaddr) { return vmaddr & 0xFF; }
 
-const Instruction *Orchestrator::findCache(const BasicBlock &tmpbb) {
+const Instruction *Orchestrator::findCache(addr_t vmaddr) {
   // L1 cache
-  auto index = cache_index(tmpbb.vmaddr);
+  auto index = cache_index(vmaddr);
   auto &ref = cache.L1[index];
-  if (ref.vmaddr == tmpbb.vmaddr)
+  if (ref.vmaddr == vmaddr)
     return ref.insn;
 
   // the current whole chain
-  auto current = cache.current;
-  auto found = binary_search(current->data(), current->size(), tmpbb);
-  if (is_exact(found, current->data(), current->size(), tmpbb))
-    return found->handlers.data();
+  return findChain(*cache.current, vmaddr);
+}
 
+const Instruction *Orchestrator::findChain(const BlockChain &chain,
+                                           addr_t vmaddr) {
+  auto lastbb = chain.handlers.rbegin();
+  auto start = chain.vmaddrs[0];
+  auto end = *chain.vmaddrs.rbegin();
+  if (lastbb->begin()->oplen) {
+    // x86_64
+    for (auto insn : *lastbb)
+      end += insn.oplen;
+  } else {
+    // arm64
+    end += 4 * lastbb->size();
+  }
+  if (vmaddr < start || vmaddr >= end)
+    return nullptr;
+  // cache the selected chain
+  cache.current = &chain;
+
+  auto found =
+      binary_search(chain.vmaddrs.data(), chain.vmaddrs.size(), vmaddr);
+  if (is_exact(found, chain.vmaddrs.data(), chain.vmaddrs.size(), vmaddr)) {
+    auto insn = chain.handlers[found - chain.vmaddrs.data()].data();
+    // cache the target insn
+    cache.L1[cache_index(vmaddr)] = {vmaddr, insn};
+    return insn;
+  }
+
+  // it's in the middle of found[-1]
+  found--;
+  auto index = found - chain.vmaddrs.data();
+  auto addr = *found;
+  if (chain.handlers[index].begin()->oplen) {
+    // x86_64
+    for (auto &insn : chain.handlers[index]) {
+      addr += insn.oplen;
+      if (addr == vmaddr) {
+        // cache the target insn
+        cache.L1[cache_index(vmaddr)] = {vmaddr, &insn};
+        return &insn;
+      }
+    }
+  } else {
+    // arm64
+    auto insn = &chain.handlers[index][(vmaddr - addr) / 4];
+    // cache the target insn
+    cache.L1[cache_index(vmaddr)] = {vmaddr, insn};
+    return insn;
+  }
   return nullptr;
 }
 
 const Instruction *Orchestrator::find(addr_t vmaddr) const {
-  auto tmpbb = reinterpret_cast<BasicBlock *>(&vmaddr);
   // find in the current cache
   if (cache.current) {
-    if (auto found = findCache(*tmpbb))
+    if (auto found = findCache(vmaddr))
       return found;
   }
 
   // find in the whole chains
   for (auto &c : chains) {
-    auto firstbb = c.begin();
-    auto lastbb = c.rbegin();
-    auto start = firstbb->vmaddr;
-    auto end = lastbb->vmaddr;
-    if (firstbb->handlers.begin()->oplen) {
-      // x86_64
-      for (auto insn : lastbb->handlers)
-        end += insn.oplen;
-    } else {
-      // arm64
-      end += 4 * lastbb->handlers.size();
-    }
-    if (vmaddr < start || vmaddr >= end)
-      continue;
-    // cache the selected chain
-    cache.current = &c;
-
-    auto found = binary_search(c.data(), c.size(), *tmpbb);
-    if (is_exact(found, c.data(), c.size(), *tmpbb))
-      return found->handlers.data();
-
-    // it's in the middle of found[-1]
-    found--;
-    auto addr = found->vmaddr;
-    if (found->handlers.begin()->oplen) {
-      // x86_64
-      for (auto &insn : found->handlers) {
-        addr += insn.oplen;
-        if (addr == vmaddr) {
-          // cache the target insn
-          cache.L1[cache_index(vmaddr)] = {vmaddr, &insn};
-          return &insn;
-        }
-      }
-      break;
-    } else {
-      // arm64
-      auto insn = &found->handlers[(vmaddr - addr) / 4];
-      // cache the target insn
-      cache.L1[cache_index(vmaddr)] = {vmaddr, insn};
-      return insn;
-    }
+    if (auto found = findChain(c, vmaddr))
+      return found;
   }
 
   // Oops...

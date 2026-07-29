@@ -18,21 +18,16 @@ struct Instruction {
   uintptr_t oplen : 4;
 };
 
+// instruction sequence
 using Instructions = std::vector<Instruction>;
 
-// an executable basic block
-struct BasicBlock {
-  // the guest vm address
-  addr_t vmaddr;
-  // the dynamic handlers represent original instructions in this block
-  Instructions handlers;
-
-  bool operator<(const BasicBlock &rhs) const { return vmaddr < rhs.vmaddr; }
-  bool operator==(const BasicBlock &rhs) const { return vmaddr == rhs.vmaddr; }
-};
-
 // the executable representation of an AetherBinary instance
-using BlockChain = std::vector<BasicBlock>;
+struct BlockChain {
+  // the guest basic block vm address
+  std::vector<addr_t> vmaddrs;
+  // the dynamic handlers represent original instructions in those blocks
+  std::vector<Instructions> handlers;
+};
 
 // chains for multiple binaries
 using BlockChains = std::vector<BlockChain>;
@@ -74,7 +69,8 @@ private:
   Orchestrator();
   ~Orchestrator() {}
 
-  static const Instruction *findCache(const BasicBlock &tmpbb);
+  static const Instruction *findCache(addr_t vmaddr);
+  static const Instruction *findChain(const BlockChain &chain, addr_t vmaddr);
 
   Orchestrator(const Orchestrator &) = delete;
   Orchestrator &operator=(const Orchestrator &) = delete;
