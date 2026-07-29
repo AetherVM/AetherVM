@@ -56,6 +56,14 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
                                      llvm::CodeGenFileType::ObjectFile);
   pm.run(module);
 
+#if AETHER_DEBUG
+  auto savepath = fs::temp_directory_path() / "aethervm.obj";
+  std::ofstream outf(savepath, std::ios::binary);
+  outf.write(buffer.data(), buffer.size());
+  outf.close();
+  log_print(Develop, "Saved in-memory object {}.", savepath.string());
+#endif
+
   return llvm::MemoryBuffer::getMemBufferCopy(
       llvm::StringRef(buffer.data(), buffer.size()), "aethervm_object");
 }
@@ -116,16 +124,10 @@ Lifter::~Lifter() {
 
   // compile to in-memory object
   auto memobj = generate_object(*module);
-#if AETHER_DEBUG
-  auto savepath = fs::temp_directory_path() / "aethervm.obj";
-  std::ofstream outf(savepath, std::ios::binary);
-  outf.write(memobj->getBufferStart(), memobj->getBufferSize());
-  outf.close();
-  log_print(Develop, "Saved in-memory object {}.", savepath.string());
-#endif
 
   // parse and cache the newly generated handlers
   apply(memobj.get());
+
   // remove all the dynamically lifted handlers
   clear();
 }
