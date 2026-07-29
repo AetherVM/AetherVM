@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
-#include <Lifter.h>
+#include "Lifter.h"
 #include <Platform.h>
 #include <Utils.h>
 
@@ -150,6 +150,19 @@ void Lifter::resetSemantic(llvm::Module &M) {
     // later to find the real raw handler runtime address
     ReferencedValue->setName(TargetName);
   }
+}
+
+std::unique_ptr<llvm::MemoryBuffer>
+Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
+  llvm::LLVMContext &Ctx = M.getContext();
+  llvm::ArrayRef<uint8_t> Bytes(text.data(), text.size());
+  llvm::Constant *DataInit = llvm::ConstantDataArray::get(Ctx, Bytes);
+  llvm::GlobalVariable *TextSecGV = new llvm::GlobalVariable(
+      M, DataInit->getType(),
+      /*isConstant=*/true, llvm::GlobalValue::ExternalLinkage, DataInit,
+      "aethervm_snippet_entry");
+  TextSecGV->setSection(".text");
+  return generate_object(M);
 }
 
 void Lifter::transform(std::span<const uint8_t> opcode) {

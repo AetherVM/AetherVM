@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstddef>
 #include <ctime>
+#include <filesystem>
 #include <format>
 #include <iomanip>
 #include <iostream>
@@ -16,6 +17,8 @@
 #if DEBUG || _DEBUG || !NDEBUG
 #define AETHER_DEBUG 1
 #endif
+
+namespace fs = std::filesystem;
 
 namespace aether {
 

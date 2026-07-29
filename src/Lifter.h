@@ -58,6 +58,8 @@ struct Lifter {
   ~Lifter();
 
   static void resetSemantic(llvm::Module &M);
+  static std::unique_ptr<llvm::MemoryBuffer>
+  createObject(llvm::Module &M, std::span<const uint8_t> text);
   void transform(std::span<const uint8_t> opcode);
 
 private:

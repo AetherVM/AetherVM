@@ -40,30 +40,36 @@ execute_process(COMMAND ${ICPP_PATH}
 set(HEADER_FILES
   include/AetherVM.h
   include/Event.h
+  include/Platform.h
   include/Register.h
   include/Utils.h
-  include/Handler.h
-  include/Memory.h
-  include/Platform.h
-  include/AArch64.h
-  include/X86.h
-  include/Lifter.h
   ${CMAKE_BINARY_DIR}/generated/Version.h
 )
 
 set(SOURCE_FILES
+  src/AArch64.cpp
+  src/AArch64.h
   src/AetherVM.cpp
-  src/Intrinsic.cpp
-  src/Undefine.cpp
-  src/Utils.cpp
+  src/BinaryEngine.cpp
+  src/BinaryEngine.h 
+  src/CPUState.cpp    
+  src/CPUState.h 
   src/Handler.cpp
+  src/Handler.h
   src/HandlerAArch64.cpp
   src/HandlerX86.cpp
-  src/Memory.cpp
-  src/Platform.cpp
-  src/AArch64.cpp
-  src/X86.cpp
+  src/Intrinsic.cpp
   src/Lifter.cpp
+  src/Lifter.h
+  src/Memory.cpp
+  src/Memory.h
+  src/Orchestrator.cpp
+  src/Orchestrator.h
+  src/Platform.cpp
+  src/Undefine.cpp
+  src/Utils.cpp
+  src/X86.cpp
+  src/X86.h
   ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp
   ${CMAKE_BINARY_DIR}/generated/HandlerX86.cpp
 )

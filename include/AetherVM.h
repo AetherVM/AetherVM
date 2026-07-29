@@ -14,6 +14,10 @@
 
 namespace aether {
 
+class Machine;
+class Binary;
+struct BinaryEngineImpl;
+
 class __AETHER_API__ BinaryEngine {
 public:
   // Construct a raw virtual cpu context from an architecture instance, what you
@@ -79,14 +83,17 @@ protected:
   // Lift the opcodes for engine runtime.
   void liftOpcodes(std::span<const uint8_t> opcodes);
 
+  // Map, Lift and Orchestrate the bin into guest memory region.
+  void orchBinary(const Binary *bin, addr_t addend);
+
 protected:
   // Make it directly visible for subclasses.
   const Machine *m_machine = nullptr;
   const Binary *m_binary = nullptr;
 
 private:
-  // Internal implementation.
-  void *m_impl = nullptr;
+  // Internal engine implementation.
+  std::unique_ptr<BinaryEngineImpl> m_impl;
 };
 
 } // namespace aether

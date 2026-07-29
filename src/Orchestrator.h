@@ -3,10 +3,24 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
-#include "AArch64.h"
+#pragma once
+
+#include <AetherBinary.h>
 
 namespace aether {
 
-namespace aarch64 {} // namespace aarch64
+class Orchestrator {
+public:
+  static Orchestrator *inst() {
+    static Orchestrator single;
+    return &single;
+  }
+
+  void encode(const Binary *bin, addr_t addend);
+
+private:
+  Orchestrator() {}
+  ~Orchestrator() {}
+};
 
 } // namespace aether
