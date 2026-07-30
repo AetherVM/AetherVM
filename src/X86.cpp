@@ -55,7 +55,7 @@ namespace x86 {
 #if AETHER_ARCH_X64
 
 AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
-                                const Instruction *insns) {
+                                const Instruction *insns, uintptr_t *retaddr) {
   /*
   r12: cpu
   r13: insns
@@ -66,7 +66,7 @@ AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
 #else
 
 AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
-                                const Instruction *insns) {
+                                const Instruction *insns, uintptr_t *retaddr) {
   AETHER_ASM("brk #0");
 }
 

@@ -24,7 +24,13 @@ struct CPUState {
   // 1MB stack size for each thread
   static constexpr size_t stackSize = 1 * 1024 * 1024;
 
+  // IT MUST BE THE FIRST FIELD
+  // the fast way to access pc register among event handlers
+  uintptr_t *pcptr = nullptr;
   BinaryEngineImpl *runtime = nullptr;
+  // when vm pc reaches retaddr, it means the emulation has finished
+  // successfully
+  uintptr_t retaddr = 0;
   char *stack = nullptr;
   union {
     aarch64::State aarch64;

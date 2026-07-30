@@ -43,9 +43,11 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
       llvm::TargetRegistry::lookupTarget(triple, errorStr);
 
   llvm::TargetOptions opt;
+  std::string_view feature =
+      triple.getArch() == llvm::Triple::aarch64 ? "+all" : "";
   auto targetMachine =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          triple, "generic", "+all", opt, llvm::Reloc::PIC_, std::nullopt,
+          triple, "generic", feature, opt, llvm::Reloc::Static, std::nullopt,
           llvm::CodeGenOptLevel::Aggressive));
 
   llvm::SmallVector<char, 0> buffer;
@@ -76,8 +78,9 @@ void create_trampoline(llvm::Module &M, llvm::Function *TargetFn,
   llvm::FunctionType *FnTy = TargetFn->getFunctionType();
   llvm::Function *TrampolineFn = llvm::Function::Create(
       FnTy, llvm::GlobalValue::ExternalLinkage, TempName, &M);
-  // don't let optimizer inline our trampoline function
-  TrampolineFn->addFnAttr(llvm::Attribute::NoInline);
+  // let optimizer inline our trampoline function so no relocation will be
+  // created
+  TrampolineFn->addFnAttr(llvm::Attribute::AlwaysInline);
 
   llvm::BasicBlock *BB = llvm::BasicBlock::Create(Ctx, "entry", TrampolineFn);
   llvm::IRBuilder<> Builder(BB);

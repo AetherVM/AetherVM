@@ -44,9 +44,9 @@ bool BinaryEngineImpl::startVM(addr_t entry) {
 
   auto insn = Orchestrator::inst()->find(entry);
 #if AETHER_ARCH_ARM64
-  aarch64::host_vm_entry(&CPU, entry, insn);
+  aarch64::host_vm_entry(&CPU, entry, insn, &CPU.retaddr);
 #else
-  x86::host_vm_entry(&CPU, entry, insn);
+  x86::host_vm_entry(&CPU, entry, insn, &CPU.retaddr);
 #endif
   return true;
 }

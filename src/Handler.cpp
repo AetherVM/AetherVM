@@ -20,18 +20,6 @@ static void load_handler(std::vector<Handler> &handlers, const HandlerRaw *raw,
 
   handlers.resize(num);
   std::transform(raw, raw + num, handlers.begin(), [](const HandlerRaw &r) {
-    return Handler{hash_value(r.name), *r.handler};
-  });
-  std::sort(handlers.begin(), handlers.end());
-}
-
-static void load_intrinsic(std::vector<Handler> &handlers,
-                           const IntrinsicRaw *raw, size_t num) {
-  if (handlers.size() == num)
-    return;
-
-  handlers.resize(num);
-  std::transform(raw, raw + num, handlers.begin(), [](const IntrinsicRaw &r) {
     return Handler{hash_value(r.name), r.handler};
   });
   std::sort(handlers.begin(), handlers.end());
@@ -39,12 +27,12 @@ static void load_intrinsic(std::vector<Handler> &handlers,
 
 void Handler::loadAArch64() {
   load_handler(aarch64, &HandlerAArch64[0], HandlerAArch64Num);
-  load_intrinsic(intrinsic, &HandlerIntrinsic[0], HandlerIntrinsicNum);
+  load_handler(intrinsic, &HandlerIntrinsic[0], HandlerIntrinsicNum);
 }
 
 void Handler::loadX86() {
   load_handler(x86, &HandlerX86[0], HandlerX86Num);
-  load_intrinsic(intrinsic, &HandlerIntrinsic[0], HandlerIntrinsicNum);
+  load_handler(intrinsic, &HandlerIntrinsic[0], HandlerIntrinsicNum);
 }
 
 } // namespace aether
@@ -189,7 +177,7 @@ REMILL_DECL(__remill_x86_set_segment_ss);
 
 namespace aether {
 
-const IntrinsicRaw HandlerIntrinsic[] = {
+const HandlerRaw HandlerIntrinsic[] = {
     REMILL_ITEM(__remill_aarch32_check_not_el2),
     REMILL_ITEM(__remill_aarch32_emulate_instruction),
     REMILL_ITEM(__remill_aarch64_emulate_instruction),

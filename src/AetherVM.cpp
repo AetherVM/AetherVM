@@ -151,12 +151,11 @@ void BinaryEngine::liftOpcodes(std::span<const uint8_t> opcodes) {
     // iterate each x86 instruction
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
       size_t oplen = diser.disassemble(ptr, 16, inst);
-      if (!oplen) {
+      if (oplen)
+        lifter.transform({ptr, oplen});
+      else
         oplen = mx86.defaultSize();
-        ptr += oplen;
-        continue;
-      }
-      lifter.transform({ptr, oplen});
+      ptr += oplen;
     }
   }
 }

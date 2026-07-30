@@ -17,11 +17,6 @@ namespace aether {
 
 struct HandlerRaw {
   const char *name;
-  const void **handler;
-};
-
-struct IntrinsicRaw {
-  const char *name;
   const void *handler;
 };
 
@@ -42,7 +37,7 @@ struct Handler {
 
 extern const HandlerRaw HandlerAArch64[];
 extern const HandlerRaw HandlerX86[];
-extern const IntrinsicRaw HandlerIntrinsic[];
+extern const HandlerRaw HandlerIntrinsic[];
 extern const size_t HandlerAArch64Num;
 extern const size_t HandlerX86Num;
 extern const size_t HandlerIntrinsicNum;

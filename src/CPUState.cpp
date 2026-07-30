@@ -20,11 +20,18 @@ bool CPUState::initContext(addr_t entry) {
     runtime->arch == ARM64 ? setRegisterAArch64(reg, val)
                            : setRegisterX86(reg, val);
   };
+  auto getRegister = [this](Register reg) {
+    return runtime->arch == ARM64 ? getRegisterAArch64(reg)
+                                  : getRegisterX86(reg);
+  };
   RegisterValue pc{.b8 = entry};
   RegisterValue sp{.ptr = stack + stackSize};
   // reset SP and PC
   setRegister(Register::PC, pc);
   setRegister(Register::SP, sp);
+  // cache pc location to allow fast access during executing
+  pcptr = reinterpret_cast<uintptr_t *>(
+      const_cast<RegisterValue *>(getRegister(Register::PC)));
   return true;
 }
 

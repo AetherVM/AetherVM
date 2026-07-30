@@ -264,7 +264,9 @@ Memory *__remill_write_io_port_32(Memory *, addr_t, uint32_t) { abort(); }
 
 Memory *__remill_function_call(State &, addr_t, Memory *) { abort(); }
 
-Memory *__remill_function_return(State &, addr_t, Memory *) { abort(); }
+Memory *__remill_function_return(State &, addr_t, Memory *memory) {
+  return memory;
+}
 
 Memory *__remill_jump(State &, addr_t, Memory *) { abort(); }
 

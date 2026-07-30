@@ -17,7 +17,8 @@ namespace x86 {
 
 #include <remill/Arch/X86/Runtime/State.h>
 
-void host_vm_entry(void *cpu, addr_t vmaddr, const Instruction *insns);
+void host_vm_entry(void *cpu, addr_t vmaddr, const Instruction *insns,
+                   uintptr_t *retaddr);
 
 } // namespace x86
 

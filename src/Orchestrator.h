@@ -91,18 +91,23 @@ private:
   Orchestrator &operator=(const Orchestrator &) = delete;
 };
 
+struct CPUState;
+
 } // namespace aether
 
 #define AETHER_ASM __asm__ __volatile__
 #define AETHER_NAKED __attribute__((naked))
 
+// the host event handler use the same ABI defined in remill/BC/ABI.h
 #define DECL_EVENT_TWIN(n)                                                     \
   AETHER_NAKED void n(void);                                                   \
   extern "C" const aether::Instruction *host_##n(                              \
+      aether::CPUState *cpu, addr_t vmaddr,                                    \
       const aether::Instruction *current);
 
 #define IMPL_EVENT_HOST(n)                                                     \
-  const aether::Instruction *host_##n(const aether::Instruction *current)
+  const aether::Instruction *host_##n(aether::CPUState *cpu, addr_t vmaddr,    \
+                                      const aether::Instruction *current)
 
 // event events
 DECL_EVENT_TWIN(event_func_before);
