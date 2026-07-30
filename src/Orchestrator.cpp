@@ -175,7 +175,7 @@ const Instruction *Orchestrator::find(addr_t vmaddr) const {
       return found;
   }
 
-  // find in the whole blockss
+  // find in all blocks
   for (auto &c : basicblocks) {
     if (cache.current == &c)
       continue;

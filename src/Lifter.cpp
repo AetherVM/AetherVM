@@ -121,6 +121,15 @@ Lifter::Lifter(remill::Arch *ptr, llvm::Module *pre) : arch(ptr), module(pre) {
 }
 
 Lifter::~Lifter() {
+  // reset our handler container module to the arch as host's
+  auto triple = module->getTargetTriple();
+#if AETHER_ARCH_ARM64
+  triple.setArch(llvm::Triple::aarch64);
+#else
+  triple.setArch(llvm::Triple::x86_64);
+#endif
+  module->setTargetTriple(triple);
+
   // optimize the lifted dynamic handlers
   remill::OptimizeModule(arch, module,
                          []() -> llvm::Function * { return nullptr; });
