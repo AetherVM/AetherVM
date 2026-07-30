@@ -10,27 +10,27 @@
 
 namespace aether {
 
-using hooker_func_t = void (*)(void);
+using event_func_t = void (*)(void);
 
 // an executable instruction
 struct Instruction {
   // the handler of this instruction
   uintptr_t handler : 59;
-  // insn/block before/after hooker flag
-  uintptr_t hooker : 1;
-  // the original raw opcode length for x86_64
-  // it's always 0 for arm64
+  // insn/block/func before/after event flag
+  uintptr_t event : 1;
+  // the original raw opcode length
+  // 0 for event handlers
   uintptr_t oplen : 4;
 
-  Instruction(hooker_func_t func) {
+  Instruction(event_func_t func) {
     handler = reinterpret_cast<uintptr_t>(func);
-    hooker = true;
+    event = true;
     oplen = 0;
   }
 
   Instruction(uintptr_t entry, uintptr_t size) {
     handler = entry;
-    hooker = false;
+    event = false;
     oplen = size;
   }
 };
@@ -91,10 +91,16 @@ private:
   Orchestrator &operator=(const Orchestrator &) = delete;
 };
 
-void exec_insn_before();
-void exec_insn_after();
-void exec_block_before();
-void exec_block_after();
+// event events
+void event_func_before();
+void event_func_after();
+void event_insn_before();
+void event_insn_after();
+void event_block_before();
+void event_block_after();
+void jump_interpret();
+void call_interpret();
+void finish_function();
 void terminate_execution();
 
 } // namespace aether

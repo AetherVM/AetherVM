@@ -27,6 +27,8 @@ enum class EventType {
   InsnAfter,
   BlockBefore,
   BlockAfter,
+  FuncBefore,
+  FuncAfter,
 
   // Specialized Instruction Boundaries
   // syscall
@@ -58,6 +60,8 @@ struct EventConfig {
   bool lift;
   // memory operation event
   bool memory;
+  // function event
+  bool func;
   // basic block event
   bool block;
   // instruction/syscall/trap event

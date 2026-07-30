@@ -13,23 +13,31 @@ using enum EventType;
 
 thread_local Orchestrator::Cache Orchestrator::cache{.current = nullptr};
 
-static void add_hooker(Instructions &handlers, EventConfig eventcfg,
-                       EventType type, hooker_func_t hooker) {
+static void do_setup_event(Instructions *handlers, EventConfig eventcfg,
+                           EventType type, event_func_t event) {
   switch (type) {
   case InsnBefore:
   case InsnAfter:
     if (eventcfg.insn)
-      handlers.push_back(Instruction{hooker});
+      handlers->push_back(Instruction{event});
     break;
   case BlockBefore:
   case BlockAfter:
     if (eventcfg.block)
-      handlers.push_back(Instruction{hooker});
+      handlers->push_back(Instruction{event});
+    break;
+  case FuncBefore:
+  case FuncAfter:
+    if (eventcfg.func)
+      handlers->push_back(Instruction{event});
     break;
   default:
     break;
   }
 }
+
+#define setup_event(event, name)                                               \
+  do_setup_event(handlers, eventcfg, event, event_##name)
 
 Orchestrator::Orchestrator() : terminate{terminate_execution} {}
 
@@ -38,47 +46,23 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
   basicblocks.push_back(BasicBlocks{});
 
   auto dynhandlers = bin->archType() == ARM64 ? &Lifter::aarch64 : &Lifter::x86;
-  auto copy_opcode =
-      bin->archType() == ARM64
-          ? [](const Insinfo *i, const char *opcptr,
-               HandlerDynamic &tmp) { tmp.opc4 = *(uint32_t *)opcptr; }
-          : [](const Insinfo *i, const char *opcptr, HandlerDynamic &tmp) {
-              switch (i->info.oplen) {
-              case 1:
-                tmp.opc4 = *(uint8_t *)opcptr;
-                break;
-              case 2:
-                tmp.opc4 = *(uint16_t *)opcptr;
-                break;
-              case 4:
-                tmp.opc4 = *(uint32_t *)opcptr;
-                break;
-              case 8:
-                tmp.opc8 = *(uint64_t *)opcptr;
-                break;
-              default:
-                std::memcpy(&tmp.opc4, opcptr, i->info.oplen);
-                break;
-              }
-            };
-  auto opcode_size = bin->archType() == ARM64
-                         ? [](const Insinfo *i) { return (uint16_t)0; }
-                         : [](const Insinfo *i) { return i->info.oplen; };
   auto &current = *basicblocks.rbegin();
   for (auto &[addr, func] : bin->functions()) {
     auto fnbuf = bin->addrBuff(addr);
     // function entry block
     current.vmaddrs.push_back(addr + addend);
     current.handlers.push_back(Instructions{});
-    auto &handlers = *current.handlers.rbegin();
+    auto handlers = &*current.handlers.rbegin();
+    // before function
+    setup_event(FuncBefore, func_before);
     // before basic block
-    add_hooker(handlers, eventcfg, BlockBefore, exec_block_before);
+    setup_event(BlockBefore, block_before);
     for (auto i = func.insns.data(), e = i + func.insns.size(); i != e; i++) {
       // before instruction
-      add_hooker(handlers, eventcfg, InsnBefore, exec_insn_before);
+      setup_event(InsnBefore, insn_before);
 
       HandlerDynamic tmp;
-      copy_opcode(i, fnbuf + i->fnoff, tmp);
+      std::memcpy(&tmp.opc4, fnbuf + i->fnoff, i->info.oplen);
       auto found = dynhandlers->find(tmp);
       auto entry = found == dynhandlers->end()
                        ? reinterpret_cast<uintptr_t>(terminate_execution)
@@ -87,24 +71,44 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
         // this instruction is referenced by other basic block, indicating the
         // end of current basic block
         // after instruction
-        add_hooker(handlers, eventcfg, InsnAfter, exec_insn_after);
+        setup_event(InsnAfter, insn_after);
         // after basic block
-        add_hooker(handlers, eventcfg, BlockAfter, exec_block_after);
+        setup_event(BlockAfter, block_after);
 
         // start a new basic block
         current.vmaddrs.push_back(addr + i->fnoff + addend);
         current.handlers.push_back(Instructions{});
-        handlers = *current.handlers.rbegin();
+        handlers = &*current.handlers.rbegin();
 
         // before basic block
-        add_hooker(handlers, eventcfg, BlockBefore, exec_block_before);
+        setup_event(BlockBefore, block_before);
         // before instruction
-        add_hooker(handlers, eventcfg, InsnBefore, exec_insn_before);
+        setup_event(InsnBefore, insn_before);
       }
       // the real handler
-      handlers.push_back(Instruction{entry, opcode_size(i)});
+      handlers->push_back(Instruction{entry, i->info.oplen});
       // after instruction
-      add_hooker(handlers, eventcfg, InsnAfter, exec_insn_after);
+      setup_event(InsnAfter, insn_after);
+
+      switch (i->info.type) {
+      case aether::JCOND:
+      case aether::JUMP:
+        // the end of basic block execution
+        handlers->push_back(Instruction{jump_interpret});
+        break;
+      case aether::CALL:
+        // local or host call
+        handlers->push_back(Instruction{call_interpret});
+        break;
+      case aether::RET:
+        // after function
+        setup_event(FuncAfter, func_after);
+        // the end of function execution
+        handlers->push_back(Instruction{finish_function});
+        break;
+      default:
+        break;
+      }
     }
   }
 
@@ -129,14 +133,8 @@ const Instruction *Orchestrator::findBlocks(const BasicBlocks &blocks,
   auto lastbb = blocks.handlers.rbegin();
   auto start = blocks.vmaddrs[0];
   auto end = *blocks.vmaddrs.rbegin();
-  if (lastbb->begin()->oplen) {
-    // x86_64
-    for (auto insn : *lastbb)
-      end += insn.oplen;
-  } else {
-    // arm64
-    end += 4 * lastbb->size();
-  }
+  for (auto insn : *lastbb)
+    end += insn.oplen;
   if (vmaddr < start || vmaddr >= end)
     return nullptr;
 
@@ -159,8 +157,8 @@ const Instruction *Orchestrator::findBlocks(const BasicBlocks &blocks,
     addr += insn.oplen;
     if (addr == vmaddr) {
       auto ptr = &insn - 1;
-      // check whether the previous handler is a hooker or not
-      if (!ptr->hooker)
+      // check whether the previous handler is an event or not
+      if (ptr >= blocks.handlers[index].data() && !ptr->event)
         ptr++; // restore to the original handler
       // cache the target insn
       cache.L1[cache_index(vmaddr)] = {vmaddr, ptr};

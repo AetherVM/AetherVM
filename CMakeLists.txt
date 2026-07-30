@@ -54,6 +54,7 @@ set(SOURCE_FILES
   src/BinaryEngine.h 
   src/CPUState.cpp    
   src/CPUState.h 
+  src/Event.cpp
   src/Handler.cpp
   src/Handler.h
   src/HandlerAArch64.cpp
