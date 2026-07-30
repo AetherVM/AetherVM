@@ -4,6 +4,8 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "BinaryEngine.h"
+#include "Orchestrator.h"
+#include <Platform.h>
 #include <Utils.h>
 
 namespace aether {
@@ -39,7 +41,14 @@ BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
 bool BinaryEngineImpl::startVM(addr_t entry) {
   if (!CPU.initContext(entry))
     return false;
-  return false;
+
+  auto insn = Orchestrator::inst()->find(entry);
+#if AETHER_ARCH_ARM64
+  aarch64::host_vm_entry(&CPU, entry, insn);
+#else
+  x86::host_vm_entry(&CPU, entry, insn);
+#endif
+  return true;
 }
 
 } // namespace aether

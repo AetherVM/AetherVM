@@ -91,16 +91,27 @@ private:
   Orchestrator &operator=(const Orchestrator &) = delete;
 };
 
-// event events
-void event_func_before();
-void event_func_after();
-void event_insn_before();
-void event_insn_after();
-void event_block_before();
-void event_block_after();
-void jump_interpret();
-void call_interpret();
-void finish_function();
-void terminate_execution();
-
 } // namespace aether
+
+#define AETHER_ASM __asm__ __volatile__
+#define AETHER_NAKED __attribute__((naked))
+
+#define DECL_EVENT_TWIN(n)                                                     \
+  AETHER_NAKED void n(void);                                                   \
+  extern "C" const aether::Instruction *host_##n(                              \
+      const aether::Instruction *current);
+
+#define IMPL_EVENT_HOST(n)                                                     \
+  const aether::Instruction *host_##n(const aether::Instruction *current)
+
+// event events
+DECL_EVENT_TWIN(event_func_before);
+DECL_EVENT_TWIN(event_func_after);
+DECL_EVENT_TWIN(event_insn_before);
+DECL_EVENT_TWIN(event_insn_after);
+DECL_EVENT_TWIN(event_block_before);
+DECL_EVENT_TWIN(event_block_after);
+DECL_EVENT_TWIN(jump_interpret);
+DECL_EVENT_TWIN(call_interpret);
+DECL_EVENT_TWIN(finish_function);
+DECL_EVENT_TWIN(terminate_execution);

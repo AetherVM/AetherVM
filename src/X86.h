@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "Orchestrator.h"
+
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +16,8 @@ namespace aether {
 namespace x86 {
 
 #include <remill/Arch/X86/Runtime/State.h>
+
+void host_vm_entry(void *cpu, addr_t vmaddr, const Instruction *insns);
 
 } // namespace x86
 

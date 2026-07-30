@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "Orchestrator.h"
+
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +16,9 @@ namespace aether {
 namespace aarch64 {
 
 #include <remill/Arch/AArch64/Runtime/State.h>
+
+AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
+                                const Instruction *insns);
 
 } // namespace aarch64
 

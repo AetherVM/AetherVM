@@ -6,27 +6,23 @@
 #include "BinaryEngine.h"
 #include "Orchestrator.h"
 
-namespace aether {
+IMPL_EVENT_HOST(event_func_before) { return current; }
 
-void event_func_before() {}
+IMPL_EVENT_HOST(event_func_after) { return current; }
 
-void event_func_after() {}
+IMPL_EVENT_HOST(event_insn_before) { return current; }
 
-void event_insn_before() {}
+IMPL_EVENT_HOST(event_insn_after) { return current; }
 
-void event_insn_after() {}
+IMPL_EVENT_HOST(event_block_before) { return current; }
 
-void event_block_before() {}
+IMPL_EVENT_HOST(event_block_after) { return current; }
 
-void event_block_after() {}
+IMPL_EVENT_HOST(jump_interpret) { return current; }
 
-void jump_interpret() {}
+IMPL_EVENT_HOST(call_interpret) { return current; }
 
-void call_interpret() {}
-
-void finish_function() {}
+IMPL_EVENT_HOST(finish_function) { return current; }
 
 // run to an invalid vm address
-void terminate_execution() { abort(); };
-
-} // namespace aether
+IMPL_EVENT_HOST(terminate_execution) { abort(); };
