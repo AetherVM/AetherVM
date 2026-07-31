@@ -53,37 +53,47 @@ namespace aarch64 {
 
 #if AETHER_ARCH_ARM64
 
-AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
-                                const Instruction *insns, uintptr_t *retaddr) {
-  AETHER_ASM("sub sp, sp, #0x20\n"
-             "stp x26, x27, [sp]\n"
-             "stp fp, lr, [sp, #0x10]\n"
-             "add fp, sp, #0x10\n"
-             // The extra runtime context of vm handlers:
-             // x26: cpu
-             // x27: insns
-             "mov x26, x0\n"
-             "mov x27, x2\n"
-             // save the return address flag to cpu context
-             "str lr, [x3]\n"
-             // get the real handler address
-             "ldr x16, [x2]\n"
-             "ubfx x16, x16, #0, #59\n"
-             // ABI defined in remill/BC/ABI.h
-             // call handler(state, vmaddr, memory)
-             "blr x16\n"
-             "ldp fp, lr, [sp, #0x10]\n"
-             "ldp x26, x27, [sp]\n"
-             "add sp, sp, #0x20\n"
-             "ret");
+AETHER_VM_ENTRY() {
+  AETHER_ASM(
+      /*
+      Argument ABI:
+      x0: void *cpu
+      x1: addr_t vmaddr
+      x2: const Instruction *insns
+      x3: uintptr_t *retaddr
+      x4: void (*init_stack_pointer)(uintptr_t retaddr)
+      */
+      "sub sp, sp, #0x30\n"
+      "stp x26, x27, [sp, #0x10]\n"
+      "stp fp, lr, [sp, #0x20]\n"
+      "add fp, sp, #0x20\n"
+      // The extra runtime context of vm handlers:
+      // x26: cpu
+      // x27: insns
+      "mov x26, x0\n"
+      "mov x27, x2\n"
+      // save the return address flag to cpu context
+      "str lr, [x3]\n"
+      // init vm stack pointer
+      "str x1, [sp]\n" // save x1
+      "mov x0, lr\n"
+      "blr x4\n"
+      "ldr x1, [sp]\n" // restore x1
+      // get the real handler address
+      "ldr x16, [x27]\n"
+      "ubfx x16, x16, #0, #59\n"
+      // ABI defined in remill/BC/ABI.h
+      // call handler(state, vmaddr, memory)
+      "blr x16\n"
+      "ldp fp, lr, [sp, #0x20]\n"
+      "ldp x26, x27, [sp, #0x10]\n"
+      "add sp, sp, #0x30\n"
+      "ret");
 }
 
 #else
 
-AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
-                                const Instruction *insns, uintptr_t *retaddr) {
-  AETHER_ASM("int 3");
-}
+AETHER_VM_ENTRY() { AETHER_ASM("int3"); }
 
 #endif // end of AETHER_ARCH_ARM64
 

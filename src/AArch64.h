@@ -17,8 +17,7 @@ namespace aarch64 {
 
 #include <remill/Arch/AArch64/Runtime/State.h>
 
-AETHER_NAKED void host_vm_entry(void *cpu, addr_t vmaddr,
-                                const Instruction *insns, uintptr_t *retaddr);
+AETHER_VM_ENTRY();
 
 } // namespace aarch64
 

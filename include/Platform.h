@@ -36,6 +36,9 @@ uintptr_t page_alloc(size_t size);
 bool page_commit(void *hostptr, size_t size, bool read, bool write, bool exec);
 bool page_decommit(void *hostptr, size_t size);
 void page_dealloc(uintptr_t pagestart, size_t size);
+
 std::string self_path();
+
+size_t stack_size();
 
 } // namespace aether

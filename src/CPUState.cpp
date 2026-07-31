@@ -4,6 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "BinaryEngine.h"
+#include <Platform.h>
 
 namespace aether {
 
@@ -12,7 +13,8 @@ thread_local CPUState CPU;
 bool CPUState::initContext(addr_t entry) {
   // init stack buffer if necessary
   if (!stack) {
-    if (!(stack = new char[stackSize]))
+    stacksize = stack_size();
+    if (!(stack = new char[stacksize]))
       return false;
   }
 
@@ -24,8 +26,8 @@ bool CPUState::initContext(addr_t entry) {
     return runtime->arch == ARM64 ? getRegisterAArch64(reg)
                                   : getRegisterX86(reg);
   };
-  RegisterValue pc{.b8 = entry};
-  RegisterValue sp{.ptr = stack + stackSize};
+  RegisterValue pc{.u8 = entry};
+  RegisterValue sp{.ptr = stack + stacksize};
   // reset SP and PC
   setRegister(Register::PC, pc);
   setRegister(Register::SP, sp);

@@ -164,11 +164,11 @@ enum class Register : int {
 // A general register value representation, the value type is for GPR, the
 // pointer type is for NEON/SIMD/SSE vector register.
 union RegisterValue {
-  // byte
-  uint8_t b1;
-  uint16_t b2;
-  uint32_t b4;
-  uint64_t b8;
+  // unsigned byte
+  uint8_t u1;
+  uint16_t u2;
+  uint32_t u4;
+  uint64_t u8;
 
   // signed byte
   int8_t s1;
@@ -177,10 +177,10 @@ union RegisterValue {
   int64_t s8;
 
   // byte pointer
-  uint8_t *b1p;
-  uint16_t *b2p;
-  uint32_t *b4p;
-  uint64_t *b8p;
+  uint8_t *u1p;
+  uint16_t *u2p;
+  uint32_t *u4p;
+  uint64_t *u8p;
 
   // signed byte pointer
   int8_t *s1p;

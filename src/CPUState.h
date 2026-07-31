@@ -21,9 +21,6 @@ namespace aether {
 struct BinaryEngineImpl;
 
 struct CPUState {
-  // 1MB stack size for each thread
-  static constexpr size_t stackSize = 1 * 1024 * 1024;
-
   // IT MUST BE THE FIRST FIELD
   // the fast way to access pc register among event handlers
   uintptr_t *pcptr = nullptr;
@@ -32,6 +29,7 @@ struct CPUState {
   // successfully
   uintptr_t retaddr = 0;
   char *stack = nullptr;
+  size_t stacksize = 0;
   union {
     aarch64::State aarch64;
     x86::State x86;

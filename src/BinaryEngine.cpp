@@ -38,15 +38,27 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
 
 BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
 
+static void init_stack_pointer_aarch64(uintptr_t retaddr) {}
+
+static void init_stack_pointer_x86(uintptr_t retaddr) {
+  auto sp = const_cast<RegisterValue *>(CPU.getRegisterX86(Register::SP));
+  // simulate a "push retaddr" so that "ret" can work properly
+  sp->u8p--;
+  sp->u8p[0] = retaddr;
+}
+
 bool BinaryEngineImpl::startVM(addr_t entry) {
   if (!CPU.initContext(entry))
     return false;
 
+  auto init_stack_pointer =
+      arch == ARM64 ? init_stack_pointer_aarch64 : init_stack_pointer_x86;
+
   auto insn = Orchestrator::inst()->find(entry);
 #if AETHER_ARCH_ARM64
-  aarch64::host_vm_entry(&CPU, entry, insn, &CPU.retaddr);
+  aarch64::aether_vm_entry(&CPU, entry, insn, &CPU.retaddr, init_stack_pointer);
 #else
-  x86::host_vm_entry(&CPU, entry, insn, &CPU.retaddr);
+  x86::aether_vm_entry(&CPU, entry, insn, &CPU.retaddr, init_stack_pointer);
 #endif
   return true;
 }

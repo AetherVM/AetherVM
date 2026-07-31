@@ -11,6 +11,7 @@
 #include <Windows.h>
 #else
 #include <dlfcn.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -124,6 +125,29 @@ std::string self_path() {
   Dl_info dli;
   dladdr((void *)self_path, &dli);
   return dli.dli_fname;
+#endif
+}
+
+size_t stack_size() {
+#if AETHER_OS_MACOS
+  return pthread_get_stacksize_np(pthread_self());
+#elif AETHER_OS_WINDOWS
+  LONG_PTR stack_low_limit = 0;
+  ULONG_PTR stack_high_limit = 0;
+  ::GetCurrentThreadStackLimits(&stack_low_limit, &stack_high_limit);
+  return static_cast<size_t>(stack_high_limit - stack_low_limit);
+#else
+  pthread_t thread = pthread_self();
+  pthread_attr_t attr;
+  if (pthread_getattr_np(thread, &attr) == 0) {
+    size_t stack_size = 0;
+    void *stack_addr = nullptr;
+    pthread_attr_getstack(&attr, &stack_addr, &stack_size);
+    pthread_attr_destroy(&attr);
+    return stack_size;
+  }
+  // defualt to 2MB
+  return 2 * 1024 * 1024;
 #endif
 }
 
