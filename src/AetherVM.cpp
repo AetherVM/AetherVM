@@ -131,12 +131,12 @@ int BinaryEngine::registerCallback(EventCallback callback) {
   return (int)callbacks.size();
 }
 
-void BinaryEngine::liftOpcodes(std::span<const uint8_t> opcodes) {
+void BinaryEngine::liftOpcodes(const Binary *bin,
+                               std::span<const uint8_t> opcodes) {
   llvm::MCInst inst;
-  Lifter lifter{const_cast<remill::Arch *>(engine->remillArch.get()),
+  Lifter lifter{bin, const_cast<remill::Arch *>(engine->remillArch.get()),
                 engine->remillSemantic.get()};
-  auto arch = m_machine ? m_machine->archType() : m_binary->archType();
-  if (arch == ARM64) {
+  if (bin->archType() == ARM64) {
     // arm64 has fixed 4 bytes instruction set
     constexpr size_t oplen = 4;
     Disassembler diser{Binary::arch(ARM64)};
@@ -175,7 +175,7 @@ void BinaryEngine::orchBinary(const Binary *bin, addr_t addend) {
     auto sectbuff = reinterpret_cast<const uint8_t *>(bin->addrBuff(sect.addr));
     writeMemory(sect.addr + addend, {sectbuff, sect.size});
     if (sect.type == TEXT)
-      liftOpcodes({sectbuff, sect.size});
+      liftOpcodes(bin, {sectbuff, sect.size});
   }
 
   Orchestrator::inst()->encode(bin, addend, engine->eventConf);

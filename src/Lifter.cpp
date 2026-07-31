@@ -74,13 +74,19 @@ void create_trampoline(llvm::Module &M, llvm::Function *TargetFn,
                        uint64_t targetAddress) {
   std::string TempName{dyn_prefix};
   TempName += TargetFn->getName();
+  if (llvm::Function *TrampolineFn = M.getFunction(TempName)) {
+    // already exists
+    TargetFn->replaceAllUsesWith(TrampolineFn);
+    return;
+  }
+
   llvm::LLVMContext &Ctx = M.getContext();
   llvm::FunctionType *FnTy = TargetFn->getFunctionType();
   llvm::Function *TrampolineFn = llvm::Function::Create(
       FnTy, llvm::GlobalValue::ExternalLinkage, TempName, &M);
-  // let optimizer inline our trampoline function so no relocation will be
-  // created
-  TrampolineFn->addFnAttr(llvm::Attribute::AlwaysInline);
+  // don't let optimizer inline our trampoline function, the internal reference
+  // relocations will be resolved later
+  TrampolineFn->addFnAttr(llvm::Attribute::NoInline);
 
   llvm::BasicBlock *BB = llvm::BasicBlock::Create(Ctx, "entry", TrampolineFn);
   llvm::IRBuilder<> Builder(BB);
@@ -110,7 +116,8 @@ std::map<uintptr_t, size_t> Lifter::dynhandlers;
 std::set<HandlerDynamic> Lifter::aarch64;
 std::set<HandlerDynamic> Lifter::x86;
 
-Lifter::Lifter(remill::Arch *ptr, llvm::Module *pre) : arch(ptr), module(pre) {
+Lifter::Lifter(const Binary *binptr, remill::Arch *ptr, llvm::Module *pre)
+    : bin(binptr), arch(ptr), module(pre) {
   if (arch->arch_name == remill::kArchAArch64LittleEndian) {
     isel_handlers = &Handler::aarch64;
     handlers = &Lifter::aarch64;
@@ -266,9 +273,25 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
   }
   uint64_t textaddr = 0;
   llvm::StringRef textbuff;
+  std::map<addr_t, addr_t> relocrefs;
+  std::set<addr_t> jumps;
   for (auto sect : expObject.get()->sections()) {
     auto expName = sect.getName();
     if (expName && expName.get() == ".text") {
+      for (auto &r : sect.relocations()) {
+        auto sym = r.getSymbol();
+        auto toExp = sym->getValue();
+        if (!toExp)
+          continue;
+        auto from = r.getOffset();
+        auto to = toExp.get();
+        auto name = sym->getName();
+        // tail call of __remill intrinsic is a jump
+        // normal call for other handlers
+        if (name && name->contains("__remill"))
+          jumps.insert(from);
+        relocrefs.insert(std::make_pair(from, to));
+      }
       auto expBuff = sect.getContents();
       if (expBuff) {
         textbuff = expBuff.get();
@@ -294,7 +317,21 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
         pagesize);
     return;
   }
+  // copy executable code
   std::memcpy(pagebuff, textbuff.data(), textbuff.size());
+  // fix relocation
+#if AETHER_ARCH_ARM64
+  for (auto [from, to] : relocrefs) {
+    auto opcptr = reinterpret_cast<uint32_t *>(pagestart + from);
+    bool call = jumps.find(from) == jumps.end();
+    opcptr[0] = bin->genBranchOpcode(from, to, call);
+  }
+#else
+  for (auto [from, to] : relocrefs) {
+    auto opcptr = reinterpret_cast<char *>(pagestart + from);
+    bin->patchCallOffset(opcptr, from, to);
+  }
+#endif
   // rx
   if (!page_commit(pagebuff, pagesize, true, false, true)) {
     log_print(Runtime,

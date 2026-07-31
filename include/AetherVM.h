@@ -84,7 +84,7 @@ protected:
   virtual bool recursiveLoad() { return false; }
 
   // Lift the opcodes for engine runtime.
-  void liftOpcodes(std::span<const uint8_t> opcodes);
+  void liftOpcodes(const Binary *bin, std::span<const uint8_t> opcodes);
 
   // Map, Lift and Orchestrate the bin into guest memory region.
   void orchBinary(const Binary *bin, addr_t addend);

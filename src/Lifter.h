@@ -6,6 +6,7 @@
 #pragma once
 
 #include "Handler.h"
+#include <AetherBinary.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -47,13 +48,14 @@ struct Lifter {
   static std::set<HandlerDynamic> aarch64;
   static std::set<HandlerDynamic> x86;
 
+  const Binary *bin = nullptr;
   remill::Arch *arch = nullptr;
   const std::vector<Handler> *isel_handlers = nullptr;
   std::set<HandlerDynamic> *handlers = nullptr;
   std::map<std::string, HandlerDynamic *> name_handlers;
   llvm::Module *module = nullptr;
 
-  Lifter(remill::Arch *ptr, llvm::Module *pre);
+  Lifter(const Binary *bin, remill::Arch *ptr, llvm::Module *pre);
   ~Lifter();
 
   static void resetSemantic(llvm::Module &M);

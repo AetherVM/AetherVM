@@ -39,16 +39,16 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
 BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
 
 static void init_context_aarch64(uintptr_t retaddr) {
-  auto lr = CPU.getRegisterAArch64(Register::LR);
+  auto lr = const_cast<RegisterValue *>(CPU.getRegisterAArch64(Register::LR));
   // simulate a "bl blr" so that "ret" can work properly
-  lr->u8p[0] = retaddr;
+  lr->u8 = retaddr;
 }
 
 static void init_context_x86(uintptr_t retaddr) {
-  auto sp = CPU.getRegisterX86(Register::SP);
+  auto sp = const_cast<RegisterValue *>(CPU.getRegisterX86(Register::SP));
   // simulate a "call/push-retaddr" so that "ret" can work properly
-  sp->pptr[0]--;
-  sp->pptr[0][0] = retaddr;
+  sp->uptr--;
+  sp->uptr[0] = retaddr;
 }
 
 bool BinaryEngineImpl::startVM(addr_t entry) {
