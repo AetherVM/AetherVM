@@ -112,7 +112,7 @@ struct CPUState;
 #define AETHER_VM_ENTRY()                                                      \
   AETHER_NAKED void aether_vm_entry(                                           \
       void *cpu, addr_t vmaddr, const Instruction *insns, uintptr_t *retaddr,  \
-      void (*init_stack_pointer)(uintptr_t retaddr))
+      void (*init_context)(uintptr_t retaddr))
 
 // event events
 DECL_EVENT_TWIN(event_func_before);

@@ -61,7 +61,7 @@ AETHER_VM_ENTRY() {
       x1: addr_t vmaddr
       x2: const Instruction *insns
       x3: uintptr_t *retaddr
-      x4: void (*init_stack_pointer)(uintptr_t retaddr)
+      x4: void (*init_context)(uintptr_t retaddr)
       */
       "sub sp, sp, #0x30\n"
       "stp x26, x27, [sp, #0x10]\n"

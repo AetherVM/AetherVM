@@ -198,6 +198,7 @@ union RegisterValue {
 
   // general pointer
   const void *ptr;
+  uintptr_t **pptr;
 
   // string pointer
   const char *str;
