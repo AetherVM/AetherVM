@@ -111,7 +111,12 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
       }
     }
   }
-
+  if (bin->functions().size() == 1) {
+    // put an extra end of emulation event in case user's snippet
+    // has no explicit RET instruction
+    auto handlers = &*current.handlers.rbegin();
+    handlers->push_back(Instruction{finish_emulation});
+  }
   cache.current = &current;
 }
 

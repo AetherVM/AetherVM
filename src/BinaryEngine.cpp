@@ -38,30 +38,31 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
 
 BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
 
-static void init_context_aarch64(uintptr_t retaddr) {
+static void *retaddr_aarch64() {
   auto lr = const_cast<RegisterValue *>(CPU.getRegisterAArch64(Register::LR));
-  // simulate a "bl blr" so that "ret" can work properly
-  lr->u8 = retaddr;
+  // the return address storage pointer
+  return &lr->u8;
 }
 
-static void init_context_x86(uintptr_t retaddr) {
+static void *retaddr_x86() {
   auto sp = const_cast<RegisterValue *>(CPU.getRegisterX86(Register::SP));
-  // simulate a "call/push-retaddr" so that "ret" can work properly
   sp->uptr--;
-  sp->uptr[0] = retaddr;
+  // the return address storage pointer
+  return &sp->uptr[0];
 }
 
 bool BinaryEngineImpl::startVM(addr_t entry) {
   if (!CPU.initContext(entry))
     return false;
 
-  auto init_context = arch == ARM64 ? init_context_aarch64 : init_context_x86;
+  auto retaddr = arch == ARM64 ? retaddr_aarch64 : retaddr_x86;
+  auto state = arch == ARM64 ? (void *)&CPU.aarch64 : (void *)&CPU.x86;
   auto insn = Orchestrator::inst()->find(entry);
 
 #if AETHER_ARCH_ARM64
-  aarch64::aether_vm_entry(&CPU, entry, insn, &CPU.retaddr, init_context);
+  aarch64::aether_vm_entry(state, entry, insn, &CPU.retaddr, retaddr);
 #else
-  x86::aether_vm_entry(&CPU, entry, insn, &CPU.retaddr, init_context);
+  x86::aether_vm_entry(state, entry, insn, &CPU.retaddr, retaddr);
 #endif
   return true;
 }

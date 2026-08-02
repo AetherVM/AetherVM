@@ -48,7 +48,7 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
   auto targetMachine =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
           triple, "generic", feature, opt, llvm::Reloc::Static, std::nullopt,
-          llvm::CodeGenOptLevel::Aggressive));
+          llvm::CodeGenOptLevel::Default));
 
   llvm::SmallVector<char, 0> buffer;
   llvm::raw_svector_ostream os(buffer);

@@ -18,11 +18,20 @@ IMPL_EVENT_HOST(event_block_before) { return current; }
 
 IMPL_EVENT_HOST(event_block_after) { return current; }
 
-IMPL_EVENT_HOST(jump_interpret) { return current; }
+IMPL_EVENT_HOST(jump_interpret) { abort(); }
 
-IMPL_EVENT_HOST(call_interpret) { return current; }
+IMPL_EVENT_HOST(call_interpret) { abort(); }
 
-IMPL_EVENT_HOST(finish_function) { return current; }
+IMPL_EVENT_HOST(finish_function) {
+  decl_cpu();
+  return cpu->pcptr[0] == cpu->retaddr ? forward_event(finish_emulation)
+                                       : forward_event(jump_interpret);
+}
+
+IMPL_EVENT_HOST(finish_emulation) {
+  decl_cpu();
+  return reinterpret_cast<aether::Instruction *>(&cpu->retaddr);
+}
 
 // run to an invalid vm address
 IMPL_EVENT_HOST(terminate_execution) { abort(); };

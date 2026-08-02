@@ -45,6 +45,7 @@ IMPL_EVENT_VM(event_block_after);
 IMPL_EVENT_VM(jump_interpret);
 IMPL_EVENT_VM(call_interpret);
 IMPL_EVENT_VM(finish_function);
+IMPL_EVENT_VM(finish_emulation);
 IMPL_EVENT_VM(terminate_execution);
 #endif // end of AETHER_ARCH_X64
 

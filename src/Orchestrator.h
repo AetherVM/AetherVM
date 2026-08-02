@@ -102,17 +102,23 @@ struct CPUState;
 #define DECL_EVENT_TWIN(n)                                                     \
   AETHER_NAKED void n(void);                                                   \
   extern "C" const aether::Instruction *host_##n(                              \
-      aether::CPUState *cpu, addr_t vmaddr,                                    \
-      const aether::Instruction *current);
+      void *state, addr_t vmaddr, const aether::Instruction *current);
 
 #define IMPL_EVENT_HOST(n)                                                     \
-  const aether::Instruction *host_##n(aether::CPUState *cpu, addr_t vmaddr,    \
+  const aether::Instruction *host_##n(void *state, addr_t vmaddr,              \
                                       const aether::Instruction *current)
 
 #define AETHER_VM_ENTRY()                                                      \
   AETHER_NAKED void aether_vm_entry(                                           \
-      void *cpu, addr_t vmaddr, const Instruction *insns, uintptr_t *retaddr,  \
-      void (*init_context)(uintptr_t retaddr))
+      void *state, addr_t vmaddr, const Instruction *insns,                    \
+      uintptr_t *host_retaddr, void *(*vm_retaddr)())
+
+#define extract_handler_x16                                                    \
+  "ldr x16, [x27]\n"                                                           \
+  "ubfx x16, x16, #0, #59\n"
+
+#define decl_cpu() auto cpu = (aether::CPUState *)((int64_t)state - 0x10)
+#define forward_event(n) host_##n(state, vmaddr, current)
 
 // event events
 DECL_EVENT_TWIN(event_func_before);
@@ -124,4 +130,5 @@ DECL_EVENT_TWIN(event_block_after);
 DECL_EVENT_TWIN(jump_interpret);
 DECL_EVENT_TWIN(call_interpret);
 DECL_EVENT_TWIN(finish_function);
+DECL_EVENT_TWIN(finish_emulation);
 DECL_EVENT_TWIN(terminate_execution);

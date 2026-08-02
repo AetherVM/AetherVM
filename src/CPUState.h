@@ -25,15 +25,16 @@ struct CPUState {
   // the fast way to access pc register among event handlers
   uintptr_t *pcptr = nullptr;
   BinaryEngineImpl *runtime = nullptr;
+  // IT MUST BE 0x10 offset of CPUState
+  union {
+    aarch64::State aarch64;
+    x86::State x86;
+  };
   // when vm pc reaches retaddr, it means the emulation has finished
   // successfully
   uintptr_t retaddr = 0;
   char *stack = nullptr;
   size_t stacksize = 0;
-  union {
-    aarch64::State aarch64;
-    x86::State x86;
-  };
 
   CPUState() {}
   ~CPUState() {}
