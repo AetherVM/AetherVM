@@ -15,6 +15,7 @@
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/CodeGen.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -58,12 +59,19 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
                                      llvm::CodeGenFileType::ObjectFile);
   pm.run(module);
 
-#if AETHER_DEBUG
-  auto savepath = fs::temp_directory_path() / "aethervm.obj";
-  std::ofstream outf(savepath, std::ios::binary);
+#if 0
+  auto llpath = fs::temp_directory_path() / "aethervm.ll";
+  std::error_code ec;
+  llvm::raw_fd_ostream file(llpath.string(), ec,
+                            llvm::sys::fs::OpenFlags::OF_Text);
+  module.print(file, nullptr);
+  log_print(Develop, "Saved in-memory bitcode {}.", llpath.string());
+
+  auto objpath = fs::temp_directory_path() / "aethervm.obj";
+  std::ofstream outf(objpath, std::ios::binary);
   outf.write(buffer.data(), buffer.size());
   outf.close();
-  log_print(Develop, "Saved in-memory object {}.", savepath.string());
+  log_print(Develop, "Saved in-memory object {}.", objpath.string());
 #endif
 
   return llvm::MemoryBuffer::getMemBufferCopy(
@@ -107,6 +115,31 @@ void create_trampoline(llvm::Module &M, llvm::Function *TargetFn,
     Builder.CreateRet(Call);
 
   TargetFn->replaceAllUsesWith(TrampolineFn);
+}
+
+void call_self(llvm::Function &F) {
+  // delete the original body of the function, we will create a self-recursive
+  // call to hold all the arguments use references so that remill can lift the
+  // function correctly
+  F.deleteBody();
+
+  llvm::LLVMContext &Ctx = F.getContext();
+  llvm::BasicBlock *EntryBB = llvm::BasicBlock::Create(Ctx, "entry", &F);
+  llvm::IRBuilder<> Builder(EntryBB);
+
+  std::vector<llvm::Value *> Args;
+  Args.reserve(F.arg_size());
+  for (llvm::Argument &Arg : F.args())
+    Args.push_back(&Arg);
+
+  // create a self-recursive CallInst passing all arguments
+  llvm::CallInst *RecursiveCall = Builder.CreateCall(&F, Args);
+
+  if (F.getReturnType()->isVoidTy()) {
+    Builder.CreateRetVoid();
+  } else {
+    Builder.CreateRet(RecursiveCall);
+  }
 }
 
 } // namespace
@@ -154,7 +187,7 @@ Lifter::~Lifter() {
 void Lifter::resetSemantic(llvm::Module &M) {
   for (llvm::Function &F : M) {
     if (!F.isDeclaration())
-      F.deleteBody();
+      call_self(F);
   }
 
   for (auto &GV : M.globals()) {
@@ -362,8 +395,10 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
     auto expName = sym.getName();
     if (!expAddr || !expName)
       continue;
-    auto addr = expAddr.get();
     auto name = expName.get().str();
+    if (!name.starts_with(dyn_prefix))
+      continue;
+    auto addr = expAddr.get();
     auto opcode = name.data() + dyn_prefix.size();
     // find and reset the entry of newly created handler
     if (isxdigit(opcode[0])) {
