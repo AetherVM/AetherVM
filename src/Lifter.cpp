@@ -142,6 +142,29 @@ void call_self(llvm::Function &F) {
   }
 }
 
+void upgrade_svc_signature(llvm::Module &M, llvm::Function *OldFunc) {
+  llvm::LLVMContext &Ctx = M.getContext();
+  llvm::Type *PtrTy = llvm::PointerType::getUnqual(Ctx);
+  llvm::Type *I64Ty = llvm::Type::getInt64Ty(Ctx);
+
+  // build the new 4-argument FunctionType: (ptr, ptr, i64, ptr) -> returnType
+  llvm::Type *RetTy = OldFunc->getReturnType();
+  std::vector<llvm::Type *> NewParamTys = {PtrTy, PtrTy, I64Ty, PtrTy};
+  llvm::FunctionType *NewFuncTy =
+      llvm::FunctionType::get(RetTy, NewParamTys, false);
+
+  // create the new Function declaration
+  llvm::Function *NewFunc = llvm::Function::Create(
+      NewFuncTy, OldFunc->getLinkage(), OldFunc->getAddressSpace(), "", &M);
+  NewFunc->takeName(OldFunc);
+
+  // copy attribute/calling convention metadata if applicable
+  NewFunc->setCallingConv(OldFunc->getCallingConv());
+  OldFunc->replaceAllUsesWith(NewFunc);
+
+  call_self(*NewFunc);
+}
+
 } // namespace
 
 std::map<uintptr_t, size_t> Lifter::dynhandlers;
@@ -185,10 +208,21 @@ Lifter::~Lifter() {
 }
 
 void Lifter::resetSemantic(llvm::Module &M) {
+  llvm::Function *CallSupervisor = nullptr;
   for (llvm::Function &F : M) {
-    if (!F.isDeclaration())
+    if (F.isDeclaration())
+      continue;
+
+    if (F.getName().contains("CallSupervisor"))
+      CallSupervisor = &F;
+    else
       call_self(F);
   }
+
+  // convert the SVC exception handler to the new signature with 4 arguments
+  // to match the remill's svc instruction operand signature
+  if (CallSupervisor)
+    upgrade_svc_signature(M, CallSupervisor);
 
   for (auto &GV : M.globals()) {
     if (!GV.hasInitializer())
