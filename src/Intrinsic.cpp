@@ -258,7 +258,11 @@ Memory *__remill_delay_slot_end(Memory *) { return nullptr; }
 
 void __remill_defer_inlining(void) {}
 
-Memory *__remill_error(State &, addr_t, Memory *) { abort(); }
+Memory *__remill_error(void *state, addr_t vmaddr, Memory *memory) {
+  printf("[AetherVM] Guest hit an invalid instruction before 0x%llx\n", vmaddr);
+  abort();
+  return memory;
+}
 
 Memory *__remill_missing_block(State &, addr_t, Memory *memory) {
   return memory;
