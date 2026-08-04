@@ -119,14 +119,20 @@ struct CPUState;
 
 #define decl_cpu() auto cpu = (aether::CPUState *)((int64_t)state - 0x10)
 #define forward_event(n) host_##n(state, vmaddr, current)
+#define forward_event_default() &current[1]
 
 // event events
 DECL_EVENT_TWIN(event_func_before);
 DECL_EVENT_TWIN(event_func_after);
 DECL_EVENT_TWIN(event_insn_before);
 DECL_EVENT_TWIN(event_insn_after);
+DECL_EVENT_TWIN(event_syscall_before);
+DECL_EVENT_TWIN(event_syscall_after);
+DECL_EVENT_TWIN(event_trap_before);
+DECL_EVENT_TWIN(event_trap_after);
 DECL_EVENT_TWIN(event_block_before);
 DECL_EVENT_TWIN(event_block_after);
+DECL_EVENT_TWIN(syscall_interpret);
 DECL_EVENT_TWIN(jump_interpret);
 DECL_EVENT_TWIN(call_interpret);
 DECL_EVENT_TWIN(finish_function);

@@ -10,9 +10,9 @@ int main(int argc, const char *argv[]) {
     return -1;
 
   aether::MachineARM64 marm64;
-  // 0x2000000 (SYSCALL_CLASS_UNIX) | 0x14 (SYS_getpid)
-  std::string_view asmcode{"movz x16, #0x0200, lsl #16\n"
-                           "movk x16, #0x0014\n"
+  // 0x14 (SYS_getpid)
+  std::string_view asmcode{"mov x0, #0x14\n"
+                           "mov x16, #0x0\n"
                            "svc #0x80\n"
                            "ret"};
   auto opcode = assemble(&marm64, asmcode);

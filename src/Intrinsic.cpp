@@ -3,13 +3,17 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
-#include "remill/Arch/AArch64/Runtime/State.h"
-#include "remill/Arch/Runtime/Runtime.h"
+#include "CPUState.h"
+#include "Orchestrator.h"
+#include <Platform.h>
+
 #include <cfenv>
 #include <cstdlib>
 
-#include "Orchestrator.h"
-#include <Platform.h>
+#if AETHER_OS_MACOS
+extern "C" int syscall(int number, ...);
+#else
+#endif
 
 template <typename T> static T &AccessMemory(addr_t addr) {
   return *reinterpret_cast<T *>(static_cast<uintptr_t>(addr));
@@ -131,6 +135,8 @@ MAKE_ATOMIC_INTRINSIC(fetch_and_xor, uint, 32)
 MAKE_ATOMIC_INTRINSIC(fetch_and_xor, uint, 64)
 
 static int MapFpuExceptToFe(int32_t guest_except) {
+  using enum aether::aarch64::FPUExceptionFlag;
+
   int host_except = 0;
   if (guest_except & kFPUExceptionInvalid)
     host_except |= FE_INVALID;
@@ -155,6 +161,8 @@ static int MapFpuExceptToFe(int32_t guest_except) {
 }
 
 static int MapFeToFpuExcept(int host_except) {
+  using enum aether::aarch64::FPUExceptionFlag;
+
   int guest_except = 0;
   if (host_except & FE_INVALID)
     guest_except |= kFPUExceptionInvalid;
@@ -179,6 +187,8 @@ static int MapFeToFpuExcept(int host_except) {
 }
 
 static int MapFpuRoundToFe(int32_t guest_round) {
+  using enum aether::aarch64::FPURoundingMode;
+
   switch (guest_round) {
   case kFPURoundToNearestEven:
     return FE_TONEAREST;
@@ -194,6 +204,8 @@ static int MapFpuRoundToFe(int32_t guest_round) {
 }
 
 static int MapFeToFpuRound(int host_round) {
+  using enum aether::aarch64::FPURoundingMode;
+
   switch (host_round) {
   case FE_TONEAREST:
     return kFPURoundToNearestEven;
@@ -419,8 +431,24 @@ Memory *__remill_sparc64_emulate_instruction(Memory *) { abort(); }
 // perform dead-argument elimination on any of the intrinsics.
 void __remill_mark_as_used(void *mem) { asm("" ::"m"(mem)); }
 
-Memory *__remill_sync_hyper_call(State &, Memory *, SyncHyperCall::Name) {
-  abort();
+Memory *__remill_sync_hyper_call(aether::x86::State &cpu, Memory *memory,
+                                 SyncHyperCall::Name name) {
+  // only x86_64 guest will use this remill intrinsic, arm64 guest will use
+  // syscall_interpret event handler
+  switch (name) {
+  case SyncHyperCall::kX86SysCall:
+#if AETHER_OS_MACOS
+    cpu.gpr.rax.qword =
+        syscall(cpu.gpr.rax.qword, cpu.gpr.rdi, cpu.gpr.rsi, cpu.gpr.rdx,
+                cpu.gpr.r10, cpu.gpr.r8, cpu.gpr.r9);
+#else
+#error TODO:: implement __remill_sync_hyper_call for non-macOS platforms
+#endif
+    break;
+  default:
+    abort();
+  }
+  return memory;
 }
 
 } // extern C

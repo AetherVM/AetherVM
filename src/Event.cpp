@@ -5,18 +5,47 @@
 
 #include "BinaryEngine.h"
 #include "Orchestrator.h"
+#include <Platform.h>
 
-IMPL_EVENT_HOST(event_func_before) { return current; }
+#if AETHER_OS_MACOS
+extern "C" int syscall(int number, ...);
+#else
+#endif
 
-IMPL_EVENT_HOST(event_func_after) { return current; }
+IMPL_EVENT_HOST(event_func_before) { return forward_event_default(); }
 
-IMPL_EVENT_HOST(event_insn_before) { return current; }
+IMPL_EVENT_HOST(event_func_after) { return forward_event_default(); }
 
-IMPL_EVENT_HOST(event_insn_after) { return current; }
+IMPL_EVENT_HOST(event_insn_before) { return forward_event_default(); }
 
-IMPL_EVENT_HOST(event_block_before) { return current; }
+IMPL_EVENT_HOST(event_insn_after) { return forward_event_default(); }
 
-IMPL_EVENT_HOST(event_block_after) { return current; }
+IMPL_EVENT_HOST(event_block_before) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(event_block_after) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(event_syscall_before) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(event_syscall_after) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(event_trap_before) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(event_trap_after) { return forward_event_default(); }
+
+IMPL_EVENT_HOST(syscall_interpret) {
+  // only arm64 guest will use this event handler, x86_64 guest will use
+  // __remill_sync_hyper_call
+  decl_cpu();
+  auto ctx = &cpu->aarch64;
+#if AETHER_OS_MACOS
+  ctx->gpr.x0.qword =
+      syscall(ctx->gpr.x0.qword, ctx->gpr.x1, ctx->gpr.x2, ctx->gpr.x3,
+              ctx->gpr.x4, ctx->gpr.x5, ctx->gpr.x6, ctx->gpr.x7);
+#else
+#error TODO:: implement syscall_interpret for non-macOS platforms
+#endif
+  return forward_event_default();
+}
 
 IMPL_EVENT_HOST(jump_interpret) { abort(); }
 

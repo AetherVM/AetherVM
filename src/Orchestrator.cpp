@@ -31,6 +31,16 @@ static void do_setup_event(Instructions *handlers, EventConfig eventcfg,
     if (eventcfg.func)
       handlers->push_back(Instruction{event});
     break;
+  case SyscallBefore:
+  case SyscallAfter:
+    if (eventcfg.syscall)
+      handlers->push_back(Instruction{event});
+    break;
+  case TrapBefore:
+  case TrapAfter:
+    if (eventcfg.trap)
+      handlers->push_back(Instruction{event});
+    break;
   default:
     break;
   }
@@ -58,20 +68,9 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
     // before basic block
     setup_event(BlockBefore, block_before);
     for (auto i = func.insns.data(), e = i + func.insns.size(); i != e; i++) {
-      // before instruction
-      setup_event(InsnBefore, insn_before);
-
-      HandlerDynamic tmp;
-      std::memcpy(&tmp.opc4, fnbuf + i->fnoff, i->info.oplen);
-      auto found = dynhandlers->find(tmp);
-      auto entry = found == dynhandlers->end()
-                       ? reinterpret_cast<uintptr_t>(terminate_execution)
-                       : found->entry;
       if (i != func.insns.data() && i->comins.size()) {
         // this instruction is referenced by other basic block, indicating the
         // end of current basic block
-        // after instruction
-        setup_event(InsnAfter, insn_after);
         // after basic block
         setup_event(BlockAfter, block_after);
 
@@ -82,14 +81,48 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
 
         // before basic block
         setup_event(BlockBefore, block_before);
-        // before instruction
-        setup_event(InsnBefore, insn_before);
       }
-      // the real handler
-      handlers->push_back(Instruction{entry, i->info.oplen});
-      // after instruction
-      setup_event(InsnAfter, insn_after);
 
+      // before instruction
+      switch (i->info.type) {
+      case aether::SYSCALL:
+        setup_event(SyscallBefore, syscall_before);
+        break;
+      case aether::TRAP:
+        setup_event(TrapBefore, trap_before);
+        break;
+      default:
+        setup_event(InsnBefore, insn_before);
+        break;
+      }
+
+      // the real handler
+      HandlerDynamic tmp;
+      std::memcpy(&tmp.opc4, fnbuf + i->fnoff, i->info.oplen);
+      auto found = dynhandlers->find(tmp);
+      auto entry = found == dynhandlers->end()
+                       ? reinterpret_cast<uintptr_t>(terminate_execution)
+                       : found->entry;
+      handlers->push_back(Instruction{entry, i->info.oplen});
+
+      // after instruction
+      switch (i->info.type) {
+      case aether::SYSCALL:
+        if (bin->archType() == ARM64) {
+          // arm64 syscall is interpreted by syscall_interpret whereas x86_64
+          // by __remill_sync_hyper_call
+          handlers->push_back(Instruction{syscall_interpret});
+        }
+        setup_event(SyscallAfter, syscall_after);
+        break;
+      case aether::TRAP:
+        setup_event(TrapAfter, trap_after);
+        break;
+      default:
+        setup_event(InsnAfter, insn_after);
+        break;
+      }
+      // end of basic block or function call
       switch (i->info.type) {
       case aether::JCOND:
       case aether::JUMP:

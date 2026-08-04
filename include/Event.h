@@ -66,6 +66,8 @@ struct EventConfig {
   bool block;
   // instruction/syscall/trap event
   bool insn;
+  bool syscall;
+  bool trap;
   // vm-host bridge event
   bool bridge;
 
@@ -74,6 +76,8 @@ struct EventConfig {
     memory = false;
     block = false;
     insn = false;
+    syscall = false;
+    trap = false;
     bridge = false;
   }
 };

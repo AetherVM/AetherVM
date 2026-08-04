@@ -40,8 +40,13 @@ IMPL_EVENT_VM(event_func_before);
 IMPL_EVENT_VM(event_func_after);
 IMPL_EVENT_VM(event_insn_before);
 IMPL_EVENT_VM(event_insn_after);
+IMPL_EVENT_VM(event_syscall_before);
+IMPL_EVENT_VM(event_syscall_after);
+IMPL_EVENT_VM(event_trap_before);
+IMPL_EVENT_VM(event_trap_after);
 IMPL_EVENT_VM(event_block_before);
 IMPL_EVENT_VM(event_block_after);
+IMPL_EVENT_VM(syscall_interpret);
 IMPL_EVENT_VM(jump_interpret);
 IMPL_EVENT_VM(call_interpret);
 IMPL_EVENT_VM(finish_function);
@@ -55,7 +60,7 @@ namespace aarch64 {
 
 #if AETHER_ARCH_ARM64
 
-extern "C" AETHER_NAKED void vm_enter(void) {
+extern "C" AETHER_NAKED void vm_enter_aarch64(void) {
   AETHER_ASM(
       // save the return address flag to cpu context
       "str lr, [x3]\n"
@@ -95,7 +100,7 @@ AETHER_VM_ENTRY() {
       "mov x2, x27\n"
       "ldp x1, x3, [sp]\n" // restore
       // do the final initialization and enter vm
-      "bl " HOST_CALL_PREFIX "vm_enter\n"
+      "bl " HOST_CALL_PREFIX "vm_enter_aarch64\n"
       "ldp fp, lr, [sp, #0x20]\n"
       "ldp x26, x27, [sp, #0x10]\n"
       "add sp, sp, #0x30\n"

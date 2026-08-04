@@ -10,8 +10,8 @@ int main(int argc, const char *argv[]) {
     return -1;
 
   aether::MachineX86 mx64;
-  // 0x2000000 (SYSCALL_CLASS_UNIX) | 0x14 (SYS_getpid)
-  std::string_view asmcode{"mov $0x2000014, %rax\n"
+  // 0x14 (SYS_getpid)
+  std::string_view asmcode{"mov $0x14, %rax\n"
                            "syscall\n"
                            "ret"};
   auto opcode = assemble(&mx64, asmcode);
