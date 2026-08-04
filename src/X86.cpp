@@ -9,9 +9,9 @@
 #if AETHER_ARCH_X64
 
 #if AETHER_OS_MACOS
-#define HOST_CALL_PREFIX "_host_"
+#define HOST_CALL_PREFIX "_"
 #else
-#define HOST_CALL_PREFIX "host_"
+#define HOST_CALL_PREFIX ""
 #endif
 
 // r13 is 'const Instruction *insns'
@@ -31,7 +31,7 @@
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
     AETHER_ASM("mov %r13, " ARGREG_0 "\n"                                      \
-               "call " HOST_CALL_PREFIX #n "\n"                                \
+               "call " HOST_CALL_PREFIX "host_" #n "\n"                        \
                "mov %rax, %r13\n"                                              \
                "jmp *%r13");                                                   \
   }
@@ -66,7 +66,7 @@ AETHER_VM_ENTRY() {
   r12: cpu
   r13: insns
   */
-  AETHER_ASM("");
+  AETHER_ASM("int3");
 }
 
 #else
