@@ -431,20 +431,27 @@ Memory *__remill_sparc64_emulate_instruction(Memory *) { abort(); }
 // perform dead-argument elimination on any of the intrinsics.
 void __remill_mark_as_used(void *mem) { asm("" ::"m"(mem)); }
 
-Memory *__remill_sync_hyper_call(aether::x86::State &cpu, Memory *memory,
+Memory *__remill_sync_hyper_call(void *state, Memory *memory,
                                  SyncHyperCall::Name name) {
-  // only x86_64 guest will use this remill intrinsic, arm64 guest will use
-  // syscall_interpret event handler
+  decl_cpu();
   switch (name) {
-  case SyncHyperCall::kX86SysCall:
+  case SyncHyperCall::kX86SysCall: {
+    auto gpr = &cpu->x86.gpr;
 #if AETHER_OS_MACOS
-    cpu.gpr.rax.qword =
-        syscall(cpu.gpr.rax.qword, cpu.gpr.rdi, cpu.gpr.rsi, cpu.gpr.rdx,
-                cpu.gpr.r10, cpu.gpr.r8, cpu.gpr.r9);
+    gpr->rax.qword = syscall(gpr->rax.qword, gpr->rdi, gpr->rsi, gpr->rdx,
+                             gpr->r10, gpr->r8, gpr->r9);
 #else
 #error TODO:: implement __remill_sync_hyper_call for non-macOS platforms
 #endif
     break;
+  }
+  case SyncHyperCall::kAArch64Breakpoint: {
+    auto gpr = &cpu->aarch64.gpr;
+    printf("[AetherVM] AArch64 guest hit a breakpoint instruction at 0x%llx\n",
+           gpr->pc.qword);
+    abort();
+    break;
+  }
   default:
     abort();
   }

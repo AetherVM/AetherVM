@@ -116,6 +116,11 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
         setup_event(SyscallAfter, syscall_after);
         break;
       case aether::TRAP:
+        if (bin->archType() == X86_64) {
+          // x86_64 trap is interpreted by interrupt_interpret whereas arm64 by
+          // __remill_sync_hyper_call
+          handlers->push_back(Instruction{interrupt_interpret});
+        }
         setup_event(TrapAfter, trap_after);
         break;
       default:

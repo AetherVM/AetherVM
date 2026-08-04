@@ -133,6 +133,7 @@ DECL_EVENT_TWIN(event_trap_after);
 DECL_EVENT_TWIN(event_block_before);
 DECL_EVENT_TWIN(event_block_after);
 DECL_EVENT_TWIN(syscall_interpret);
+DECL_EVENT_TWIN(interrupt_interpret);
 DECL_EVENT_TWIN(jump_interpret);
 DECL_EVENT_TWIN(call_interpret);
 DECL_EVENT_TWIN(finish_function);

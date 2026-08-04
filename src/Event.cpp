@@ -36,14 +36,23 @@ IMPL_EVENT_HOST(syscall_interpret) {
   // only arm64 guest will use this event handler, x86_64 guest will use
   // __remill_sync_hyper_call
   decl_cpu();
-  auto ctx = &cpu->aarch64;
+  auto gpr = &cpu->aarch64.gpr;
 #if AETHER_OS_MACOS
-  ctx->gpr.x0.qword =
-      syscall(ctx->gpr.x0.qword, ctx->gpr.x1, ctx->gpr.x2, ctx->gpr.x3,
-              ctx->gpr.x4, ctx->gpr.x5, ctx->gpr.x6, ctx->gpr.x7);
+  gpr->x0.qword = syscall(gpr->x0.qword, gpr->x1, gpr->x2, gpr->x3, gpr->x4,
+                          gpr->x5, gpr->x6, gpr->x7);
 #else
 #error TODO:: implement syscall_interpret for non-macOS platforms
 #endif
+  return forward_event_default();
+}
+
+IMPL_EVENT_HOST(interrupt_interpret) {
+  // only x86_64 guest will use this event handler
+  decl_cpu();
+  auto gpr = &cpu->x86.gpr;
+  printf("[AetherVM] X86_64 guest hit an interrupt instruction before 0x%llx\n",
+         gpr->rip.qword);
+  abort();
   return forward_event_default();
 }
 
