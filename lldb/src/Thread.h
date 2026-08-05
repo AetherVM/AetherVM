@@ -1,0 +1,58 @@
+// AetherVM - Lift. Instrument. Emulate. Recover.
+// Copyright (c) 2026 Jesse Liu <neoliu2011@gmail.com>
+// SPDX-License-Identifier: Apache License, Version 2.0
+// See LICENSE file in the root directory for full license text.
+
+#pragma once
+
+#include "lldb/Host/common/NativeRegisterContext.h"
+#include "lldb/Host/common/NativeThreadProtocol.h"
+#include "lldb/Utility/Status.h"
+
+namespace lldb_private {
+
+class VMThread : public NativeThreadProtocol {
+public:
+  VMThread(NativeProcessProtocol &process, lldb::tid_t tid)
+      : NativeThreadProtocol(process, tid) {}
+
+  NativeRegisterContext &GetRegisterContext() override {
+    return *m_reg_context_up;
+  }
+
+  std::string GetName() override { return "AetherVCPU-0"; }
+  lldb::StateType GetState() override { return m_state; }
+
+  bool GetStopReason(ThreadStopInfo &stop_info,
+                     std::string &description) override {
+    abort();
+    return false;
+  }
+
+  Status SetWatchpoint(lldb::addr_t addr, size_t size, uint32_t watch_flags,
+                       bool hardware) override {
+    abort();
+    return Status();
+  }
+
+  Status RemoveWatchpoint(lldb::addr_t addr) override {
+    abort();
+    return Status();
+  }
+
+  Status SetHardwareBreakpoint(lldb::addr_t addr, size_t size) override {
+    abort();
+    return Status();
+  }
+
+  Status RemoveHardwareBreakpoint(lldb::addr_t addr) override {
+    abort();
+    return Status();
+  }
+
+private:
+  lldb::StateType m_state = lldb::eStateStopped;
+  std::unique_ptr<NativeRegisterContext> m_reg_context_up;
+};
+
+} // namespace lldb_private

@@ -21,3 +21,4 @@ CMakeUserPresets.json
 build*/
 *.io
 .vscode/
+.DS_Store
