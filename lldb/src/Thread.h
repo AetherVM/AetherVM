@@ -11,9 +11,9 @@
 
 namespace lldb_private {
 
-class VMThread : public NativeThreadProtocol {
+class AetherThread : public NativeThreadProtocol {
 public:
-  VMThread(NativeProcessProtocol &process, lldb::tid_t tid)
+  AetherThread(NativeProcessProtocol &process, lldb::tid_t tid)
       : NativeThreadProtocol(process, tid) {}
 
   NativeRegisterContext &GetRegisterContext() override {

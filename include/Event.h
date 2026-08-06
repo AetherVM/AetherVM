@@ -57,29 +57,23 @@ enum class EventResult {
 
 struct EventConfig {
   // lift event
-  bool lift;
+  uint64_t lift : 1 = false;
   // memory operation event
-  bool memory;
+  uint64_t memory : 1 = false;
   // function event
-  bool func;
+  uint64_t func : 1 = false;
   // basic block event
-  bool block;
+  uint64_t block : 1 = false;
   // instruction/syscall/trap event
-  bool insn;
-  bool syscall;
-  bool trap;
+  uint64_t insn : 1 = false;
+  uint64_t syscall : 1 = false;
+  uint64_t trap : 1 = false;
   // vm-host bridge event
-  bool bridge;
+  uint64_t bridge : 1 = false;
+  // debugger
+  uint64_t debug : 1 = false;
 
-  EventConfig() {
-    lift = false;
-    memory = false;
-    block = false;
-    insn = false;
-    syscall = false;
-    trap = false;
-    bridge = false;
-  }
+  uint64_t reserved : 55 = 0;
 };
 
 struct EventRuntime {

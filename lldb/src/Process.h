@@ -10,13 +10,13 @@
 
 namespace lldb_private {
 
-class VMProcess : public NativeProcessProtocol {
+class AetherProcess : public NativeProcessProtocol {
 public:
-  VMProcess(lldb::pid_t pid, MainLoop &mainloop)
+  AetherProcess(lldb::pid_t pid, MainLoop &mainloop)
       : NativeProcessProtocol(pid, -1, m_delegate), m_mainloop(mainloop) {
 
     // Add default VCPU thread
-    auto thread = std::make_unique<VMThread>(*this, 1);
+    auto thread = std::make_unique<AetherThread>(*this, 1);
     m_threads.push_back(std::move(thread));
   }
 
@@ -124,7 +124,7 @@ private:
   } m_delegate;
 
   MainLoop &m_mainloop;
-  std::vector<std::unique_ptr<VMThread>> m_threads;
+  std::vector<std::unique_ptr<AetherThread>> m_threads;
 };
 
 } // namespace lldb_private

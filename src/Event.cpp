@@ -32,6 +32,8 @@ IMPL_EVENT_HOST(event_trap_before) { return forward_event_default(); }
 
 IMPL_EVENT_HOST(event_trap_after) { return forward_event_default(); }
 
+IMPL_EVENT_HOST(event_debugging) { return forward_event_default(); }
+
 IMPL_EVENT_HOST(syscall_interpret) {
   // only arm64 guest will use this event handler, x86_64 guest will use
   // __remill_sync_hyper_call

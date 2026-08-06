@@ -9,9 +9,9 @@
 
 namespace lldb_private {
 
-class VMRegisterContext : public NativeRegisterContext {
+class AetherRegisterContext : public NativeRegisterContext {
 public:
-  VMRegisterContext(NativeThreadProtocol &thread)
+  AetherRegisterContext(NativeThreadProtocol &thread)
       : NativeRegisterContext(thread) {}
 
   uint32_t GetRegisterCount() const override { abort(); }

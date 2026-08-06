@@ -15,12 +15,12 @@
 
 namespace lldb_private {
 
-class ProcessManager : public NativeProcessProtocol::Manager {
+class AetherProcessManager : public NativeProcessProtocol::Manager {
 public:
-  ProcessManager(MainLoop &mainloop)
+  AetherProcessManager(MainLoop &mainloop)
       : NativeProcessProtocol::Manager(mainloop) {}
 
-  ~ProcessManager() override = default;
+  ~AetherProcessManager() override = default;
 
   NativeProcessProtocol::Extension GetSupportedExtensions() const override {
     abort();

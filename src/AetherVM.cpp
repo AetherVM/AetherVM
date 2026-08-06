@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+#include <AetherBinary.h>
 #include <AetherVM.h>
 #include <Disassembler.h>
 #include <Utils.h>

@@ -96,6 +96,10 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
         break;
       }
 
+      // the debugger handler
+      if (eventcfg.debug)
+        handlers->push_back(Instruction{event_debugging});
+
       // the real handler
       HandlerDynamic tmp;
       std::memcpy(&tmp.opc4, fnbuf + i->fnoff, i->info.oplen);

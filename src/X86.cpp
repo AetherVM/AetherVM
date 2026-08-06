@@ -46,6 +46,7 @@ IMPL_EVENT_VM(event_trap_before);
 IMPL_EVENT_VM(event_trap_after);
 IMPL_EVENT_VM(event_block_before);
 IMPL_EVENT_VM(event_block_after);
+IMPL_EVENT_VM(event_debugging);
 IMPL_EVENT_VM(syscall_interpret);
 IMPL_EVENT_VM(interrupt_interpret);
 IMPL_EVENT_VM(jump_interpret);

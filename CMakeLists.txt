@@ -190,3 +190,15 @@ install(FILES
   "${remill_DIR}/../../../share/remill/22/semantics/amd64_avx512.bc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/bitcode
 )
+
+if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(AetherDbg_BUILD_TYPE "RelWithDebInfo")
+else()
+  set(AetherDbg_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+endif()
+
+install(FILES
+  ${CMAKE_SOURCE_DIR}/lldb/build-${AetherDbg_BUILD_TYPE}/libAetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  OPTIONAL
+)
