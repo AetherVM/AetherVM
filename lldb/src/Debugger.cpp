@@ -33,7 +33,7 @@ void thread_handler(uintptr_t *pcptr) {
   }
 }
 
-void insn_handler(void *state, uintptr_t pc, void *context) {}
+void insn_handler(void *state, uintptr_t pc, const void *insn) {}
 
 void debugging_proc(void) {
   MainLoop mainloop;

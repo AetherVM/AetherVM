@@ -4,6 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 #include <Platform.h>
+#include <Utils.h>
 
 #if AETHER_OS_WINDOWS
 #define WIN32_LEAN_AND_MEAN
@@ -148,6 +149,38 @@ size_t stack_size() {
   }
   // defualt to 2MB
   return 2 * 1024 * 1024;
+#endif
+}
+
+const void *load_library(std::string_view path) {
+#if ON_WINDOWS
+  auto handle = reinterpret_cast<void *>(::LoadLibraryExA(
+      path.data(), nullptr,
+      LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_USER_DIRS |
+          LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR));
+  if (handle)
+    return handle;
+
+  char buff[512];
+  ::FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   nullptr, ::GetLastError(), 0, buff, sizeof(buff), nullptr);
+  log_print(Runtime, "Failed to load {}: {}", path.data(), buff);
+#else
+  auto handle = dlopen(path.data(), RTLD_NOW);
+  if (handle)
+    return handle;
+
+  log_print(Runtime, "{}", dlerror());
+#endif
+  return nullptr;
+}
+
+const void *resolve_symbol(const void *handle, std::string_view name) {
+#if ON_WINDOWS
+  return reinterpret_cast<const void *>(::GetProcAddress(
+      reinterpret_cast<HMODULE>(const_cast<void *>(handle)), name.data()));
+#else
+  return dlsym(const_cast<void *>(handle), name.data());
 #endif
 }
 

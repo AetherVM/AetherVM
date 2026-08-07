@@ -13,9 +13,15 @@ namespace aether {
 // shortcuts for engine implementation
 #define lock_on() std::lock_guard<std::mutex> _lock_(mutex)
 
-BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os) : arch(type) {
+BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
+                                   BinaryEngine *engine)
+    : eventConf(cfg), arch(type) {
   using enum remill::ArchName;
   using enum remill::OSName;
+  if (cfg.debug) {
+    dbgContext.engine = engine;
+    startDebugger();
+  }
   // use windows coff as our in-memory object anyway
   remill::OSName os_name = kOSWindows;
   remill::ArchName arch_name;
@@ -65,6 +71,26 @@ bool BinaryEngineImpl::startVM(addr_t entry) {
   x86::aether_vm_entry(state, entry, insn, &CPU.retaddr, retaddr);
 #endif
   return true;
+}
+
+void thread_handler(uintptr_t *pcptr) {}
+void insn_handler(void *state, uintptr_t pc, const void *insn) {}
+
+void BinaryEngineImpl::startDebugger() {
+  dbgContext.port = eventConf.dbgport;
+
+  auto path = fs::path(self_path());
+  path.replace_filename("libAetherDbg" + path.extension().string());
+  auto handle = load_library(path.string());
+  if (handle) {
+    auto main = (aether_dbgmain_t)resolve_symbol(handle, "aether_dbgmain");
+    // initialize debugger handler callbacks and start debugging daemon thread
+    main(&dbgContext);
+    return;
+  }
+  // default handlers
+  dbgContext.thread_handler = thread_handler;
+  dbgContext.insn_handler = insn_handler;
 }
 
 } // namespace aether

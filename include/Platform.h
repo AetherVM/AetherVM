@@ -9,36 +9,24 @@
 #include <cstdint>
 #include <string>
 
-#if defined(_WIN32) || defined(_WIN64)
-#define AETHER_OS_WINDOWS 1
-#else
-#define AETHER_OS_POSIX 1
-#if defined(__APPLE__)
-#define AETHER_OS_MACOS 1
-#else
-#define AETHER_OS_LINUX 1
-#endif
-#endif
-
-#if __arm64__ || __aarch64__
-#define AETHER_ARCH_ARM64 1
-#elif __x86_64__ || __x64__ || _M_AMD64 || _M_X64
-#define AETHER_ARCH_X64 1
-#else
-#error AetherVM only supports AArch64 and X86_64
-#endif
+#include "Common.h"
 
 namespace aether {
 
-size_t page_size();
+AETHER_VMAPI size_t page_size();
 // return 0 means failed
-uintptr_t page_alloc(size_t size);
-bool page_commit(void *hostptr, size_t size, bool read, bool write, bool exec);
-bool page_decommit(void *hostptr, size_t size);
-void page_dealloc(uintptr_t pagestart, size_t size);
+AETHER_VMAPI uintptr_t page_alloc(size_t size);
+AETHER_VMAPI bool page_commit(void *hostptr, size_t size, bool read, bool write,
+                              bool exec);
+AETHER_VMAPI bool page_decommit(void *hostptr, size_t size);
+AETHER_VMAPI void page_dealloc(uintptr_t pagestart, size_t size);
 
-std::string self_path();
+AETHER_VMAPI std::string self_path();
 
-size_t stack_size();
+AETHER_VMAPI size_t stack_size();
+
+AETHER_VMAPI const void *load_library(std::string_view path);
+AETHER_VMAPI const void *resolve_symbol(const void *handle,
+                                        std::string_view name);
 
 } // namespace aether

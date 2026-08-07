@@ -8,18 +8,9 @@
 #include <span>
 #include <vector>
 
+#include "Common.h"
 #include "Event.h"
 #include "Register.h"
-
-#ifdef _WIN32
-#ifdef AETHER_DLLIMPL
-#define __AETHER_VMAPI__ __declspec(dllexport)
-#else
-#define __AETHER_VMAPI__ __declspec(dllimport)
-#endif // end of AETHER_DLLIMPL
-#else
-#define __AETHER_VMAPI__ __attribute__((visibility("default")))
-#endif // end of _WIN32
 
 namespace aether {
 
@@ -30,7 +21,7 @@ class Machine;
 class Binary;
 struct BinaryEngineImpl;
 
-class __AETHER_VMAPI__ BinaryEngine {
+class AETHER_VMAPI BinaryEngine {
 public:
   // Construct a raw virtual cpu context from an architecture instance, what you
   // can operate with is barely raw binary code, which is useful for shellcode

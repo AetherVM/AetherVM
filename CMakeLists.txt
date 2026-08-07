@@ -95,6 +95,7 @@ target_link_libraries(AetherVM PRIVATE
 
 target_include_directories(AetherVM PRIVATE 
   include
+  lldb/src
   third/remill
   third/remill/include
   ${LLVM_INCLUDE_DIRS}

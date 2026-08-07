@@ -34,10 +34,14 @@ bool CPUState::initContext(addr_t entry) {
   // cache pc location to allow fast access during executing
   pcptr = reinterpret_cast<uintptr_t *>(
       const_cast<RegisterValue *>(getRegister(Register::PC)));
+
+  runtime->dbgContext.thread_handler(pcptr);
   return true;
 }
 
 void CPUState::freeContext() {
+  runtime->dbgContext.thread_handler(nullptr);
+
   delete[] stack;
   stack = nullptr;
   runtime = nullptr;

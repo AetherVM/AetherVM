@@ -10,12 +10,12 @@
 #include "Memory.h"
 
 #include <AetherArch.h>
+#include <Debugger.h>
 #include <Event.h>
 
 #include <mutex>
 
 namespace aether {
-
 struct BinaryEngineImpl {
   EventConfig eventConf;
   ArchType arch;
@@ -28,10 +28,16 @@ struct BinaryEngineImpl {
   remill::Arch::ArchPtr remillArch;
   std::unique_ptr<llvm::Module> remillSemantic;
 
-  BinaryEngineImpl(ArchType arch, FileType os);
+  AetherDbgContext dbgContext;
+
+  BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
+                   BinaryEngine *engine);
   ~BinaryEngineImpl();
 
   bool startVM(addr_t entry);
+
+private:
+  void startDebugger();
 };
 
 } // namespace aether

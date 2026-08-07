@@ -14,9 +14,7 @@
 #include <iostream>
 #include <string_view>
 
-#if DEBUG || _DEBUG || !NDEBUG
-#define AETHER_DEBUG 1
-#endif
+#include "Common.h"
 
 namespace fs = std::filesystem;
 
@@ -85,6 +83,6 @@ inline void log_print(LogType type, std::format_string<Args...> format,
   std::cout << msg << std::endl;
 }
 
-size_t hash_value(std::string_view str);
+AETHER_VMAPI size_t hash_value(std::string_view str);
 
 } // namespace aether

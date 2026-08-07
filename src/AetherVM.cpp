@@ -32,14 +32,14 @@ BinaryEngine::BinaryEngine(const Machine *mach, EventConfig eventcfg)
 #else
 #error AetherVM only supports macOS, Linux, and Windows
 #endif
-  m_impl = std::make_unique<BinaryEngineImpl>(mach->archType(), os);
-  engine->eventConf = eventcfg;
+  m_impl =
+      std::make_unique<BinaryEngineImpl>(mach->archType(), os, eventcfg, this);
 }
 
 BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
     : m_binary(bin) {
-  m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType());
-  engine->eventConf = eventcfg;
+  m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType(),
+                                              eventcfg, this);
   // treat this bin as the main binary, so use the image base as guest base
   // memory address
   memory.baseGuest = bin->imageBase();
