@@ -37,17 +37,14 @@ public:
   // analysis and emulation, or a virtual cpu loop like in ICPP which has
   // already got its own analysis context and what it needs is nothing but
   // executing instructions.
-  BinaryEngine(const Machine *mach);
+  BinaryEngine(const Machine *mach, EventConfig eventcfg = EventConfig{});
 
   // Construct a raw virtual cpu context from a binary instance, which can
   // provide all the functions within it to be operated with, like lifting,
   // instrumenting, and analyzing.
-  BinaryEngine(const Binary *bin);
+  BinaryEngine(const Binary *bin, EventConfig eventcfg = EventConfig{});
 
   virtual ~BinaryEngine();
-
-  // Configure the event system.
-  void setConfig(EventConfig eventcfg);
 
   // Execute raw machine opcodes.
   bool execute(std::span<const uint8_t> raw);

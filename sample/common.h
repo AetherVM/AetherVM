@@ -19,6 +19,7 @@
 
 #include "../include/AetherVM.h"
 
+#include <AetherBinary.h>
 #include <Disassembler.h>
 
 #include <icpp.hpp>

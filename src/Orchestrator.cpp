@@ -159,6 +159,8 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
     auto handlers = &*current.handlers.rbegin();
     handlers->push_back(Instruction{finish_emulation});
   }
+  auto &[addr, lastfunc] = *bin->functions().rbegin();
+  current.maxaddr = lastfunc.end + addend;
   cache.current = &current;
 }
 
@@ -168,7 +170,7 @@ const Instruction *Orchestrator::findCache(addr_t vmaddr) {
   // L1 cache
   auto index = cache_index(vmaddr);
   auto &ref = cache.L1[index];
-  if (ref.vmaddr == vmaddr)
+  if (ref.vmaddr == vmaddr && ref.insn)
     return ref.insn;
 
   // the current whole blocks
@@ -177,12 +179,8 @@ const Instruction *Orchestrator::findCache(addr_t vmaddr) {
 
 const Instruction *Orchestrator::findBlocks(const BasicBlocks &blocks,
                                             addr_t vmaddr) {
-  auto lastbb = blocks.handlers.rbegin();
-  auto start = blocks.vmaddrs[0];
-  auto end = *blocks.vmaddrs.rbegin();
-  for (auto insn : *lastbb)
-    end += insn.oplen;
-  if (vmaddr < start || vmaddr >= end)
+  // address range precheck
+  if (vmaddr < blocks.vmaddrs[0] || vmaddr >= blocks.maxaddr)
     return nullptr;
 
   auto found =

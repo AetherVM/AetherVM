@@ -42,6 +42,7 @@ using Instructions = std::vector<Instruction>;
 struct BasicBlocks {
   // the guest basic block vm address
   std::vector<addr_t> vmaddrs;
+  addr_t maxaddr;
   // the dynamic handlers represent original instructions in those blocks
   std::vector<Instructions> handlers;
 };

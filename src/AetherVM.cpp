@@ -21,7 +21,8 @@ namespace aether {
 #define callbacks (engine->eventCallbacks)
 #define memory (engine->guestMemory)
 
-BinaryEngine::BinaryEngine(const Machine *mach) : m_machine(mach) {
+BinaryEngine::BinaryEngine(const Machine *mach, EventConfig eventcfg)
+    : m_machine(mach) {
 #if AETHER_OS_MACOS
   auto os = MachO;
 #elif AETHER_OS_LINUX
@@ -32,10 +33,13 @@ BinaryEngine::BinaryEngine(const Machine *mach) : m_machine(mach) {
 #error AetherVM only supports macOS, Linux, and Windows
 #endif
   m_impl = std::make_unique<BinaryEngineImpl>(mach->archType(), os);
+  engine->eventConf = eventcfg;
 }
 
-BinaryEngine::BinaryEngine(const Binary *bin) : m_binary(bin) {
+BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
+    : m_binary(bin) {
   m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType());
+  engine->eventConf = eventcfg;
   // treat this bin as the main binary, so use the image base as guest base
   // memory address
   memory.baseGuest = bin->imageBase();
@@ -43,10 +47,6 @@ BinaryEngine::BinaryEngine(const Binary *bin) : m_binary(bin) {
 }
 
 BinaryEngine::~BinaryEngine() {}
-
-void BinaryEngine::setConfig(EventConfig eventcfg) {
-  engine->eventConf = eventcfg;
-}
 
 bool BinaryEngine::execute(std::span<const uint8_t> raw) {
   llvm::Module module("aethervm-object", engine->remillSemantic->getContext());

@@ -14,7 +14,7 @@ void log_hash_elf(std::string_view arch, uint32_t hash) {
 }
 
 void execute_hash_elf(std::string_view script, std::string_view arch,
-                      std::string_view name) {
+                      std::string_view name, bool debug) {
   // emulate the call to 'elf_hash(name.c_str())' in the obj file
   auto dir = fs::absolute(script).parent_path();
   auto obj = (dir / std::format("elf_hash.{}.obj", arch)).string();
@@ -29,7 +29,9 @@ void execute_hash_elf(std::string_view script, std::string_view arch,
   auto retreg = bin->archType() == aether::ARM64 ? aether::Register::X0
                                                  : aether::Register::RAX;
 
-  aether::BinaryEngine engine{bin};
+  aether::EventConfig eventcfg;
+  eventcfg.debug = debug;
+  aether::BinaryEngine engine{bin, eventcfg};
   // initialize the first argument
   engine.setRegister(argreg, {.str = name.data()});
   // call elf_hash function
@@ -51,7 +53,8 @@ int main(int argc, const char *argv[]) {
   log_hash_elf(
       "host", elf_hash(reinterpret_cast<const unsigned char *>(symbol.data())));
 
+  bool debug = argc > 1 && strcmp(argv[1], "debug") == 0;
   for (auto arch : {"arm64", "x86_64"})
-    execute_hash_elf(argv[0], arch, symbol);
+    execute_hash_elf(argv[0], arch, symbol, debug);
   return 0;
 }
