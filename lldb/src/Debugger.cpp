@@ -13,10 +13,11 @@
 #include "Undefine.cpp"
 
 #include <AetherVM.h>
+#include <iostream>
 #include <thread>
 
 using namespace lldb_private;
-using namespace lldb_private::process_gdb_remote;
+using namespace process_gdb_remote;
 
 namespace {
 
@@ -24,21 +25,43 @@ struct DebuggingContext {
   AetherDbgContext *context = nullptr;
 } dbgContext;
 
-void insn_handler(void) {}
+void thread_handler(uintptr_t *pcptr) {
+  if (pcptr) {
+    // thread starting
+  } else {
+    // thread stopped
+  }
+}
+
+void insn_handler(void *state, uintptr_t pc, void *context) {}
 
 void debugging_proc(void) {
   MainLoop mainloop;
   AetherProcessManager manager(mainloop);
-
-  auto vm_process = std::make_unique<AetherProcess>(20260805, mainloop);
-
   GDBRemoteCommunicationServerLLGS server(mainloop, manager);
-  mainloop.Run();
+
+  // AetherDbg and AetherVM are running in the same process, a fake PID fits
+  server.AttachToProcess(20260805);
+
+  auto connection = std::make_unique<ConnectionFileDescriptor>();
+  auto url = std::format("listen://0.0.0.0:{}", dbgContext.context->port);
+  Status status;
+  lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
+
+  if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
+    server.SetConnection(std::move(connection));
+    mainloop.Run();
+  } else {
+    std::cerr << "Fatal error occurred when initializing aether debugger "
+                 "server socket."
+              << std::endl;
+  }
 }
 
 } // namespace
 
 void aether_dbgmain(AetherDbgContext *context) {
+  context->thread_handler = thread_handler;
   context->insn_handler = insn_handler;
 
   dbgContext.context = context;

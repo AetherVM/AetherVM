@@ -22,10 +22,11 @@ class BinaryEngine;
 struct AetherDbgContext {
   // input from AetherVM
   BinaryEngine *engine; // the current binary engine instance
-  uintptr_t *pcptr; // the pointer to the current pc in the guest state
+  int port;             // debug server listing port
 
   // output from AetherDbg
-  void (*insn_handler)(void);
+  void (*thread_handler)(uintptr_t *pcptr);
+  void (*insn_handler)(void *state, uintptr_t pc, void *context);
 };
 
 extern "C" __AETHER_DBGAPI__ void aether_dbgmain(AetherDbgContext *context);
