@@ -8,17 +8,16 @@
 #include "Thread.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 
+#include <map>
+#include <thread>
+
 namespace lldb_private {
 
 class AetherProcess : public NativeProcessProtocol {
 public:
-  AetherProcess(lldb::pid_t pid, MainLoop &mainloop)
-      : NativeProcessProtocol(pid, -1, m_delegate), m_mainloop(mainloop) {
-
-    // Add default VCPU thread
-    auto thread = std::make_unique<AetherThread>(*this, 1);
-    m_threads.push_back(std::move(thread));
-  }
+  AetherProcess(lldb::pid_t pid,
+                NativeProcessProtocol::NativeDelegate &delegate)
+      : NativeProcessProtocol(pid, -1, delegate) {}
 
   // Read VM memory space directly into LLDB buffer
   Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
@@ -106,25 +105,12 @@ public:
     return Status();
   }
 
-private:
-  struct Delegate : public NativeProcessProtocol::NativeDelegate {
-    void InitializeDelegate(NativeProcessProtocol *process) override {
-      abort();
-    }
-    void DidExec(NativeProcessProtocol *process) override { abort(); }
-    void NewSubprocess(
-        NativeProcessProtocol *parent_process,
-        std::unique_ptr<NativeProcessProtocol> child_process) override {
-      abort();
-    }
-    void ProcessStateChanged(NativeProcessProtocol *process,
-                             lldb::StateType state) override {
-      abort();
-    }
-  } m_delegate;
+  void AttachThread(uintptr_t *pcptr, bool arm64);
+  void DetachThread();
 
-  MainLoop &m_mainloop;
-  std::vector<std::unique_ptr<AetherThread>> m_threads;
+private:
+  lldb::tid_t m_tid = 1;
+  std::map<std::thread::id, std::unique_ptr<AetherThread>> m_threads;
 };
 
 } // namespace lldb_private

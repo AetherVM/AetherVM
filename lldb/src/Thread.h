@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "Context.h"
 #include "lldb/Host/common/NativeRegisterContext.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/Utility/Status.h"
@@ -13,14 +14,17 @@ namespace lldb_private {
 
 class AetherThread : public NativeThreadProtocol {
 public:
-  AetherThread(NativeProcessProtocol &process, lldb::tid_t tid)
-      : NativeThreadProtocol(process, tid) {}
+  AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
+               uintptr_t *pcptr, bool arm64);
 
   NativeRegisterContext &GetRegisterContext() override {
-    return *m_reg_context_up;
+    return *m_reg_context;
   }
 
-  std::string GetName() override { return "AetherVCPU-0"; }
+  std::string GetName() override {
+    return std::format("AetherThread-{}", GetID());
+  }
+
   lldb::StateType GetState() override { return m_state; }
 
   bool GetStopReason(ThreadStopInfo &stop_info,
@@ -51,8 +55,9 @@ public:
   }
 
 private:
+  uintptr_t *m_pcptr = nullptr;
   lldb::StateType m_state = lldb::eStateStopped;
-  std::unique_ptr<NativeRegisterContext> m_reg_context_up;
+  std::unique_ptr<NativeRegisterContext> m_reg_context;
 };
 
 } // namespace lldb_private

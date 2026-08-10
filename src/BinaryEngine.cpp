@@ -20,7 +20,7 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
   using enum remill::OSName;
   if (cfg.debug) {
     dbgContext.engine = engine;
-    startDebugger();
+    startDebugger(type);
   }
   // use windows coff as our in-memory object anyway
   remill::OSName os_name = kOSWindows;
@@ -76,8 +76,9 @@ bool BinaryEngineImpl::startVM(addr_t entry) {
 void thread_handler(uintptr_t *pcptr) {}
 void insn_handler(void *state, uintptr_t pc, const void *insn) {}
 
-void BinaryEngineImpl::startDebugger() {
+void BinaryEngineImpl::startDebugger(ArchType type) {
   dbgContext.port = eventConf.dbgport;
+  dbgContext.arm64 = type == ARM64;
 
   auto path = fs::path(self_path());
   path.replace_filename("libAetherDbg" + path.extension().string());

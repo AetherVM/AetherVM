@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "Process.h"
 #include "lldb/Host/MainLoop.h"
 #include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
@@ -36,8 +37,15 @@ public:
   llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
   Attach(lldb::pid_t pid,
          NativeProcessProtocol::NativeDelegate &native_delegate) override {
-    abort();
+    auto proc = std::make_unique<AetherProcess>(pid, native_delegate);
+    m_proc = proc.get();
+    return std::move(proc);
   }
+
+  AetherProcess *CurrentProcess() const { return m_proc; }
+
+private:
+  AetherProcess *m_proc = nullptr;
 };
 
 } // namespace lldb_private

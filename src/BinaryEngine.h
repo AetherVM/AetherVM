@@ -37,7 +37,7 @@ struct BinaryEngineImpl {
   bool startVM(addr_t entry);
 
 private:
-  void startDebugger();
+  void startDebugger(ArchType type);
 };
 
 } // namespace aether

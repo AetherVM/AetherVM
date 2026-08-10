@@ -11,6 +11,7 @@ struct AetherDbgContext {
   // input from AetherVM
   aether::BinaryEngine *engine; // the current binary engine instance
   int port;                     // debug server listing port
+  bool arm64;                   // if arm64 otherwise x86_64
 
   // output from AetherDbg
   void (*thread_handler)(uintptr_t *pcptr);

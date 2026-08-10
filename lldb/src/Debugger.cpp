@@ -23,13 +23,16 @@ namespace {
 
 struct DebuggingContext {
   AetherDbgContext *context = nullptr;
+  AetherProcess *proc = nullptr;
 } dbgContext;
 
 void thread_handler(uintptr_t *pcptr) {
   if (pcptr) {
     // thread starting
+    dbgContext.proc->AttachThread(pcptr, dbgContext.context->arm64);
   } else {
     // thread stopped
+    dbgContext.proc->DetachThread();
   }
 }
 
@@ -42,6 +45,7 @@ void debugging_proc(void) {
 
   // AetherDbg and AetherVM are running in the same process, a fake PID fits
   server.AttachToProcess(20260805);
+  dbgContext.proc = manager.CurrentProcess();
 
   auto connection = std::make_unique<ConnectionFileDescriptor>();
   auto url = std::format("listen://0.0.0.0:{}", dbgContext.context->port);

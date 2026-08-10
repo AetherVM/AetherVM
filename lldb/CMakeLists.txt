@@ -37,9 +37,9 @@ add_library(AetherDbg SHARED
 # link the LLVM shared library
 if(MSVC)
   target_link_directories(AetherDbg PRIVATE ${LLVM_LIBRARY_DIRS})
-  target_link_libraries(AetherDbg PRIVATE LLVM-22)
+  target_link_libraries(AetherDbg PRIVATE LLVM-22 LLVMSupport)
 else()
-  target_link_libraries(AetherDbg PRIVATE LLVM)
+  target_link_libraries(AetherDbg PRIVATE LLVM LLVMSupport)
 endif()
 
 target_include_directories(AetherDbg PRIVATE 
