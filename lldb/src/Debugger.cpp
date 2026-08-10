@@ -36,7 +36,9 @@ void thread_handler(uintptr_t *pcptr) {
   }
 }
 
-void insn_handler(void *state, uintptr_t pc, const void *insn) {}
+void insn_handler(void *state, uintptr_t pc, const void *insn) {
+  dbgContext.proc->WatchDog(pc);
+}
 
 void debugging_proc(void) {
   MainLoop mainloop;
@@ -49,6 +51,7 @@ void debugging_proc(void) {
 
   auto connection = std::make_unique<ConnectionFileDescriptor>();
   auto url = std::format("listen://0.0.0.0:{}", dbgContext.context->port);
+  std::cout << "Aether Debugger - " << url << std::endl;
   Status status;
   lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
 

@@ -10,6 +10,9 @@
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/Utility/Status.h"
 
+#include <condition_variable>
+#include <mutex>
+
 namespace lldb_private {
 
 class AetherThread : public NativeThreadProtocol {
@@ -54,10 +57,14 @@ public:
     return Status();
   }
 
+  void WatchDog(uintptr_t pc);
+
 private:
   uintptr_t *m_pcptr = nullptr;
   lldb::StateType m_state = lldb::eStateStopped;
   std::unique_ptr<NativeRegisterContext> m_reg_context;
+  std::mutex m_mutex;
+  std::condition_variable m_condvar;
 };
 
 } // namespace lldb_private

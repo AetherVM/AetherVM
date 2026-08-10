@@ -15,4 +15,16 @@ AetherThread::AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
                           : reinterpret_cast<NativeRegisterContext *>(
                                 new AetherRegisterContextX64(*this))) {}
 
+void AetherThread::WatchDog(uintptr_t pc) {
+  switch (m_state) {
+  case lldb::eStateStopped: {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_condvar.wait(lock);
+    break;
+  }
+  default:
+    abort();
+  }
+}
+
 } // namespace lldb_private

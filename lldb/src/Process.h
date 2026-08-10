@@ -108,9 +108,12 @@ public:
   void AttachThread(uintptr_t *pcptr, bool arm64);
   void DetachThread();
 
+  void WatchDog(uintptr_t pc);
+
 private:
   lldb::tid_t m_tid = 1;
   std::map<std::thread::id, std::unique_ptr<AetherThread>> m_threads;
+  std::mutex m_mutex;
 };
 
 } // namespace lldb_private
