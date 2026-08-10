@@ -24,8 +24,7 @@ public:
   ~AetherProcessManager() override = default;
 
   NativeProcessProtocol::Extension GetSupportedExtensions() const override {
-    abort();
-    return NativeProcessProtocol::Extension::multiprocess;
+    return NativeProcessProtocol::Extension::pass_signals;
   }
 
   llvm::Expected<std::unique_ptr<NativeProcessProtocol>>

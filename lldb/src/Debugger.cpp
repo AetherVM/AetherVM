@@ -56,7 +56,7 @@ void debugging_proc(void) {
   lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
 
   if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
-    server.SetConnection(std::move(connection));
+    server.InitializeConnection(std::move(connection));
     mainloop.Run();
   } else {
     std::cerr << "Fatal error occurred when initializing aether debugger "
