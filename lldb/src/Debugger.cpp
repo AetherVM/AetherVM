@@ -8,6 +8,7 @@
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
 #include "Process.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/HostInfoBase.h"
 #include "lldb/Host/MainLoop.h"
 
 #include "Undefine.cpp"
@@ -73,5 +74,6 @@ void aether_dbgmain(AetherDbgContext *context) {
 
   dbgContext.context = context;
 
+  HostInfoBase::Initialize(nullptr);
   std::thread([]() { debugging_proc(); }).detach();
 }

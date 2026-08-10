@@ -76,6 +76,9 @@ target_link_libraries(AetherDbg PRIVATE
 )
 
 if(APPLE)
+  target_link_libraries(AetherDbg PRIVATE
+    lldbHostMacOSXObjCXX
+  )
   set_target_properties(AetherDbg PROPERTIES
     SKIP_BUILD_RPATH TRUE
     SKIP_INSTALL_RPATH TRUE
@@ -86,8 +89,13 @@ if(APPLE)
     -Wl,-rpath,@loader_path
     -Wl,-rpath,@loader_path/../lib
     -Wl,-install_name,@rpath/libAetherDbg.dylib
+    -Wl,-framework,Foundation  
+    -Wl,-framework,CoreFoundation
+    -Wl,-framework,CoreServices
+    -Wl,-framework,Security
     -ledit
     -lcompression
+    -lobjc
   )
 elseif(MSVC)
 else()
