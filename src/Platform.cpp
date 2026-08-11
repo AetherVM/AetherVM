@@ -184,4 +184,12 @@ const void *resolve_symbol(const void *handle, std::string_view name) {
 #endif
 }
 
+int current_pid() {
+#if ON_WINDOWS
+  return ::GetCurrentProcessId();
+#else
+  return getpid();
+#endif
+}
+
 } // namespace aether

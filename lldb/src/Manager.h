@@ -35,11 +35,7 @@ public:
 
   llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
   Attach(lldb::pid_t pid,
-         NativeProcessProtocol::NativeDelegate &native_delegate) override {
-    auto proc = std::make_unique<AetherProcess>(pid, native_delegate);
-    m_proc = proc.get();
-    return std::move(proc);
-  }
+         NativeProcessProtocol::NativeDelegate &native_delegate) override;
 
   AetherProcess *CurrentProcess() const { return m_proc; }
 

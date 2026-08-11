@@ -12,6 +12,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 namespace lldb_private {
 
@@ -59,9 +60,12 @@ public:
 
   void WatchDog(uintptr_t pc);
 
+  std::thread::id GetNativeID() { return m_id; }
+
 private:
   uintptr_t *m_pcptr = nullptr;
   lldb::StateType m_state = lldb::eStateStopped;
+  std::thread::id m_id;
   std::unique_ptr<NativeRegisterContext> m_reg_context;
   std::mutex m_mutex;
   std::condition_variable m_condvar;

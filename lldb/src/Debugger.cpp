@@ -25,9 +25,50 @@ namespace {
 struct DebuggingContext {
   AetherDbgContext *context = nullptr;
   AetherProcess *proc = nullptr;
+
+  MainLoop mainloop;
+  AetherProcessManager manager;
+  GDBRemoteCommunicationServerLLGS server;
+
+  DebuggingContext() : manager(mainloop), server(mainloop, manager) {}
+
+  void initialize(uintptr_t *pcptr);
 } dbgContext;
 
+void thread_handler(uintptr_t *pcptr);
+
+void DebuggingContext::initialize(uintptr_t *pcptr) {
+  auto connection = std::make_unique<ConnectionFileDescriptor>();
+  auto url = std::format("listen://0.0.0.0:{}", context->port);
+  Status status;
+  std::cout << "Aether Debugger - " << url << std::endl;
+  // wait for lldb/Cutter client to connect
+  lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
+  if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
+    HostInfoBase::Initialize(nullptr);
+    // attach AetherProcess itself
+    server.AttachToProcess(aether::current_pid());
+    // initialize the first thread
+    proc = manager.CurrentProcess();
+    thread_handler(pcptr);
+    server.InitializeConnection(std::move(connection));
+
+    // dispatch debug event process in a new thread
+    std::thread([]() { dbgContext.mainloop.Run(); }).detach();
+  } else {
+    std::cerr << "Fatal error occurred when initializing aether debugger "
+                 "server socket."
+              << std::endl;
+    std::exit(-1);
+  }
+}
+
 void thread_handler(uintptr_t *pcptr) {
+  if (!dbgContext.proc) {
+    // debugging initialization
+    dbgContext.initialize(pcptr);
+    return;
+  }
   if (pcptr) {
     // thread starting
     dbgContext.proc->AttachThread(pcptr, dbgContext.context->arm64);
@@ -41,31 +82,6 @@ void insn_handler(void *state, uintptr_t pc, const void *insn) {
   dbgContext.proc->WatchDog(pc);
 }
 
-void debugging_proc(void) {
-  MainLoop mainloop;
-  AetherProcessManager manager(mainloop);
-  GDBRemoteCommunicationServerLLGS server(mainloop, manager);
-
-  // AetherDbg and AetherVM are running in the same process, a fake PID fits
-  server.AttachToProcess(20260805);
-  dbgContext.proc = manager.CurrentProcess();
-
-  auto connection = std::make_unique<ConnectionFileDescriptor>();
-  auto url = std::format("listen://0.0.0.0:{}", dbgContext.context->port);
-  std::cout << "Aether Debugger - " << url << std::endl;
-  Status status;
-  lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
-
-  if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
-    server.InitializeConnection(std::move(connection));
-    mainloop.Run();
-  } else {
-    std::cerr << "Fatal error occurred when initializing aether debugger "
-                 "server socket."
-              << std::endl;
-  }
-}
-
 } // namespace
 
 void aether_dbgmain(AetherDbgContext *context) {
@@ -73,7 +89,4 @@ void aether_dbgmain(AetherDbgContext *context) {
   context->insn_handler = insn_handler;
 
   dbgContext.context = context;
-
-  HostInfoBase::Initialize(nullptr);
-  std::thread([]() { debugging_proc(); }).detach();
 }

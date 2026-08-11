@@ -8,8 +8,8 @@
 #include <span>
 #include <vector>
 
-#include "Common.h"
 #include "Event.h"
+#include "Platform.h"
 #include "Register.h"
 
 namespace aether {

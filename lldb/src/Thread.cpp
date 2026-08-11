@@ -13,7 +13,9 @@ AetherThread::AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
       m_reg_context(arm64 ? reinterpret_cast<NativeRegisterContext *>(
                                 new AetherRegisterContextARM64(*this))
                           : reinterpret_cast<NativeRegisterContext *>(
-                                new AetherRegisterContextX64(*this))) {}
+                                new AetherRegisterContextX64(*this))) {
+  m_id = std::this_thread::get_id();
+}
 
 void AetherThread::WatchDog(uintptr_t pc) {
   switch (m_state) {

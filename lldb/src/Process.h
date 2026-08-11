@@ -16,8 +16,7 @@ namespace lldb_private {
 class AetherProcess : public NativeProcessProtocol {
 public:
   AetherProcess(lldb::pid_t pid,
-                NativeProcessProtocol::NativeDelegate &delegate)
-      : NativeProcessProtocol(pid, -1, delegate) {}
+                NativeProcessProtocol::NativeDelegate &delegate);
 
   // Read VM memory space directly into LLDB buffer
   Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
@@ -72,10 +71,7 @@ public:
     return Status();
   }
 
-  size_t UpdateThreads() override {
-    // In a real implementation, this would query the VM for active threads
-    return m_threads.size();
-  }
+  size_t UpdateThreads() override { return m_threads.size(); }
 
   lldb::addr_t GetSharedLibraryInfoAddress() override {
     abort();
@@ -110,9 +106,10 @@ public:
 
   void WatchDog(uintptr_t pc);
 
+  AetherThread *ThisThread();
+
 private:
-  lldb::tid_t m_tid = 1;
-  std::map<std::thread::id, std::unique_ptr<AetherThread>> m_threads;
+  lldb::tid_t m_tid = 0;
   std::mutex m_mutex;
 };
 
