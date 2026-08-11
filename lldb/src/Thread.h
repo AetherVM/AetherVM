@@ -32,10 +32,7 @@ public:
   lldb::StateType GetState() override { return m_state; }
 
   bool GetStopReason(ThreadStopInfo &stop_info,
-                     std::string &description) override {
-    abort();
-    return false;
-  }
+                     std::string &description) override;
 
   Status SetWatchpoint(lldb::addr_t addr, size_t size, uint32_t watch_flags,
                        bool hardware) override {
@@ -65,6 +62,8 @@ public:
 private:
   uintptr_t *m_pcptr = nullptr;
   lldb::StateType m_state = lldb::eStateStopped;
+  ThreadStopInfo m_stop_info;
+  std::string m_stop_description;
   std::thread::id m_id;
   std::unique_ptr<NativeRegisterContext> m_reg_context;
   std::mutex m_mutex;

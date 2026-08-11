@@ -14,13 +14,9 @@ public:
   AetherRegisterContextARM64(NativeThreadProtocol &thread)
       : NativeRegisterContext(thread) {}
 
-  uint32_t GetRegisterCount() const override { abort(); }
+  uint32_t GetRegisterCount() const override;
 
-  const RegisterInfo *
-  GetRegisterInfoAtIndex(uint32_t reg_index) const override {
-    abort();
-    return nullptr;
-  }
+  const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
 
   Status ReadRegister(const RegisterInfo *reg_info,
                       RegisterValue &reg_value) override {
@@ -58,13 +54,9 @@ public:
   AetherRegisterContextX64(NativeThreadProtocol &thread)
       : NativeRegisterContext(thread) {}
 
-  uint32_t GetRegisterCount() const override { abort(); }
+  uint32_t GetRegisterCount() const override;
 
-  const RegisterInfo *
-  GetRegisterInfoAtIndex(uint32_t reg_index) const override {
-    abort();
-    return nullptr;
-  }
+  const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
 
   Status ReadRegister(const RegisterInfo *reg_info,
                       RegisterValue &reg_value) override {

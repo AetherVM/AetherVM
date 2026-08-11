@@ -15,6 +15,34 @@ AetherThread::AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
                           : reinterpret_cast<NativeRegisterContext *>(
                                 new AetherRegisterContextX64(*this))) {
   m_id = std::this_thread::get_id();
+  m_stop_info.reason = lldb::eStopReasonNone;
+  m_stop_info.signo = 0;
+  m_stop_description = "Finished attaching";
+}
+
+bool AetherThread::GetStopReason(ThreadStopInfo &stop_info,
+                                 std::string &description) {
+  description.clear();
+
+  switch (m_state) {
+  case lldb::eStateStopped:
+  case lldb::eStateCrashed:
+  case lldb::eStateExited:
+  case lldb::eStateSuspended:
+  case lldb::eStateUnloaded:
+    stop_info = m_stop_info;
+    description = m_stop_description;
+    return true;
+  case lldb::eStateInvalid:
+  case lldb::eStateConnected:
+  case lldb::eStateAttaching:
+  case lldb::eStateLaunching:
+  case lldb::eStateRunning:
+  case lldb::eStateStepping:
+  case lldb::eStateDetached:
+    return false;
+  }
+  llvm_unreachable("unhandled StateType!");
 }
 
 void AetherThread::WatchDog(uintptr_t pc) {
