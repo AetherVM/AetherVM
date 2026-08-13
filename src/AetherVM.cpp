@@ -41,9 +41,12 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
   m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType(),
                                               eventcfg, this);
   // treat this bin as the main binary, so use the image base as guest base
-  // memory address
-  memory.baseGuest = bin->imageBase();
-  orchBinary(bin, 0);
+  // memory address if it's not 0
+  if (bin->imageBase())
+    memory.baseGuest = bin->imageBase();
+  else
+    engine->vmBase = memory.guestAvailable();
+  orchBinary(bin, engine->vmBase);
 }
 
 BinaryEngine::~BinaryEngine() {}
@@ -71,6 +74,8 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
 }
 
 bool BinaryEngine::execute(addr_t target) {
+  target += engine->vmBase;
+
   if (!memory.valid(target, 1))
     return false;
 

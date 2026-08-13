@@ -41,7 +41,8 @@ public:
   bool execute(std::span<const uint8_t> raw);
 
   // Execute opcodes of target which belongs to the current attached binary, or
-  // any other mapMemory returned vm address.
+  // any other mapMemory returned vm address. The target is a static address in
+  // the binary.
   bool execute(addr_t target);
 
   // Execute the main function of an executable binary file which the current

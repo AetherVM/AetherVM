@@ -16,10 +16,12 @@
 #include <mutex>
 
 namespace aether {
+
 struct BinaryEngineImpl {
   EventConfig eventConf;
   ArchType arch;
   GuestMemory guestMemory;
+  addr_t vmBase = 0;
 
   std::mutex mutex;
   std::vector<EventCallback> eventCallbacks;
