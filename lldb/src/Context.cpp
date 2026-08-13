@@ -4,16 +4,20 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Context.h"
-#include <Register.h>
+#include <AetherVM.h>
 
 #include "Plugins/Process/Utility/RegisterContext_x86.h"
 #include "Plugins/Process/Utility/lldb-x86-register-enums.h"
 #include "Utility/ARM64_DWARF_Registers.h"
 #include "Utility/ARM64_ehframe_Registers.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/RegisterValue.h"
 
 namespace lldb_private {
 
 using enum aether::Register;
+
+aether::BinaryEngine *Engine = nullptr;
 
 namespace arm64 {
 
@@ -411,6 +415,32 @@ AetherRegisterContextX64::GetRegisterInfoAtIndex(uint32_t reg_index) const {
   return reg_index < std::size(x86_64::registers)
              ? &x86_64::register_infos[reg_index]
              : nullptr;
+}
+
+static Status DoReadRegister(const RegisterInfo *reg_info,
+                             const RegisterInfo *reg_infos,
+                             const aether::Register *registers,
+                             RegisterValue &reg_value) {
+  auto index = reg_info - reg_infos;
+  auto reg = registers[index];
+  auto regptr = Engine->getRegister(reg);
+  if (reg_info->byte_size <= 8)
+    reg_value.SetUInt64(regptr->u8);
+  else
+    reg_value.SetBytes(regptr, reg_info->byte_size, endian::InlHostByteOrder());
+  return Status();
+}
+
+Status AetherRegisterContextARM64::ReadRegister(const RegisterInfo *reg_info,
+                                                RegisterValue &reg_value) {
+  return DoReadRegister(reg_info, &arm64::register_infos[0],
+                        &arm64::registers[0], reg_value);
+}
+
+Status AetherRegisterContextX64::ReadRegister(const RegisterInfo *reg_info,
+                                              RegisterValue &reg_value) {
+  return DoReadRegister(reg_info, &x86_64::register_infos[0],
+                        &x86_64::registers[0], reg_value);
 }
 
 } // namespace lldb_private

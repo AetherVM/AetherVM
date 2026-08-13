@@ -89,4 +89,5 @@ void aether_dbgmain(AetherDbgContext *context) {
   context->insn_handler = insn_handler;
 
   dbgContext.context = context;
+  Engine = context->engine;
 }

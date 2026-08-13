@@ -7,7 +7,13 @@
 
 #include "lldb/Host/common/NativeRegisterContext.h"
 
+namespace aether {
+class BinaryEngine;
+}
+
 namespace lldb_private {
+
+extern aether::BinaryEngine *Engine;
 
 class AetherRegisterContextARM64 : public NativeRegisterContext {
 public:
@@ -19,10 +25,7 @@ public:
   const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
 
   Status ReadRegister(const RegisterInfo *reg_info,
-                      RegisterValue &reg_value) override {
-    abort();
-    return Status();
-  }
+                      RegisterValue &reg_value) override;
 
   Status WriteRegister(const RegisterInfo *reg_info,
                        const RegisterValue &reg_value) override {
@@ -40,9 +43,9 @@ public:
     return Status();
   }
 
-  uint32_t GetUserRegisterCount() const override { abort(); }
+  uint32_t GetUserRegisterCount() const override { return 0; }
 
-  uint32_t GetRegisterSetCount() const override { abort(); }
+  uint32_t GetRegisterSetCount() const override { return 0; }
 
   const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
     abort();
@@ -59,10 +62,7 @@ public:
   const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
 
   Status ReadRegister(const RegisterInfo *reg_info,
-                      RegisterValue &reg_value) override {
-    abort();
-    return Status();
-  }
+                      RegisterValue &reg_value) override;
 
   Status WriteRegister(const RegisterInfo *reg_info,
                        const RegisterValue &reg_value) override {
@@ -80,9 +80,9 @@ public:
     return Status();
   }
 
-  uint32_t GetUserRegisterCount() const override { abort(); }
+  uint32_t GetUserRegisterCount() const override { return 0; }
 
-  uint32_t GetRegisterSetCount() const override { abort(); }
+  uint32_t GetRegisterSetCount() const override { return 0; }
 
   const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
     abort();

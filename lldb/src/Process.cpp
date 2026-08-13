@@ -4,10 +4,14 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Process.h"
+#include <AetherVM.h>
+
+using namespace llvm;
 
 namespace lldb_private {
 
-#define lock_on() std::lock_guard<std::mutex> _lock_(m_mutex)
+#define lock_on()                                                              \
+  std::lock_guard<std::mutex> _lock_(const_cast<AetherProcess *>(this)->m_mutex)
 
 static thread_local AetherThread *thisThread = nullptr;
 
@@ -38,18 +42,14 @@ void AetherProcess::DetachThread() {
   thisThread = nullptr;
 }
 
-void AetherProcess::WatchDog(uintptr_t pc) {
-  if (!thisThread) {
-    lock_on();
+void AetherProcess::WatchDog(uintptr_t pc) { ThisThread()->WatchDog(pc); }
 
-    thisThread = ThisThread();
-  }
+AetherThread *AetherProcess::ThisThread() const {
+  if (thisThread)
+    return thisThread;
 
-  thisThread->WatchDog(pc);
-}
-
-AetherThread *AetherProcess::ThisThread() {
-  return reinterpret_cast<AetherThread *>(
+  lock_on();
+  thisThread = reinterpret_cast<AetherThread *>(
       std::find_if(m_threads.begin(), m_threads.end(),
                    [](const std::unique_ptr<NativeThreadProtocol> &thread) {
                      auto aether =
@@ -57,6 +57,29 @@ AetherThread *AetherProcess::ThisThread() {
                      return aether->GetNativeID() == std::this_thread::get_id();
                    })
           ->get());
+  return thisThread;
+}
+
+const ArchSpec &AetherProcess::GetArchitecture() const {
+  static std::unique_ptr<ArchSpec> arch;
+  if (arch)
+    return *arch;
+
+  Triple triple;
+  triple.setVendor(Triple::VendorType::UnknownVendor);
+  triple.setArch(MainThread()->IsARM64() ? Triple::ArchType::aarch64
+                                         : Triple::ArchType::x86_64);
+  triple.setOS(
+#if AETHER_OS_WINDOWS
+      Triple::OSType::Win32
+#elif AETHER_OS_MACOS
+      Triple::OSType::MacOSX
+#else
+      Triple::OSType::Linux
+#endif
+  );
+  arch = std::make_unique<ArchSpec>(triple);
+  return *arch;
 }
 
 } // namespace lldb_private

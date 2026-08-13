@@ -57,10 +57,14 @@ public:
 
   void WatchDog(uintptr_t pc);
 
-  std::thread::id GetNativeID() { return m_id; }
+  std::thread::id GetNativeID() const { return m_id; }
+
+  bool IsARM64() const { return m_arm64; }
+  bool IsX64() const { return !IsARM64(); }
 
 private:
   uintptr_t *m_pcptr = nullptr;
+  bool m_arm64;
   lldb::StateType m_state = lldb::eStateStopped;
   ThreadStopInfo m_stop_info;
   std::string m_stop_description;

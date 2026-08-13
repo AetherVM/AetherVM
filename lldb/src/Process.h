@@ -49,7 +49,7 @@ public:
   }
 
   // Architecture details (e.g., x86_64, arm64, riscv64)
-  const ArchSpec &GetArchitecture() const override { abort(); }
+  const ArchSpec &GetArchitecture() const override;
 
   Status Halt() override {
     abort();
@@ -106,7 +106,10 @@ public:
 
   void WatchDog(uintptr_t pc);
 
-  AetherThread *ThisThread();
+  AetherThread *ThisThread() const;
+  AetherThread *MainThread() const {
+    return reinterpret_cast<AetherThread *>(m_threads[0].get());
+  }
 
 private:
   lldb::tid_t m_tid = 0;
