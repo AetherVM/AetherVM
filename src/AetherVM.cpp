@@ -89,16 +89,27 @@ const void *BinaryEngine::makeExecutable(std::span<const uint8_t> raw) {
 }
 
 const RegisterValue *BinaryEngine::getRegister(Register reg) {
-  return engine->arch == ARM64 ? CPU.getRegisterAArch64(reg)
-                               : CPU.getRegisterX86(reg);
+  return getRegister(&CPU, reg);
 }
 
 bool BinaryEngine::setRegister(Register reg, RegisterValue val) {
+  return setRegister(&CPU, reg, val);
+}
+
+const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
+  auto cpu = reinterpret_cast<CPUState *>(rawcpu);
+  return engine->arch == ARM64 ? cpu->getRegisterAArch64(reg)
+                               : cpu->getRegisterX86(reg);
+}
+
+bool BinaryEngine::setRegister(void *rawcpu, Register reg, RegisterValue val) {
   // automatically set and managed by each thread cpu state
   if (reg == Register::SP)
     return false;
-  return engine->arch == ARM64 ? CPU.setRegisterAArch64(reg, val)
-                               : CPU.setRegisterX86(reg, val);
+
+  auto cpu = reinterpret_cast<CPUState *>(rawcpu);
+  return engine->arch == ARM64 ? cpu->setRegisterAArch64(reg, val)
+                               : cpu->setRegisterX86(reg, val);
 }
 
 addr_t BinaryEngine::mapMemory(size_t size) {

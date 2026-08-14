@@ -21,11 +21,11 @@ AetherProcess::AetherProcess(lldb::pid_t pid,
   SetState(lldb::eStateStopped, false);
 }
 
-void AetherProcess::AttachThread(uintptr_t *pcptr, bool arm64) {
+void AetherProcess::AttachThread(void *cpu, bool arm64) {
   lock_on();
 
   m_threads.push_back(
-      std::make_unique<AetherThread>(*this, m_tid++, pcptr, arm64));
+      std::make_unique<AetherThread>(*this, m_tid++, cpu, arm64));
 }
 
 void AetherProcess::DetachThread() {

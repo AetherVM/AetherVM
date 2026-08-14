@@ -101,7 +101,7 @@ public:
     return Status();
   }
 
-  void AttachThread(uintptr_t *pcptr, bool arm64);
+  void AttachThread(void *cpu, bool arm64);
   void DetachThread();
 
   void WatchDog(uintptr_t pc);

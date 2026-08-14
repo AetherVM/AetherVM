@@ -32,12 +32,12 @@ struct DebuggingContext {
 
   DebuggingContext() : manager(mainloop), server(mainloop, manager) {}
 
-  void initialize(uintptr_t *pcptr);
+  void initialize(void *cpu);
 } dbgContext;
 
-void thread_handler(uintptr_t *pcptr);
+void thread_handler(void *cpu);
 
-void DebuggingContext::initialize(uintptr_t *pcptr) {
+void DebuggingContext::initialize(void *cpu) {
   auto connection = std::make_unique<ConnectionFileDescriptor>();
   auto url = std::format("listen://0.0.0.0:{}", context->port);
   Status status;
@@ -50,7 +50,7 @@ void DebuggingContext::initialize(uintptr_t *pcptr) {
     server.AttachToProcess(aether::current_pid());
     // initialize the first thread
     proc = manager.CurrentProcess();
-    thread_handler(pcptr);
+    thread_handler(cpu);
     server.InitializeConnection(std::move(connection));
 
     // dispatch debug event process in a new thread
@@ -63,15 +63,15 @@ void DebuggingContext::initialize(uintptr_t *pcptr) {
   }
 }
 
-void thread_handler(uintptr_t *pcptr) {
+void thread_handler(void *cpu) {
   if (!dbgContext.proc) {
     // debugging initialization
-    dbgContext.initialize(pcptr);
+    dbgContext.initialize(cpu);
     return;
   }
-  if (pcptr) {
+  if (cpu) {
     // thread starting
-    dbgContext.proc->AttachThread(pcptr, dbgContext.context->arm64);
+    dbgContext.proc->AttachThread(cpu, dbgContext.context->arm64);
   } else {
     // thread stopped
     dbgContext.proc->DetachThread();

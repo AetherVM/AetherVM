@@ -18,8 +18,8 @@ namespace lldb_private {
 
 class AetherThread : public NativeThreadProtocol {
 public:
-  AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
-               uintptr_t *pcptr, bool arm64);
+  AetherThread(NativeProcessProtocol &process, lldb::tid_t tid, void *cpu,
+               bool arm64);
 
   NativeRegisterContext &GetRegisterContext() override {
     return *m_reg_context;
@@ -59,11 +59,13 @@ public:
 
   std::thread::id GetNativeID() const { return m_id; }
 
+  void *GetCPU() const { return m_cpu; }
+
   bool IsARM64() const { return m_arm64; }
   bool IsX64() const { return !IsARM64(); }
 
 private:
-  uintptr_t *m_pcptr = nullptr;
+  void *m_cpu = nullptr;
   bool m_arm64;
   lldb::StateType m_state = lldb::eStateStopped;
   ThreadStopInfo m_stop_info;

@@ -57,11 +57,11 @@ public:
   // prototype and call without manually setting register contexts;
   const void *makeExecutable(std::span<const uint8_t> raw);
 
-  // Get the readonly pointer of a specified register, return nullptr if reg is
-  // not invalid for this instance.
+  // Get the readonly pointer of a specified register belonging to the calling
+  // thread, return nullptr if reg is not invalid for this instance.
   const RegisterValue *getRegister(Register reg);
 
-  // Set the value of a specified register.
+  // Set the value of a specified register for the calling thread.
   // Don't reset SP register which is automatically set for each thread.
   bool setRegister(Register reg, RegisterValue val);
 
@@ -79,6 +79,12 @@ public:
   // This's not thread-safe, only register any callbacks before executing the
   // guest code.
   int registerCallback(EventCallback callback);
+
+public:
+  // Get and set the register belonging to the specific VM thread cpu,
+  // internally used by the debugger.
+  const RegisterValue *getRegister(void *cpu, Register reg);
+  bool setRegister(void *cpu, Register reg, RegisterValue val);
 
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement....

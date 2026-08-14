@@ -35,7 +35,7 @@ bool CPUState::initContext(addr_t entry) {
   pcptr = reinterpret_cast<uintptr_t *>(
       const_cast<RegisterValue *>(getRegister(Register::PC)));
 
-  runtime->dbgContext.thread_handler(pcptr);
+  runtime->dbgContext.thread_handler(this);
   return true;
 }
 

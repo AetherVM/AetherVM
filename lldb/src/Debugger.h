@@ -14,7 +14,7 @@ struct AetherDbgContext {
   bool arm64;                   // if arm64 otherwise x86_64
 
   // output from AetherDbg
-  void (*thread_handler)(uintptr_t *pcptr);
+  void (*thread_handler)(void *cpu);
   void (*insn_handler)(void *state, uintptr_t pc, const void *insn);
 };
 

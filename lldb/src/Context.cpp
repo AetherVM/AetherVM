@@ -4,7 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Context.h"
-#include <AetherVM.h>
+#include "Thread.h"
 
 #include "Plugins/Process/Utility/RegisterContext_x86.h"
 #include "Plugins/Process/Utility/lldb-x86-register-enums.h"
@@ -395,6 +395,10 @@ static_assert(std::size(registers) == std::size(register_infos));
 
 } // namespace x86_64
 
+void *AetherRegisterContext::GetCPU() const {
+  return reinterpret_cast<AetherThread *>(&m_thread)->GetCPU();
+}
+
 uint32_t AetherRegisterContextARM64::GetRegisterCount() const {
   return std::size(arm64::registers);
 }
@@ -417,13 +421,13 @@ AetherRegisterContextX64::GetRegisterInfoAtIndex(uint32_t reg_index) const {
              : nullptr;
 }
 
-static Status DoReadRegister(const RegisterInfo *reg_info,
-                             const RegisterInfo *reg_infos,
-                             const aether::Register *registers,
-                             RegisterValue &reg_value) {
+Status AetherRegisterContext::DoReadRegister(const RegisterInfo *reg_info,
+                                             const RegisterInfo *reg_infos,
+                                             const aether::Register *registers,
+                                             RegisterValue &reg_value) {
   auto index = reg_info - reg_infos;
   auto reg = registers[index];
-  auto regptr = Engine->getRegister(reg);
+  auto regptr = Engine->getRegister(GetCPU(), reg);
   if (reg_info->byte_size <= 8)
     reg_value.SetUInt64(regptr->u8);
   else

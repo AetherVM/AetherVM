@@ -8,8 +8,8 @@
 namespace lldb_private {
 
 AetherThread::AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
-                           uintptr_t *pcptr, bool arm64)
-    : NativeThreadProtocol(process, tid), m_pcptr(pcptr), m_arm64(arm64),
+                           void *cpu, bool arm64)
+    : NativeThreadProtocol(process, tid), m_cpu(cpu), m_arm64(arm64),
       m_reg_context(arm64 ? reinterpret_cast<NativeRegisterContext *>(
                                 new AetherRegisterContextARM64(*this))
                           : reinterpret_cast<NativeRegisterContext *>(

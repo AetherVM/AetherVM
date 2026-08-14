@@ -7,18 +7,48 @@
 
 #include "lldb/Host/common/NativeRegisterContext.h"
 
-namespace aether {
-class BinaryEngine;
-}
+#include <AetherVM.h>
 
 namespace lldb_private {
 
 extern aether::BinaryEngine *Engine;
 
-class AetherRegisterContextARM64 : public NativeRegisterContext {
+class AetherRegisterContext : public NativeRegisterContext {
+public:
+  AetherRegisterContext(NativeThreadProtocol &thread)
+      : NativeRegisterContext(thread) {}
+
+  uint32_t GetUserRegisterCount() const override { return 0; }
+
+  uint32_t GetRegisterSetCount() const override { return 0; }
+
+  Status ReadAllRegisterValues(lldb::WritableDataBufferSP &data_sp) override {
+    abort();
+    return Status();
+  }
+
+  Status WriteAllRegisterValues(const lldb::DataBufferSP &data_sp) override {
+    abort();
+    return Status();
+  }
+
+  const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
+    abort();
+  }
+
+protected:
+  void *GetCPU() const;
+
+  Status DoReadRegister(const RegisterInfo *reg_info,
+                        const RegisterInfo *reg_infos,
+                        const aether::Register *registers,
+                        RegisterValue &reg_value);
+};
+
+class AetherRegisterContextARM64 : public AetherRegisterContext {
 public:
   AetherRegisterContextARM64(NativeThreadProtocol &thread)
-      : NativeRegisterContext(thread) {}
+      : AetherRegisterContext(thread) {}
 
   uint32_t GetRegisterCount() const override;
 
@@ -31,31 +61,13 @@ public:
                        const RegisterValue &reg_value) override {
     abort();
     return Status();
-  }
-
-  Status ReadAllRegisterValues(lldb::WritableDataBufferSP &data_sp) override {
-    abort();
-    return Status();
-  }
-
-  Status WriteAllRegisterValues(const lldb::DataBufferSP &data_sp) override {
-    abort();
-    return Status();
-  }
-
-  uint32_t GetUserRegisterCount() const override { return 0; }
-
-  uint32_t GetRegisterSetCount() const override { return 0; }
-
-  const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
-    abort();
   }
 };
 
-class AetherRegisterContextX64 : public NativeRegisterContext {
+class AetherRegisterContextX64 : public AetherRegisterContext {
 public:
   AetherRegisterContextX64(NativeThreadProtocol &thread)
-      : NativeRegisterContext(thread) {}
+      : AetherRegisterContext(thread) {}
 
   uint32_t GetRegisterCount() const override;
 
@@ -68,24 +80,6 @@ public:
                        const RegisterValue &reg_value) override {
     abort();
     return Status();
-  }
-
-  Status ReadAllRegisterValues(lldb::WritableDataBufferSP &data_sp) override {
-    abort();
-    return Status();
-  }
-
-  Status WriteAllRegisterValues(const lldb::DataBufferSP &data_sp) override {
-    abort();
-    return Status();
-  }
-
-  uint32_t GetUserRegisterCount() const override { return 0; }
-
-  uint32_t GetRegisterSetCount() const override { return 0; }
-
-  const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
-    abort();
   }
 };
 

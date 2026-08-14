@@ -73,7 +73,7 @@ bool BinaryEngineImpl::startVM(addr_t entry) {
   return true;
 }
 
-void thread_handler(uintptr_t *pcptr) {}
+void thread_handler(void *cpu) {}
 void insn_handler(void *state, uintptr_t pc, const void *insn) {}
 
 void BinaryEngineImpl::startDebugger(ArchType type) {
