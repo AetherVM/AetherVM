@@ -112,7 +112,7 @@ public:
   }
 
 private:
-  lldb::tid_t m_tid = 0;
+  lldb::tid_t m_tid = 1;
   std::mutex m_mutex;
 };
 

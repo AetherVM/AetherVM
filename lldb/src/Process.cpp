@@ -19,6 +19,7 @@ AetherProcess::AetherProcess(lldb::pid_t pid,
                              NativeProcessProtocol::NativeDelegate &delegate)
     : NativeProcessProtocol(pid, -1, delegate) {
   SetState(lldb::eStateStopped, false);
+  SetCurrentThreadID(m_tid);
 }
 
 void AetherProcess::AttachThread(void *cpu, bool arm64) {
@@ -66,7 +67,15 @@ const ArchSpec &AetherProcess::GetArchitecture() const {
     return *arch;
 
   Triple triple;
-  triple.setVendor(Triple::VendorType::UnknownVendor);
+  triple.setVendor(
+#if AETHER_OS_WINDOWS
+      Triple::VendorType::PC
+#elif AETHER_OS_MACOS
+      Triple::VendorType::Apple
+#else
+      Triple::VendorType::UnknownVendor
+#endif
+  );
   triple.setArch(MainThread()->IsARM64() ? Triple::ArchType::aarch64
                                          : Triple::ArchType::x86_64);
   triple.setOS(
