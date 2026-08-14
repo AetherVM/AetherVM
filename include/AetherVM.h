@@ -69,6 +69,7 @@ public:
   addr_t mapMemory(size_t size);
 
   // Read memory from VM guest, return empty if addr is not valid VM memory.
+  // The addr can be guest or any runtime memory within this process.
   std::vector<uint8_t> readMemory(addr_t addr, size_t size);
   uint64_t readUInt64(addr_t addr);
 

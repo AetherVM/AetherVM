@@ -20,10 +20,7 @@ public:
 
   // Read VM memory space directly into LLDB buffer
   Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
-                    size_t &bytes_read) override {
-    abort();
-    return Status();
-  }
+                    size_t &bytes_read) override;
 
   // Write memory (e.g., when debugger sets software breakpoint)
   Status WriteMemory(lldb::addr_t addr, const void *buf, size_t size,

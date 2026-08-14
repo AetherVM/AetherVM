@@ -23,7 +23,7 @@ namespace aether {
 
 BinaryEngine::BinaryEngine(const Machine *mach, EventConfig eventcfg)
     : m_machine(mach) {
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
   auto os = MachO;
 #elif AETHER_OS_LINUX
   auto os = ELF;
@@ -120,27 +120,41 @@ addr_t BinaryEngine::mapMemory(size_t size) {
 
 std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
   std::vector<uint8_t> buff;
+  buff.resize(size);
   if (memory.valid(addr, size)) {
-    buff.resize(size);
+    // read guest memory directly
     std::memcpy(buff.data(), reinterpret_cast<void *>(memory.host(addr)), size);
+  } else {
+    // it may be host memory or invalid address
+    if (!memory_read(addr, buff.data(), size))
+      buff.clear();
   }
   return buff;
 }
 
 uint64_t BinaryEngine::readUInt64(addr_t addr) {
   uint64_t result = 0;
-  if (memory.valid(addr, sizeof(result)))
+  if (memory.valid(addr, sizeof(result))) {
+    // read guest memory directly
     std::memcpy(&result, reinterpret_cast<void *>(memory.host(addr)),
                 sizeof(result));
+  } else {
+    auto buff = readMemory(addr, sizeof(result));
+    if (buff.size())
+      result = *reinterpret_cast<uint64_t *>(buff.data());
+  }
   return result;
 }
 
 bool BinaryEngine::writeMemory(addr_t addr, std::span<const uint8_t> buff) {
-  if (!memory.valid(addr, buff.size()))
-    return false;
-  std::memcpy(reinterpret_cast<void *>(memory.host(addr)), buff.data(),
-              buff.size());
-  return true;
+  if (memory.valid(addr, buff.size())) {
+    // write guest memory directly
+    std::memcpy(reinterpret_cast<void *>(memory.host(addr)), buff.data(),
+                buff.size());
+    return true;
+  }
+  // it may be host memory or invalid address
+  return memory_write(addr, buff.data(), buff.size());
 }
 
 int BinaryEngine::registerCallback(EventCallback callback) {

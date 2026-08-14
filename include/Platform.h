@@ -30,4 +30,9 @@ AETHER_VMAPI const void *load_library(std::string_view path);
 AETHER_VMAPI const void *resolve_symbol(const void *handle,
                                         std::string_view name);
 
+AETHER_VMAPI bool memory_read(uintptr_t address, void *buffer, size_t size,
+                              int32_t pid = -1);
+AETHER_VMAPI bool memory_write(uintptr_t address, const void *buffer,
+                               size_t size, int32_t pid = -1);
+
 } // namespace aether

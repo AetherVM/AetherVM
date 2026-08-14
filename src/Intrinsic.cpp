@@ -10,7 +10,7 @@
 #include <cfenv>
 #include <cstdlib>
 
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
 extern "C" int syscall(int number, ...);
 #else
 #endif
@@ -441,7 +441,7 @@ Memory *__remill_sync_hyper_call(void *state, Memory *memory,
   switch (name) {
   case SyncHyperCall::kX86SysCall: {
     auto gpr = &cpu->x86.gpr;
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
     gpr->rax.qword = syscall(gpr->rax.qword, gpr->rdi, gpr->rsi, gpr->rdx,
                              gpr->r10, gpr->r8, gpr->r9);
 #else

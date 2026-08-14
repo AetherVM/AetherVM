@@ -7,7 +7,7 @@
 #include "Orchestrator.h"
 #include <Platform.h>
 
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
 extern "C" int syscall(int number, ...);
 #else
 #endif
@@ -43,7 +43,7 @@ IMPL_EVENT_HOST(syscall_interpret) {
   // __remill_sync_hyper_call
   decl_cpu();
   auto gpr = &cpu->aarch64.gpr;
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
   gpr->x0.qword = syscall(gpr->x0.qword, gpr->x1, gpr->x2, gpr->x3, gpr->x4,
                           gpr->x5, gpr->x6, gpr->x7);
 #else

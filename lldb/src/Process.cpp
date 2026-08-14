@@ -70,7 +70,7 @@ const ArchSpec &AetherProcess::GetArchitecture() const {
   triple.setVendor(
 #if AETHER_OS_WINDOWS
       Triple::VendorType::PC
-#elif AETHER_OS_MACOS
+#elif AETHER_OS_DARWIN
       Triple::VendorType::Apple
 #else
       Triple::VendorType::UnknownVendor
@@ -81,7 +81,7 @@ const ArchSpec &AetherProcess::GetArchitecture() const {
   triple.setOS(
 #if AETHER_OS_WINDOWS
       Triple::OSType::Win32
-#elif AETHER_OS_MACOS
+#elif AETHER_OS_DARWIN
       Triple::OSType::MacOSX
 #else
       Triple::OSType::Linux
@@ -89,6 +89,16 @@ const ArchSpec &AetherProcess::GetArchitecture() const {
   );
   arch = std::make_unique<ArchSpec>(triple);
   return *arch;
+}
+
+Status AetherProcess::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
+                                 size_t &bytes_read) {
+  auto rdbuf = Engine->readMemory(addr, size);
+  if (rdbuf.size()) {
+    std::memcpy(buf, rdbuf.data(), size);
+    return Status();
+  }
+  return Status(std::format("Invalid address 0x{:x}", addr));
 }
 
 } // namespace lldb_private

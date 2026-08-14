@@ -15,6 +15,13 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#if AETHER_OS_DARWIN
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
+#else
+#define _GNU_SOURCE
+#include <sys/uio.h>
+#endif
 #endif
 
 namespace aether {
@@ -95,7 +102,7 @@ bool page_decommit(void *hostptr, size_t size) {
 
 #if defined(AETHER_OS_LINUX)
   madvise(hostptr, size, MADV_DONTNEED);
-#elif defined(AETHER_OS_MACOS)
+#elif defined(AETHER_OS_DARWIN)
   madvise(hostptr, size, MADV_FREE);
 #endif
 
@@ -130,7 +137,7 @@ std::string self_path() {
 }
 
 size_t stack_size() {
-#if AETHER_OS_MACOS
+#if AETHER_OS_DARWIN
   return pthread_get_stacksize_np(pthread_self());
 #elif AETHER_OS_WINDOWS
   LONG_PTR stack_low_limit = 0;
@@ -189,6 +196,136 @@ int current_pid() {
   return ::GetCurrentProcessId();
 #else
   return getpid();
+#endif
+}
+
+bool memory_read(uintptr_t address, void *buffer, size_t size, int32_t pid) {
+  if (!buffer || size == 0)
+    return false;
+
+#if AETHER_OS_DARWIN
+  task_t task = mach_task_self();
+  bool deallocate_task = false;
+
+  if (pid > 0 && pid != getpid()) {
+    kern_return_t kr = task_for_pid(mach_task_self(), pid, &task);
+    if (kr != KERN_SUCCESS)
+      return false;
+    deallocate_task = true;
+  }
+
+  mach_vm_size_t out_size = 0;
+  kern_return_t kr = mach_vm_read_overwrite(
+      task, static_cast<mach_vm_address_t>(address),
+      static_cast<mach_vm_size_t>(size),
+      reinterpret_cast<mach_vm_address_t>(buffer), &out_size);
+
+  if (deallocate_task)
+    mach_port_deallocate(mach_task_self(), task);
+
+  return (kr == KERN_SUCCESS) && (out_size == size);
+
+#elif AETHER_OS_LINUX
+  pid_t target_pid = (pid > 0) ? static_cast<pid_t>(pid) : getpid();
+
+  struct iovec local[1];
+  struct iovec remote[1];
+
+  local[0].iov_base = buffer;
+  local[0].iov_len = size;
+
+  remote[0].iov_base = reinterpret_cast<void *>(address);
+  remote[0].iov_len = size;
+
+  ssize_t bytes_read = process_vm_readv(target_pid, local, 1, remote, 1, 0);
+  return bytes_read == static_cast<ssize_t>(size);
+
+#else
+  HANDLE process_handle = ::GetCurrentProcess();
+  bool close_handle = false;
+
+  if (pid > 0 && pid != static_cast<int32_t>(::GetCurrentProcessId())) {
+    process_handle =
+        ::OpenProcess(PROCESS_VM_READ, FALSE, static_cast<DWORD>(pid));
+    if (!process_handle)
+      return false;
+    close_handle = true;
+  }
+
+  SIZE_T bytes_read = 0;
+  BOOL result =
+      ::ReadProcessMemory(process_handle, reinterpret_cast<LPCVOID>(address),
+                          buffer, size, &bytes_read);
+
+  if (close_handle)
+    ::CloseHandle(process_handle);
+
+  return (result != FALSE) && (bytes_read == size);
+#endif
+}
+
+bool memory_write(uintptr_t address, const void *buffer, size_t size,
+                  int32_t pid) {
+  if (!buffer || size == 0)
+    return false;
+
+#if AETHER_OS_DARWIN
+  task_t task = mach_task_self();
+  bool deallocate_task = false;
+
+  if (pid > 0 && pid != getpid()) {
+    kern_return_t kr = task_for_pid(mach_task_self(), pid, &task);
+    if (kr != KERN_SUCCESS)
+      return false;
+    deallocate_task = true;
+  }
+
+  kern_return_t kr =
+      mach_vm_write(task, static_cast<mach_vm_address_t>(address),
+                    reinterpret_cast<vm_offset_t>(buffer),
+                    static_cast<mach_msg_type_number_t>(size));
+
+  if (deallocate_task)
+    mach_port_deallocate(mach_task_self(), task);
+
+  return kr == KERN_SUCCESS;
+
+#elif AETHER_OS_LINUX
+  pid_t target_pid = (pid > 0) ? static_cast<pid_t>(pid) : getpid();
+
+  struct iovec local[1];
+  struct iovec remote[1];
+
+  local[0].iov_base = const_cast<void *>(buffer);
+  local[0].iov_len = size;
+
+  remote[0].iov_base = reinterpret_cast<void *>(address);
+  remote[0].iov_len = size;
+
+  ssize_t bytes_written = process_vm_writev(target_pid, local, 1, remote, 1, 0);
+  return bytes_written == static_cast<ssize_t>(size);
+
+#else
+  HANDLE process_handle = ::GetCurrentProcess();
+  bool close_handle = false;
+
+  if (pid > 0 && pid != static_cast<int32_t>(::GetCurrentProcessId())) {
+    process_handle = ::OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION,
+                                   FALSE, static_cast<DWORD>(pid));
+    if (!process_handle)
+      return false;
+    close_handle = true;
+  }
+
+  SIZE_T bytes_written = 0;
+  BOOL result =
+      ::WriteProcessMemory(process_handle, reinterpret_cast<LPVOID>(address),
+                           buffer, size, &bytes_written);
+
+  if (close_handle)
+    ::CloseHandle(process_handle);
+
+  return (result != FALSE) && (bytes_written == size);
 #endif
 }
 

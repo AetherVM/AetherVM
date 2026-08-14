@@ -14,7 +14,7 @@
 #else
 #define AETHER_OS_POSIX 1
 #if defined(__APPLE__)
-#define AETHER_OS_MACOS 1
+#define AETHER_OS_DARWIN 1
 #else
 #define AETHER_OS_LINUX 1
 #endif
