@@ -18,7 +18,7 @@ public:
   AetherRegisterContext(NativeThreadProtocol &thread)
       : NativeRegisterContext(thread) {}
 
-  uint32_t GetUserRegisterCount() const override { return 0; }
+  uint32_t GetUserRegisterCount() const override { return GetRegisterCount(); }
 
   uint32_t GetRegisterSetCount() const override { return 0; }
 

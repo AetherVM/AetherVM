@@ -98,6 +98,9 @@ public:
     return Status();
   }
 
+  Status GetMemoryRegionInfo(lldb::addr_t load_addr,
+                             MemoryRegionInfo &range_info) override;
+
   void AttachThread(void *cpu, bool arm64);
   void DetachThread();
 

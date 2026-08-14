@@ -5,6 +5,9 @@
 
 #include "Process.h"
 #include <AetherVM.h>
+#include <Utils.h>
+
+#include "lldb/Target/MemoryRegionInfo.h"
 
 using namespace llvm;
 
@@ -96,9 +99,24 @@ Status AetherProcess::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
   auto rdbuf = Engine->readMemory(addr, size);
   if (rdbuf.size()) {
     std::memcpy(buf, rdbuf.data(), size);
+    bytes_read = size;
     return Status();
   }
+  bytes_read = 0;
   return Status(std::format("Invalid address 0x{:x}", addr));
+}
+
+Status AetherProcess::GetMemoryRegionInfo(lldb::addr_t load_addr,
+                                          MemoryRegionInfo &range_info) {
+  auto page = aether::align_down(load_addr, aether::page_size());
+  range_info.GetRange().SetRangeBase(page);
+  range_info.GetRange().SetByteSize(aether::page_size());
+  range_info.SetReadable(MemoryRegionInfo::OptionalBool::eYes);
+  range_info.SetWritable(MemoryRegionInfo::OptionalBool::eYes);
+  range_info.SetExecutable(MemoryRegionInfo::OptionalBool::eYes);
+  range_info.SetMapped(MemoryRegionInfo::OptionalBool::eYes);
+  range_info.SetPageSize(aether::page_size());
+  return Status();
 }
 
 } // namespace lldb_private
