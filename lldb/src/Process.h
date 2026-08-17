@@ -30,12 +30,7 @@ public:
   }
 
   // Resume execution across all VCPUs
-  Status Resume(const ResumeActionList &resume_actions) override {
-    abort();
-    // Trigger VM execution loop until breakpoint or interrupt
-    SetState(lldb::eStateRunning);
-    return Status();
-  }
+  Status Resume(const ResumeActionList &resume_actions) override;
 
   // Halt execution (e.g., user pressed Ctrl+C in LLDB)
   Status Interrupt() override {
@@ -110,6 +105,9 @@ public:
   AetherThread *MainThread() const {
     return reinterpret_cast<AetherThread *>(m_threads[0].get());
   }
+
+  Status ResumeThread(AetherThread &thread, lldb::StateType state, int signo);
+  void ReportStopped(AetherThread &thread);
 
 private:
   lldb::tid_t m_tid = 1;

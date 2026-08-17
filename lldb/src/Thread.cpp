@@ -4,6 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Thread.h"
+#include "Process.h"
 
 namespace lldb_private {
 
@@ -52,9 +53,26 @@ void AetherThread::WatchDog(uintptr_t pc) {
     m_condvar.wait(lock);
     break;
   }
+  case lldb::eStateStepping: {
+    m_state = lldb::eStateStopped;
+    m_stop_description = "Single Stepped";
+    static_cast<AetherProcess &>(GetProcess()).ReportStopped(*this);
+    WatchDog(pc);
+    break;
+  }
   default:
     abort();
   }
+}
+
+Status AetherThread::Resume(uint32_t signo) {
+  m_condvar.notify_all();
+  return Status();
+}
+
+Status AetherThread::SingleStep(uint32_t signo) {
+  m_state = lldb::eStateStepping;
+  return Resume(signo);
 }
 
 } // namespace lldb_private

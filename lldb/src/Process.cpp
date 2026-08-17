@@ -120,4 +120,51 @@ Status AetherProcess::GetMemoryRegionInfo(lldb::addr_t load_addr,
   return Status();
 }
 
+Status AetherProcess::ResumeThread(AetherThread &thread, lldb::StateType state,
+                                   int signo) {
+  switch (state) {
+  case lldb::eStateRunning: {
+    Status resume_result = thread.Resume(signo);
+    if (resume_result.Success())
+      SetState(lldb::eStateRunning, true);
+    return resume_result;
+  }
+  case lldb::eStateStepping: {
+    Status step_result = thread.SingleStep(signo);
+    if (step_result.Success())
+      SetState(lldb::eStateRunning, true);
+    return step_result;
+  }
+  default:
+    break;
+  }
+  abort();
+}
+
+Status AetherProcess::Resume(const ResumeActionList &resume_actions) {
+  for (const auto &thread : m_threads) {
+    const ResumeAction *const action =
+        resume_actions.GetActionForThread(thread->GetID(), true);
+    if (action == nullptr)
+      continue;
+
+    switch (action->state) {
+    case lldb::eStateRunning:
+    case lldb::eStateStepping: {
+      return ResumeThread(static_cast<AetherThread &>(*thread), action->state,
+                          action->signal);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+  return Status();
+}
+
+void AetherProcess::ReportStopped(AetherThread &thread) {
+  SetCurrentThreadID(thread.GetID());
+  SetState(lldb::eStateStopped, true);
+}
+
 } // namespace lldb_private

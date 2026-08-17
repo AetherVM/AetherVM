@@ -5,10 +5,11 @@
 
 #pragma once
 
-#include "Context.h"
 #include "lldb/Host/common/NativeRegisterContext.h"
 #include "lldb/Host/common/NativeThreadProtocol.h"
 #include "lldb/Utility/Status.h"
+
+#include "Context.h"
 
 #include <condition_variable>
 #include <mutex>
@@ -63,6 +64,9 @@ public:
 
   bool IsARM64() const { return m_arm64; }
   bool IsX64() const { return !IsARM64(); }
+
+  Status Resume(uint32_t signo);
+  Status SingleStep(uint32_t signo);
 
 private:
   void *m_cpu = nullptr;
