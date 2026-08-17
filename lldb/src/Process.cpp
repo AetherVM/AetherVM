@@ -23,6 +23,7 @@ AetherProcess::AetherProcess(lldb::pid_t pid,
     : NativeProcessProtocol(pid, -1, delegate) {
   SetState(lldb::eStateStopped, false);
   SetCurrentThreadID(m_tid);
+  AetherRegisterContext::InitOffsets();
 }
 
 void AetherProcess::AttachThread(void *cpu, bool arm64) {

@@ -106,7 +106,7 @@ constexpr aether::Register registers[] = {
       nullptr,                                                                 \
   }
 
-constexpr lldb_private::RegisterInfo register_infos[] = {
+lldb_private::RegisterInfo register_infos[] = {
     // DEFINE_GPR64(name, GENERIC KIND)
     DEFINE_GPR64(x0, LLDB_REGNUM_GENERIC_ARG1),
     DEFINE_GPR64(x1, LLDB_REGNUM_GENERIC_ARG2),
@@ -144,7 +144,7 @@ constexpr lldb_private::RegisterInfo register_infos[] = {
     DEFINE_GPR64(pc, LLDB_REGNUM_GENERIC_PC),
 
     // DEFINE_MISC_REGS(name, size, TYPE, lldb kind)
-    DEFINE_MISC_REGS(cpsr, 4, GPR, gpr_cpsr),
+    DEFINE_MISC_REGS(cpsr, 8, GPR, gpr_cpsr),
 
     // DEFINE_VREG(name)
     DEFINE_VREG(v0),
@@ -298,7 +298,7 @@ constexpr aether::Register registers[] = {
     XMM26, XMM27, XMM28, XMM29, XMM30, XMM31,
 };
 
-constexpr RegisterInfo register_infos[] = {
+RegisterInfo register_infos[] = {
     // General purpose registers  EH_Frame  DWARF Generic Process  Plugin
     DEFINE_GPR(rip, nullptr, dwarf_rip_x86_64, dwarf_rip_x86_64,
                LLDB_REGNUM_GENERIC_PC, LLDB_INVALID_REGNUM),
@@ -394,6 +394,18 @@ constexpr RegisterInfo register_infos[] = {
 static_assert(std::size(registers) == std::size(register_infos));
 
 } // namespace x86_64
+
+void AetherRegisterContext::InitOffsets() {
+  auto init_offsets = [](RegisterInfo *reginfos, size_t count) {
+    uint32_t offset = 0;
+    std::for_each(reginfos, reginfos + count, [&offset](RegisterInfo &rinfo) {
+      rinfo.byte_offset = offset;
+      offset += rinfo.byte_size;
+    });
+  };
+  init_offsets(arm64::register_infos, std::size(arm64::register_infos));
+  init_offsets(x86_64::register_infos, std::size(x86_64::register_infos));
+}
 
 void *AetherRegisterContext::GetCPU() const {
   return reinterpret_cast<AetherThread *>(&m_thread)->GetCPU();

@@ -36,6 +36,8 @@ public:
     abort();
   }
 
+  static void InitOffsets();
+
 protected:
   void *GetCPU() const;
 
