@@ -27,9 +27,9 @@ public:
   GuestMemory(const GuestMemory &) = delete;
   GuestMemory &operator=(const GuestMemory &) = delete;
 
-  // Check whether [vmaddr, vmaddr + size) is in the right range
+  // Check whether [vmaddr, vmaddr + size) is in the committed range
   bool valid(uintptr_t vmaddr, size_t size) {
-    return vmaddr - baseGuest + size < GUEST_SIZE;
+    return vmaddr - baseGuest + size < m_offset;
   }
 
   // The current available address for guest

@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
-#include "Debugger.h"
-#include "Manager.h"
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
-#include "Process.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfoBase.h"
 #include "lldb/Host/MainLoop.h"
 
+#include "Debugger.h"
+#include "Manager.h"
+#include "Process.h"
 #include "Undefine.cpp"
 
 #include <AetherVM.h>
@@ -46,6 +47,7 @@ void DebuggingContext::initialize(void *cpu) {
   lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
   if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
     HostInfoBase::Initialize(nullptr);
+    FileSystem::Initialize();
     // attach AetherProcess itself
     server.AttachToProcess(aether::current_pid());
     // initialize the first thread
