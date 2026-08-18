@@ -62,7 +62,10 @@ IMPL_EVENT_HOST(interrupt_interpret) {
   return forward_event_default();
 }
 
-IMPL_EVENT_HOST(jump_interpret) { abort(); }
+IMPL_EVENT_HOST(jump_interpret) {
+  decl_cpu();
+  return aether::Orchestrator::inst()->find(cpu->pcptr[0]);
+}
 
 IMPL_EVENT_HOST(call_interpret) { abort(); }
 

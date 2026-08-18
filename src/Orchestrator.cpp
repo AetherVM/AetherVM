@@ -67,8 +67,9 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
     setup_event(FuncBefore, func_before);
     // before basic block
     setup_event(BlockBefore, block_before);
+    bool newbb = false;
     for (auto i = func.insns.data(), e = i + func.insns.size(); i != e; i++) {
-      if (i != func.insns.data() && i->comins.size()) {
+      if (i != func.insns.data() && (i->comins.size() || newbb)) {
         // this instruction is referenced by other basic block, indicating the
         // end of current basic block
         // after basic block
@@ -81,6 +82,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
 
         // before basic block
         setup_event(BlockBefore, block_before);
+        newbb = false;
       }
 
       // before instruction
@@ -137,6 +139,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
       case aether::JUMP:
         // the end of basic block execution
         handlers->push_back(Instruction{jump_interpret});
+        newbb = true;
         break;
       case aether::CALL:
         // local or host call
@@ -147,6 +150,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
         setup_event(FuncAfter, func_after);
         // the end of function execution
         handlers->push_back(Instruction{finish_function});
+        newbb = true;
         break;
       default:
         break;
