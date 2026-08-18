@@ -43,7 +43,12 @@ void AetherProcess::DetachThread() {
                          reinterpret_cast<AetherThread *>(thread.get());
                      return aether->GetNativeID() == std::this_thread::get_id();
                    });
-  m_threads.erase(found);
+  if (found != m_threads.end())
+    m_threads.erase(found);
+  else
+    std::cerr << std::format("[AetherDbg] Failed to find thread {} to detach.",
+                             (void *)thisThread)
+              << std::endl;
   thisThread = nullptr;
 }
 
