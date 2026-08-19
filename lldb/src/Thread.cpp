@@ -50,29 +50,33 @@ void AetherThread::WatchDog(uintptr_t pc) {
   switch (m_state) {
   case lldb::eStateStopped: {
     std::unique_lock<std::mutex> lock(m_mutex);
+    static_cast<AetherProcess &>(GetProcess()).ReportStopped(*this);
     m_condvar.wait(lock);
     break;
   }
   case lldb::eStateStepping: {
     m_state = lldb::eStateStopped;
     m_stop_description = "Single Stepped";
-    static_cast<AetherProcess &>(GetProcess()).ReportStopped(*this);
     WatchDog(pc);
     break;
   }
+  case lldb::eStateRunning:
+    break;
   default:
     abort();
   }
 }
 
 Status AetherThread::Resume(uint32_t signo) {
+  m_state = lldb::eStateRunning;
   m_condvar.notify_all();
   return Status();
 }
 
 Status AetherThread::SingleStep(uint32_t signo) {
   m_state = lldb::eStateStepping;
-  return Resume(signo);
+  m_condvar.notify_all();
+  return Status();
 }
 
 } // namespace lldb_private

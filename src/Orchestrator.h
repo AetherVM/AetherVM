@@ -22,6 +22,8 @@ struct Instruction {
   // 0 for event handlers
   uintptr_t oplen : 4;
 
+  Instruction() {}
+
   Instruction(event_func_t func) {
     handler = reinterpret_cast<uintptr_t>(func);
     event = true;
@@ -37,14 +39,22 @@ struct Instruction {
 
 // instruction sequence
 using Instructions = std::vector<Instruction>;
+using InstructionPtrs = std::vector<const Instruction *>;
 
 // the executable representation of an AetherBinary instance
 struct BasicBlocks {
   // the guest basic block vm address
   std::vector<addr_t> vmaddrs;
   addr_t maxaddr;
-  // the dynamic handlers represent original instructions in those blocks
+  // the dynamic handlers represent original instructions in those blocks when
+  // encoding
   std::vector<Instructions> handlers;
+  // converted from handlers for runtime in a sequential vector
+  std::vector<InstructionPtrs> bbhandlers;
+  Instructions rthandlers;
+
+  // convert handlers to bbhandlers
+  void convert();
 };
 
 class Orchestrator {

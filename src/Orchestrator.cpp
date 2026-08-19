@@ -13,6 +13,27 @@ using enum EventType;
 
 thread_local Orchestrator::Cache Orchestrator::cache{.current = nullptr};
 
+void BasicBlocks::convert() {
+  size_t total = 0;
+  for (auto &insns : handlers)
+    total += insns.size();
+
+  bbhandlers.resize(handlers.size());
+  rthandlers.resize(total);
+  size_t bb = 0, rt = 0;
+  for (auto &insns : handlers) {
+    auto &curbb = bbhandlers[bb++];
+    size_t i = 0;
+    curbb.resize(insns.size());
+    for (auto insn : insns) {
+      rthandlers[rt] = insn;
+      curbb[i++] = &rthandlers[rt++];
+    }
+  }
+
+  handlers.clear();
+}
+
 static void do_setup_event(Instructions *handlers, EventConfig eventcfg,
                            EventType type, event_func_t event) {
   switch (type) {
@@ -165,6 +186,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
   }
   auto &[addr, lastfunc] = *bin->functions().rbegin();
   current.maxaddr = lastfunc.end + addend;
+  current.convert();
   cache.current = &current;
 }
 
@@ -190,7 +212,7 @@ const Instruction *Orchestrator::findBlocks(const BasicBlocks &blocks,
   auto found =
       binary_search(blocks.vmaddrs.data(), blocks.vmaddrs.size(), vmaddr);
   if (is_exact(found, blocks.vmaddrs.data(), blocks.vmaddrs.size(), vmaddr)) {
-    auto insn = blocks.handlers[found - blocks.vmaddrs.data()].data();
+    auto insn = *blocks.bbhandlers[found - blocks.vmaddrs.data()].data();
     // cache the target insn
     cache.L1[cache_index(vmaddr)] = {vmaddr, insn};
     return insn;
@@ -202,12 +224,12 @@ const Instruction *Orchestrator::findBlocks(const BasicBlocks &blocks,
 
   auto index = found - blocks.vmaddrs.data();
   auto addr = *found;
-  for (auto &insn : blocks.handlers[index]) {
-    addr += insn.oplen;
+  for (auto insn : blocks.bbhandlers[index]) {
+    addr += insn->oplen;
     if (addr == vmaddr) {
-      auto ptr = &insn - 1;
+      auto ptr = insn - 1;
       // check whether the previous handler is an event or not
-      if (ptr >= blocks.handlers[index].data() && !ptr->event)
+      if (ptr >= *blocks.bbhandlers[index].data() && !ptr->event)
         ptr++; // restore to the original handler
       // cache the target insn
       cache.L1[cache_index(vmaddr)] = {vmaddr, ptr};
