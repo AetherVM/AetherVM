@@ -23,13 +23,53 @@ using namespace process_gdb_remote;
 
 namespace {
 
+class AetherDbgServer : public GDBRemoteCommunicationServerLLGS {
+public:
+  AetherDbgServer(MainLoop &loop, AetherProcessManager &manager);
+
+protected:
+  GDBRemoteCommunication::PacketResult
+  Handle_qProcessInfo_VM(StringExtractorGDBRemote &packet);
+};
+
+AetherDbgServer::AetherDbgServer(MainLoop &loop, AetherProcessManager &manager)
+    : GDBRemoteCommunicationServerLLGS(loop, manager) {
+  RegisterMemberFunctionHandler(
+      StringExtractorGDBRemote::eServerPacketType_qProcessInfo,
+      &AetherDbgServer::Handle_qProcessInfo_VM);
+}
+
+GDBRemoteCommunication::PacketResult
+AetherDbgServer::Handle_qProcessInfo_VM(StringExtractorGDBRemote &packet) {
+  // Fail if we don't have a current process.
+  if (!m_current_process ||
+      (m_current_process->GetID() == LLDB_INVALID_PROCESS_ID))
+    return SendErrorResponse(68);
+
+  lldb::pid_t pid = m_current_process->GetID();
+
+  if (pid == LLDB_INVALID_PROCESS_ID)
+    return SendErrorResponse(1);
+
+  ProcessInstanceInfo proc_info;
+  if (!Host::GetProcessInfo(pid, proc_info))
+    return SendErrorResponse(1);
+
+  // reset to guest's architecture
+  proc_info.SetArchitecture(m_current_process->GetArchitecture());
+
+  StreamString response;
+  CreateProcessInfoResponse_DebugServerStyle(proc_info, response);
+  return SendPacketNoLock(response.GetString());
+}
+
 struct DebuggingContext {
   AetherDbgContext *context = nullptr;
   AetherProcess *proc = nullptr;
 
   MainLoop mainloop;
   AetherProcessManager manager;
-  GDBRemoteCommunicationServerLLGS server;
+  AetherDbgServer server;
 
   DebuggingContext() : manager(mainloop), server(mainloop, manager) {}
 
