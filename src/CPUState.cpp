@@ -45,8 +45,7 @@ void CPUState::freeContext() {
     runtime->dbgContext.thread_handler(nullptr);
 
   delete[] stack;
-  stack = nullptr;
-  runtime = nullptr;
+  std::memset(static_cast<void *>(this), 0, sizeof(*this));
 }
 
 const RegisterValue *CPUState::getRegisterAArch64(Register reg) {

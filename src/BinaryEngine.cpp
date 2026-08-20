@@ -42,7 +42,10 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
   Lifter::resetSemantic(*remillSemantic);
 }
 
-BinaryEngineImpl::~BinaryEngineImpl() { CPU.freeContext(); }
+BinaryEngineImpl::~BinaryEngineImpl() {
+  CPU.freeContext();
+  Orchestrator::inst()->clear();
+}
 
 static void *retaddr_aarch64() {
   auto lr = const_cast<RegisterValue *>(CPU.getRegisterAArch64(Register::LR));

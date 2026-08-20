@@ -262,4 +262,9 @@ const Instruction *Orchestrator::find(addr_t vmaddr) const {
   return &terminate;
 }
 
+void Orchestrator::clear() {
+  basicblocks.clear();
+  std::memset(&cache, 0, sizeof(cache));
+}
+
 } // namespace aether

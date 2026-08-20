@@ -87,6 +87,9 @@ public:
   // find the target Instruction of the given vmaddr
   const Instruction *find(addr_t vmaddr) const;
 
+  // clear all cache data
+  void clear();
+
 private:
   // returned if find with an invalid vmaddr
   Instruction terminate;
