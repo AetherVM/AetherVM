@@ -43,6 +43,9 @@ void generate_handler(std::string_view remill, std::string_view arch,
   for (auto &entry : fs::recursive_directory_iterator(sems)) {
     if (entry.path().extension() == ".cpp")
       iterate_lines(entry.path(), [&isels](std::string_view line) {
+        if (line.starts_with("IF_64BIT("))
+          line = std::string_view{line.data() + line.find('(') + 1,
+                                  line.data() + line.size()};
         if (line.starts_with("DEF_ISEL")) {
           auto start = line.find('(') + 1;
           auto end = line.find(')');

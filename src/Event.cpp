@@ -34,7 +34,8 @@ IMPL_EVENT_HOST(event_trap_after) { return forward_event_default(); }
 
 IMPL_EVENT_HOST(event_debugging) {
   decl_cpu();
-  cpu->runtime->dbgContext.insn_handler(state, vmaddr, current);
+  if (cpu->runtime->eventConf.debug)
+    cpu->runtime->dbgContext.insn_handler(state, vmaddr, current);
   return forward_event_default();
 }
 

@@ -21,7 +21,7 @@
 using namespace lldb_private;
 using namespace process_gdb_remote;
 
-namespace {
+namespace lldb_private {
 
 class AetherDbgServer : public GDBRemoteCommunicationServerLLGS {
 public:
@@ -70,6 +70,7 @@ struct DebuggingContext {
   MainLoop mainloop;
   AetherProcessManager manager;
   AetherDbgServer server;
+  bool detached = false;
 
   DebuggingContext() : manager(mainloop), server(mainloop, manager) {}
 
@@ -105,7 +106,12 @@ void DebuggingContext::initialize(void *cpu) {
   }
 }
 
+void proc_detach() { dbgContext.detached = true; }
+
 void thread_handler(void *cpu) {
+  if (dbgContext.detached)
+    return;
+
   if (!dbgContext.proc) {
     // debugging initialization
     dbgContext.initialize(cpu);
@@ -121,10 +127,13 @@ void thread_handler(void *cpu) {
 }
 
 void insn_handler(void *state, uintptr_t pc, const void *insn) {
+  if (dbgContext.detached)
+    return;
+
   dbgContext.proc->WatchDog(pc);
 }
 
-} // namespace
+} // namespace lldb_private
 
 void aether_dbgmain(AetherDbgContext *context) {
   context->thread_handler = thread_handler;

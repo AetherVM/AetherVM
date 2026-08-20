@@ -48,20 +48,14 @@ public:
     return Status();
   }
 
-  Status Detach() override {
-    abort();
-    return Status();
-  }
+  Status Detach() override;
 
   Status Signal(int signo) override {
     abort();
     return Status();
   }
 
-  Status Kill() override {
-    abort();
-    return Status();
-  }
+  Status Kill() override;
 
   size_t UpdateThreads() override { return m_threads.size(); }
 

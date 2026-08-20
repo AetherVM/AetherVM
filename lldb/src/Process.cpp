@@ -172,4 +172,20 @@ void AetherProcess::ReportStopped(AetherThread &thread) {
   SetState(lldb::eStateStopped, true);
 }
 
+extern void proc_detach();
+
+Status AetherProcess::Detach() {
+  for (const auto &thread : m_threads)
+    static_cast<AetherThread &>(*thread).Resume(0);
+
+  SetState(lldb::eStateDetached, true);
+  proc_detach();
+  return Status();
+}
+
+Status AetherProcess::Kill() {
+  std::exit(9);
+  return Status();
+}
+
 } // namespace lldb_private

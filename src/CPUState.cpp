@@ -35,12 +35,14 @@ bool CPUState::initContext(addr_t entry) {
   pcptr = reinterpret_cast<uintptr_t *>(
       const_cast<RegisterValue *>(getRegister(Register::PC)));
 
-  runtime->dbgContext.thread_handler(this);
+  if (runtime->eventConf.debug)
+    runtime->dbgContext.thread_handler(this);
   return true;
 }
 
 void CPUState::freeContext() {
-  runtime->dbgContext.thread_handler(nullptr);
+  if (runtime->eventConf.debug)
+    runtime->dbgContext.thread_handler(nullptr);
 
   delete[] stack;
   stack = nullptr;
