@@ -39,8 +39,12 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
 //#include <string.h> // CBC mode, for memset
 #include "aes.h"
 
+#if __cplusplus
 #undef memcpy
+#undef memset
 #define memcpy aethervm_memcpy
+#define memset aethervm_memset
+#endif
 
 // Use our own implementation to remove any extern API references
 void* memcpy(void* dest, const void* src, size_t n) {
@@ -76,6 +80,41 @@ void* memcpy(void* dest, const void* src, size_t n) {
   }
 
   return dest;
+}
+
+void *memset(void *s, int c, size_t n) {
+  unsigned char *p = (unsigned char *)s;
+  unsigned char byte_val = (unsigned char)c;
+
+  // 1. Align pointer to memory word boundary (4 or 8 bytes depending on architecture)
+  while (n > 0 && ((uintptr_t)p % sizeof(uintptr_t)) != 0) {
+    *p++ = byte_val;
+    n--;
+  }
+
+  // 2. Broadcast byte value across full word size (e.g., 0xAB -> 0xABABABABABABABAB)
+  uintptr_t word_val = byte_val;
+  word_val |= word_val << 8;
+  word_val |= word_val << 16;
+#if UINTPTR_MAX > 0xFFFFFFFF
+  word_val |= word_val << 32; // 64-bit architecture
+#endif
+
+  // 3. Fill memory one word at a time
+  uintptr_t *word_p = (uintptr_t *)p;
+  while (n >= sizeof(uintptr_t)) {
+    *word_p++ = word_val;
+    n -= sizeof(uintptr_t);
+  }
+
+  // 4. Handle remaining tail bytes
+  p = (unsigned char *)word_p;
+  while (n > 0) {
+    *p++ = byte_val;
+    n--;
+  }
+
+  return s;
 }
 
 /*****************************************************************************/
@@ -632,7 +671,7 @@ char *test_main(const char *buff, size_t size, char result[64]) {
   size_t padded_len = raw_len + padding_len;
 
   // Allocate buffer for padded data
-  uint8_t buffer[64] = {0}; 
+  uint8_t buffer[64]; 
   memcpy(buffer, raw_string, raw_len);
   for (size_t i = raw_len; i < padded_len; ++i) {
     buffer[i] = padding_len;

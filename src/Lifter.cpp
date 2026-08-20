@@ -452,7 +452,8 @@ void Lifter::clear() {
   std::vector<llvm::Function *> newdyns;
 
   for (llvm::Function &F : *module) {
-    if (F.getName().starts_with(dyn_prefix))
+    auto name = F.getName();
+    if (name.starts_with(dyn_prefix) && isxdigit(name[dyn_prefix.size()]))
       newdyns.push_back(&F);
   }
 
