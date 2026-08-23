@@ -144,7 +144,7 @@ lldb_private::RegisterInfo register_infos[] = {
     DEFINE_GPR64(pc, LLDB_REGNUM_GENERIC_PC),
 
     // DEFINE_MISC_REGS(name, size, TYPE, lldb kind)
-    DEFINE_MISC_REGS(cpsr, 8, GPR, gpr_cpsr),
+    DEFINE_MISC_REGS(psr, 4, GPR, gpr_cpsr),
 
     // DEFINE_VREG(name)
     DEFINE_VREG(v0),
