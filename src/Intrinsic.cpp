@@ -287,8 +287,8 @@ AETHER_NAKED Memory *__remill_function_return(State &, addr_t, Memory *) {
   // for the register context, see AArch64.cpp and X86.cpp
 #if AETHER_ARCH_ARM64
   // advance the current executable insn and call it
-  AETHER_ASM("add x2, x2, #8\n"
-             "mov x27, x2\n"
+  AETHER_ASM("add x27, x27, #8\n"
+             "mov x2, x27\n"
              "" extract_handler_x16 ""
              "br x16");
 #else
