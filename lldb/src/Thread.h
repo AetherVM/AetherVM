@@ -67,6 +67,7 @@ public:
 
   Status Resume(uint32_t signo);
   Status SingleStep(uint32_t signo);
+  void HitBreakpoint(uintptr_t pc);
 
 private:
   void *m_cpu = nullptr;

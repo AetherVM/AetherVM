@@ -79,4 +79,10 @@ Status AetherThread::SingleStep(uint32_t signo) {
   return Status();
 }
 
+void AetherThread::HitBreakpoint(uintptr_t pc) {
+  m_state = lldb::eStateStopped;
+  m_stop_description = "Breakpoint Hit";
+  WatchDog(pc);
+}
+
 } // namespace lldb_private

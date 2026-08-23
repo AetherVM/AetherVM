@@ -52,7 +52,17 @@ void AetherProcess::DetachThread() {
   thisThread = nullptr;
 }
 
-void AetherProcess::WatchDog(uintptr_t pc) { ThisThread()->WatchDog(pc); }
+void AetherProcess::WatchDog(uintptr_t pc) {
+  if (m_software_breakpoints.size()) {
+    auto found = m_software_breakpoints.find(pc);
+    if (found != m_software_breakpoints.end()) {
+      ThisThread()->HitBreakpoint(pc);
+      return;
+    }
+  }
+
+  ThisThread()->WatchDog(pc);
+}
 
 AetherThread *AetherProcess::ThisThread() const {
   if (thisThread)
@@ -185,6 +195,31 @@ Status AetherProcess::Detach() {
 
 Status AetherProcess::Kill() {
   std::exit(9);
+  return Status();
+}
+
+Status AetherProcess::SetBreakpoint(lldb::addr_t addr, uint32_t size,
+                                    bool hardware) {
+  auto found = m_software_breakpoints.find(addr);
+  if (found == m_software_breakpoints.end()) {
+    found = m_software_breakpoints
+                .insert(std::make_pair(addr, SoftwareBreakpoint{0}))
+                .first;
+  }
+  found->second.ref_count++;
+  return Status();
+}
+
+Status AetherProcess::RemoveBreakpoint(lldb::addr_t addr, bool hardware) {
+  auto it = m_software_breakpoints.find(addr);
+  if (it == m_software_breakpoints.end())
+    return Status::FromErrorString("Breakpoint not found.");
+
+  assert(it->second.ref_count > 0);
+  if (--it->second.ref_count > 0)
+    return Status();
+
+  m_software_breakpoints.erase(it);
   return Status();
 }
 
