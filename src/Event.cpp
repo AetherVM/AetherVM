@@ -68,7 +68,10 @@ IMPL_EVENT_HOST(jump_interpret) {
   return aether::Orchestrator::inst()->find(cpu->pcptr[0]);
 }
 
-IMPL_EVENT_HOST(call_interpret) { abort(); }
+IMPL_EVENT_HOST(call_interpret) {
+  decl_cpu();
+  return aether::Orchestrator::inst()->find(cpu->pcptr[0]);
+}
 
 IMPL_EVENT_HOST(finish_function) {
   decl_cpu();
