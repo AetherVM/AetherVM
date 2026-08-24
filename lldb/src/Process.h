@@ -67,6 +67,8 @@ public:
   Status SetBreakpoint(lldb::addr_t addr, uint32_t size,
                        bool hardware) override;
   Status RemoveBreakpoint(lldb::addr_t addr, bool hardware) override;
+  std::optional<std::pair<uint32_t, uint32_t>>
+  GetHardwareDebugSupportInfo() const override;
 
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
   GetAuxvData() const override {

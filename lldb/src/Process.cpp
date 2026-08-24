@@ -223,4 +223,9 @@ Status AetherProcess::RemoveBreakpoint(lldb::addr_t addr, bool hardware) {
   return Status();
 }
 
+std::optional<std::pair<uint32_t, uint32_t>>
+AetherProcess::GetHardwareDebugSupportInfo() const {
+  return std::make_pair(1024, 1024);
+}
+
 } // namespace lldb_private

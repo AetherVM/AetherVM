@@ -16,7 +16,7 @@ AetherThread::AetherThread(NativeProcessProtocol &process, lldb::tid_t tid,
                           : reinterpret_cast<NativeRegisterContext *>(
                                 new AetherRegisterContextX64(*this))) {
   m_id = std::this_thread::get_id();
-  m_stop_info.reason = lldb::eStopReasonNone;
+  m_stop_info.reason = lldb::eStopReasonBreakpoint;
   m_stop_info.signo = SIGTRAP;
   m_stop_description = "Finished attaching";
 }

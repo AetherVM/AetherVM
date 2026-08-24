@@ -4,10 +4,13 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
+#include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfoBase.h"
 #include "lldb/Host/MainLoop.h"
+#include "lldb/Host/StreamFile.h"
+#include "lldb/Utility/Log.h"
 
 #include "Debugger.h"
 #include "Manager.h"
@@ -28,6 +31,9 @@ public:
   AetherDbgServer(MainLoop &loop, AetherProcessManager &manager);
 
 protected:
+  std::vector<std::string> HandleFeatures(
+      const llvm::ArrayRef<llvm::StringRef> client_features) override;
+
   GDBRemoteCommunication::PacketResult
   Handle_qProcessInfo_VM(StringExtractorGDBRemote &packet);
 };
@@ -37,6 +43,22 @@ AetherDbgServer::AetherDbgServer(MainLoop &loop, AetherProcessManager &manager)
   RegisterMemberFunctionHandler(
       StringExtractorGDBRemote::eServerPacketType_qProcessInfo,
       &AetherDbgServer::Handle_qProcessInfo_VM);
+
+#if 0
+  auto log_handler_sp =
+      std::make_shared<StreamLogHandler>(fileno(stdout), false);
+  process_gdb_remote::ProcessGDBRemoteLog::Initialize();
+  Log::EnableLogChannel(log_handler_sp, 0, "gdb-remote", {"packets", nullptr},
+                        llvm::errs());
+#endif
+}
+
+std::vector<std::string> AetherDbgServer::HandleFeatures(
+    const llvm::ArrayRef<llvm::StringRef> client_features) {
+  std::vector<std::string> ret =
+      GDBRemoteCommunicationServerLLGS::HandleFeatures(client_features);
+  ret.push_back("hwbreak+");
+  return ret;
 }
 
 GDBRemoteCommunication::PacketResult
