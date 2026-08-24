@@ -228,4 +228,12 @@ AetherProcess::GetHardwareDebugSupportInfo() const {
   return std::make_pair(1024, 1024);
 }
 
+Status AetherProcess::Interrupt() {
+  for (const auto &thread : m_threads)
+    static_cast<AetherThread &>(*thread).Interrupt();
+
+  SetState(lldb::eStateStopped, true);
+  return Status();
+}
+
 } // namespace lldb_private

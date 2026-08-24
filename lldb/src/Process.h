@@ -33,12 +33,7 @@ public:
   Status Resume(const ResumeActionList &resume_actions) override;
 
   // Halt execution (e.g., user pressed Ctrl+C in LLDB)
-  Status Interrupt() override {
-    abort();
-    // Pause VM execution loop
-    SetState(lldb::eStateStopped);
-    return Status();
-  }
+  Status Interrupt() override;
 
   // Architecture details (e.g., x86_64, arm64, riscv64)
   const ArchSpec &GetArchitecture() const override;

@@ -85,4 +85,9 @@ void AetherThread::HitBreakpoint(uintptr_t pc) {
   WatchDog(pc);
 }
 
+void AetherThread::Interrupt() {
+  m_state = lldb::eStateStopped;
+  m_stop_description = "Interrupted";
+}
+
 } // namespace lldb_private
