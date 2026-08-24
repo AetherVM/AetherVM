@@ -267,6 +267,24 @@ const RegisterValue *CPUState::getRegisterX86(Register reg) {
   case RFLAGS:
     ptr = &x86.rflag;
     break;
+  case SS:
+    ptr = &x86.seg.ss;
+    break;
+  case ES:
+    ptr = &x86.seg.es;
+    break;
+  case GS:
+    ptr = &x86.seg.gs;
+    break;
+  case FS:
+    ptr = &x86.seg.fs;
+    break;
+  case DS:
+    ptr = &x86.seg.ds;
+    break;
+  case CS:
+    ptr = &x86.seg.cs;
+    break;
   case ST0:
   case ST1:
   case ST2:

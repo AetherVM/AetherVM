@@ -110,6 +110,13 @@ enum class Register : int {
 
   RFLAGS,
 
+  SS,
+  ES,
+  GS,
+  FS,
+  DS,
+  CS,
+
   ST0,
   ST1,
   ST2,

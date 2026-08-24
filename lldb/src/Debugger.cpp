@@ -284,9 +284,9 @@ AetherDbgServer::BuildTargetXml_VM() {
   auto fpu_group = "fpu";
   if (m_current_process->GetArchitecture().GetMachine() ==
       llvm::Triple::x86_64) {
-    gpr_namespace = "org.gnu.gdb.i386.64bit";
+    gpr_namespace = "org.gnu.gdb.i386.core";
     fpu_namespace = "org.gnu.gdb.i386.sse";
-    fpu_reg0 = "st0";
+    fpu_reg0 = "xmm0";
     fpu_types = R"(<vector id="v4f" type="ieee_single" count="4"/>
 <vector id="v2d" type="ieee_double" count="2"/>
 <vector id="v16i8" type="int8" count="16"/>
@@ -371,7 +371,7 @@ AetherDbgServer::BuildTargetXml_VM() {
     if (!format.empty())
       response << "format=\"" << format << "\" ";
 
-    if (reg_type && reg_info->byte_size > 8)
+    if (reg_type && reg_info->byte_size >= 16)
       response << "type=\"" << reg_type << "\" ";
     else if (reg_info->flags_type)
       response << "type=\"" << reg_info->flags_type->GetID() << "\" ";

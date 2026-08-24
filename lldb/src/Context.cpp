@@ -289,6 +289,34 @@ enum {
       nullptr,                                                                 \
   }
 
+#define DEFINE_FLAG(reg, alt, kind1, kind2, kind3, kind4)                      \
+  {                                                                            \
+      "eflags",                                                                \
+      alt,                                                                     \
+      4,                                                                       \
+      GPR_OFFSET(reg),                                                         \
+      lldb::eEncodingUint,                                                     \
+      lldb::eFormatHex,                                                        \
+      {kind1, kind2, kind3, kind4, lldb_##reg##_x86_64},                       \
+      nullptr,                                                                 \
+      nullptr,                                                                 \
+      nullptr,                                                                 \
+  }
+
+#define DEFINE_SEG(reg, alt, kind1, kind2, kind3, kind4)                       \
+  {                                                                            \
+      #reg,                                                                    \
+      alt,                                                                     \
+      4,                                                                       \
+      GPR_OFFSET(reg),                                                         \
+      lldb::eEncodingUint,                                                     \
+      lldb::eFormatHex,                                                        \
+      {kind1, kind2, kind3, kind4, lldb_##reg##_x86_64},                       \
+      nullptr,                                                                 \
+      nullptr,                                                                 \
+      nullptr,                                                                 \
+  }
+
 #define DEFINE_FP_ST(reg, i)                                                   \
   {                                                                            \
       #reg #i,                                                                 \
@@ -335,35 +363,34 @@ enum {
   }
 
 constexpr aether::Register registers[] = {
-    RIP,   RBP,   RSP,   RAX,   RBX,   RCX,   RDI,   RDX,    RSI,   R8,
-    R9,    R10,   R11,   R12,   R13,   R14,   R15,   RFLAGS, ST0,   ST1,
-    ST2,   ST3,   ST4,   ST5,   ST6,   ST7,   MM0,   MM1,    MM2,   MM3,
-    MM4,   MM5,   MM6,   MM7,   XMM0,  XMM1,  XMM2,  XMM3,   XMM4,  XMM5,
-    XMM6,  XMM7,  XMM8,  XMM9,  XMM10, XMM11, XMM12, XMM13,  XMM14, XMM15,
-    XMM16, XMM17, XMM18, XMM19, XMM20, XMM21, XMM22, XMM23,  XMM24, XMM25,
-    XMM26, XMM27, XMM28, XMM29, XMM30, XMM31,
+    RAX,   RBX,   RCX,   RDX,   RSI,   RDI,   RBP,   RSP,   R8,
+    R9,    R10,   R11,   R12,   R13,   R14,   R15,   RIP,   RFLAGS,
+    CS,    SS,    DS,    ES,    FS,    GS,    ST0,   ST1,   ST2,
+    ST3,   ST4,   ST5,   ST6,   ST7,   MM0,   MM1,   MM2,   MM3,
+    MM4,   MM5,   MM6,   MM7,   XMM0,  XMM1,  XMM2,  XMM3,  XMM4,
+    XMM5,  XMM6,  XMM7,  XMM8,  XMM9,  XMM10, XMM11, XMM12, XMM13,
+    XMM14, XMM15, XMM16, XMM17, XMM18, XMM19, XMM20, XMM21, XMM22,
+    XMM23, XMM24, XMM25, XMM26, XMM27, XMM28, XMM29, XMM30, XMM31,
 };
 
 RegisterInfo register_infos[] = {
     // General purpose registers  EH_Frame  DWARF Generic Process  Plugin
-    DEFINE_GPR(rip, nullptr, dwarf_rip_x86_64, dwarf_rip_x86_64,
-               LLDB_REGNUM_GENERIC_PC, LLDB_INVALID_REGNUM),
-    DEFINE_GPR(rbp, nullptr, dwarf_rbp_x86_64, dwarf_rbp_x86_64,
-               LLDB_REGNUM_GENERIC_FP, LLDB_INVALID_REGNUM),
-    DEFINE_GPR(rsp, nullptr, dwarf_rsp_x86_64, dwarf_rsp_x86_64,
-               LLDB_REGNUM_GENERIC_SP, LLDB_INVALID_REGNUM),
     DEFINE_GPR(rax, nullptr, dwarf_rax_x86_64, dwarf_rax_x86_64,
                LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
     DEFINE_GPR(rbx, nullptr, dwarf_rbx_x86_64, dwarf_rbx_x86_64,
                LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
     DEFINE_GPR(rcx, nullptr, dwarf_rcx_x86_64, dwarf_rcx_x86_64,
                LLDB_REGNUM_GENERIC_ARG4, LLDB_INVALID_REGNUM),
-    DEFINE_GPR(rdi, nullptr, dwarf_rdi_x86_64, dwarf_rdi_x86_64,
-               LLDB_REGNUM_GENERIC_ARG1, LLDB_INVALID_REGNUM),
     DEFINE_GPR(rdx, nullptr, dwarf_rdx_x86_64, dwarf_rdx_x86_64,
                LLDB_REGNUM_GENERIC_ARG3, LLDB_INVALID_REGNUM),
     DEFINE_GPR(rsi, nullptr, dwarf_rsi_x86_64, dwarf_rsi_x86_64,
                LLDB_REGNUM_GENERIC_ARG2, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(rdi, nullptr, dwarf_rdi_x86_64, dwarf_rdi_x86_64,
+               LLDB_REGNUM_GENERIC_ARG1, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(rbp, nullptr, dwarf_rbp_x86_64, dwarf_rbp_x86_64,
+               LLDB_REGNUM_GENERIC_FP, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(rsp, nullptr, dwarf_rsp_x86_64, dwarf_rsp_x86_64,
+               LLDB_REGNUM_GENERIC_SP, LLDB_INVALID_REGNUM),
     DEFINE_GPR(r8, nullptr, dwarf_r8_x86_64, dwarf_r8_x86_64,
                LLDB_REGNUM_GENERIC_ARG5, LLDB_INVALID_REGNUM),
     DEFINE_GPR(r9, nullptr, dwarf_r9_x86_64, dwarf_r9_x86_64,
@@ -380,8 +407,24 @@ RegisterInfo register_infos[] = {
                LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
     DEFINE_GPR(r15, nullptr, dwarf_r15_x86_64, dwarf_r15_x86_64,
                LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
-    DEFINE_GPR(rflags, nullptr, dwarf_rflags_x86_64, dwarf_rflags_x86_64,
-               LLDB_REGNUM_GENERIC_FLAGS, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(rip, nullptr, dwarf_rip_x86_64, dwarf_rip_x86_64,
+               LLDB_REGNUM_GENERIC_PC, LLDB_INVALID_REGNUM),
+    DEFINE_FLAG(rflags, nullptr, dwarf_rflags_x86_64, dwarf_rflags_x86_64,
+                LLDB_REGNUM_GENERIC_FLAGS, LLDB_INVALID_REGNUM),
+
+    // Segment registers.
+    DEFINE_SEG(cs, nullptr, dwarf_cs_x86_64, dwarf_cs_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
+    DEFINE_SEG(fs, nullptr, dwarf_fs_x86_64, dwarf_fs_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
+    DEFINE_SEG(gs, nullptr, dwarf_gs_x86_64, dwarf_gs_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
+    DEFINE_SEG(ss, nullptr, dwarf_ss_x86_64, dwarf_ss_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
+    DEFINE_SEG(ds, nullptr, dwarf_ds_x86_64, dwarf_ds_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
+    DEFINE_SEG(es, nullptr, dwarf_es_x86_64, dwarf_es_x86_64,
+               LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM),
 
     // FP registers.
     DEFINE_FP_ST(st, 0),
