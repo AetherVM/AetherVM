@@ -13,6 +13,20 @@
 #include "lldb/Utility/Endian.h"
 #include "lldb/Utility/RegisterValue.h"
 
+namespace arm64_dwarf {
+enum {
+  fpsr = z31 + 1,
+  fpcr,
+};
+}
+
+namespace arm64_ehframe {
+enum {
+  fpsr = z31 + 1,
+  fpcr,
+};
+}
+
 namespace lldb_private {
 
 using enum aether::Register;
@@ -22,12 +36,11 @@ aether::BinaryEngine *Engine = nullptr;
 namespace arm64 {
 
 constexpr aether::Register registers[] = {
-    X0,  X1,  X2,  X3,  X4,  X5,   X6,  X7,  X8,  X9,  X10, X11, X12, X13,
-    X14, X15, X16, X17, X18, X19,  X20, X21, X22, X23, X24, X25, X26, X27,
-    X28, FP,  LR,  SP,  PC,  NZCV, Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7,
-    Q8,  Q9,  Q10, Q11, Q12, Q13,  Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21,
-    Q22, Q23, Q24, Q25, Q26, Q27,  Q28, Q29, Q30, Q31,
-};
+    X0,  X1,  X2,  X3,  X4,  X5,   X6,  X7,  X8,  X9,  X10,  X11, X12, X13,
+    X14, X15, X16, X17, X18, X19,  X20, X21, X22, X23, X24,  X25, X26, X27,
+    X28, FP,  LR,  SP,  PC,  NZCV, Q0,  Q1,  Q2,  Q3,  Q4,   Q5,  Q6,  Q7,
+    Q8,  Q9,  Q10, Q11, Q12, Q13,  Q14, Q15, Q16, Q17, Q18,  Q19, Q20, Q21,
+    Q22, Q23, Q24, Q25, Q26, Q27,  Q28, Q29, Q30, Q31, FPSR, FPCR};
 
 #define GPR_OFFSET(reg) 0
 #define FPU_OFFSET(reg) 0
@@ -36,15 +49,13 @@ constexpr aether::Register registers[] = {
 
 // Generates register kinds array with DWARF, EH frame and generic kind
 #define MISC_KIND(reg, type, generic_kind)                                     \
-  {arm64_ehframe::reg,                                                         \
-   arm64_dwarf::reg,                                                           \
-   generic_kind,                                                               \
-   LLDB_INVALID_REGNUM,                                                        \
-   /*type##_##reg*/}
+  {arm64_ehframe::reg, arm64_dwarf::reg, generic_kind, LLDB_INVALID_REGNUM,    \
+   arm64_dwarf::reg}
 
 #define GPR64_KIND(reg, generic_kind) MISC_KIND(reg, gpr, generic_kind)
 #define VREG_KIND(reg) MISC_KIND(reg, fpu, LLDB_INVALID_REGNUM)
-#define MISC_GPR_KIND(lldb_kind) MISC_KIND(cpsr, gpr, LLDB_REGNUM_GENERIC_FLAGS)
+#define MISC_GPR_KIND(lldb_kind)                                               \
+  MISC_KIND(lldb_kind, gpr, LLDB_REGNUM_GENERIC_FLAGS)
 
 // Defines a 64-bit general purpose register
 #define DEFINE_GPR64(reg, generic_kind)                                        \
@@ -144,7 +155,7 @@ lldb_private::RegisterInfo register_infos[] = {
     DEFINE_GPR64(pc, LLDB_REGNUM_GENERIC_PC),
 
     // DEFINE_MISC_REGS(name, size, TYPE, lldb kind)
-    DEFINE_MISC_REGS(psr, 4, GPR, gpr_cpsr),
+    DEFINE_MISC_REGS(cpsr, 4, GPR, cpsr),
 
     // DEFINE_VREG(name)
     DEFINE_VREG(v0),
@@ -179,9 +190,44 @@ lldb_private::RegisterInfo register_infos[] = {
     DEFINE_VREG(v29),
     DEFINE_VREG(v30),
     DEFINE_VREG(v31),
+    DEFINE_MISC_REGS(fpsr, 4, GPR, fpsr),
+    DEFINE_MISC_REGS(fpcr, 4, GPR, fpcr),
 };
 
 static_assert(std::size(registers) == std::size(register_infos));
+
+// General purpose registers
+constexpr uint32_t gpr_regnums[] = {
+    arm64_dwarf::x0,  arm64_dwarf::x1,  arm64_dwarf::x2,  arm64_dwarf::x3,
+    arm64_dwarf::x4,  arm64_dwarf::x5,  arm64_dwarf::x6,  arm64_dwarf::x7,
+    arm64_dwarf::x8,  arm64_dwarf::x9,  arm64_dwarf::x10, arm64_dwarf::x11,
+    arm64_dwarf::x12, arm64_dwarf::x13, arm64_dwarf::x14, arm64_dwarf::x15,
+    arm64_dwarf::x16, arm64_dwarf::x17, arm64_dwarf::x18, arm64_dwarf::x19,
+    arm64_dwarf::x20, arm64_dwarf::x21, arm64_dwarf::x22, arm64_dwarf::x23,
+    arm64_dwarf::x24, arm64_dwarf::x25, arm64_dwarf::x26, arm64_dwarf::x27,
+    arm64_dwarf::x28, arm64_dwarf::fp,  arm64_dwarf::lr,  arm64_dwarf::sp,
+    arm64_dwarf::pc,  arm64_dwarf::cpsr};
+
+// Floating point registers
+constexpr uint32_t gpu_regnums[] = {
+    arm64_dwarf::v0,   arm64_dwarf::v1,  arm64_dwarf::v2,  arm64_dwarf::v3,
+    arm64_dwarf::v4,   arm64_dwarf::v5,  arm64_dwarf::v6,  arm64_dwarf::v7,
+    arm64_dwarf::v8,   arm64_dwarf::v9,  arm64_dwarf::v10, arm64_dwarf::v11,
+    arm64_dwarf::v12,  arm64_dwarf::v13, arm64_dwarf::v14, arm64_dwarf::v15,
+    arm64_dwarf::v16,  arm64_dwarf::v17, arm64_dwarf::v18, arm64_dwarf::v19,
+    arm64_dwarf::v20,  arm64_dwarf::v21, arm64_dwarf::v22, arm64_dwarf::v23,
+    arm64_dwarf::v24,  arm64_dwarf::v25, arm64_dwarf::v26, arm64_dwarf::v27,
+    arm64_dwarf::v28,  arm64_dwarf::v29, arm64_dwarf::v30, arm64_dwarf::v31,
+    arm64_dwarf::fpsr, arm64_dwarf::fpcr};
+
+constexpr RegisterSet register_sets[] = {
+    {
+        "General Purpose Registers",
+        "gpr",
+        std::size(gpr_regnums),
+        gpr_regnums,
+    },
+    {"Floating Point Registers", "fpu", std::size(gpu_regnums), gpu_regnums}};
 
 } // namespace arm64
 
@@ -393,6 +439,36 @@ RegisterInfo register_infos[] = {
 
 static_assert(std::size(registers) == std::size(register_infos));
 
+constexpr uint32_t gpr_regnums[] = {
+    lldb_rax_x86_64, lldb_rbx_x86_64,   lldb_rcx_x86_64, lldb_rdx_x86_64,
+    lldb_rdi_x86_64, lldb_rsi_x86_64,   lldb_rbp_x86_64, lldb_rsp_x86_64,
+    lldb_r8_x86_64,  lldb_r9_x86_64,    lldb_r10_x86_64, lldb_r11_x86_64,
+    lldb_r12_x86_64, lldb_r13_x86_64,   lldb_r14_x86_64, lldb_r15_x86_64,
+    lldb_rip_x86_64, lldb_rflags_x86_64};
+
+constexpr uint32_t fpu_regnums[] = {
+    lldb_st0_x86_64,   lldb_st1_x86_64,   lldb_st2_x86_64,   lldb_st3_x86_64,
+    lldb_st4_x86_64,   lldb_st5_x86_64,   lldb_st6_x86_64,   lldb_st7_x86_64,
+    lldb_mm0_x86_64,   lldb_mm1_x86_64,   lldb_mm2_x86_64,   lldb_mm3_x86_64,
+    lldb_mm4_x86_64,   lldb_mm5_x86_64,   lldb_mm6_x86_64,   lldb_mm7_x86_64,
+    lldb_xmm0_x86_64,  lldb_xmm1_x86_64,  lldb_xmm2_x86_64,  lldb_xmm3_x86_64,
+    lldb_xmm4_x86_64,  lldb_xmm5_x86_64,  lldb_xmm6_x86_64,  lldb_xmm7_x86_64,
+    lldb_xmm8_x86_64,  lldb_xmm9_x86_64,  lldb_xmm10_x86_64, lldb_xmm11_x86_64,
+    lldb_xmm12_x86_64, lldb_xmm13_x86_64, lldb_xmm14_x86_64, lldb_xmm15_x86_64,
+    lldb_xmm16_x86_64, lldb_xmm17_x86_64, lldb_xmm18_x86_64, lldb_xmm19_x86_64,
+    lldb_xmm20_x86_64, lldb_xmm21_x86_64, lldb_xmm22_x86_64, lldb_xmm23_x86_64,
+    lldb_xmm24_x86_64, lldb_xmm25_x86_64, lldb_xmm26_x86_64, lldb_xmm27_x86_64,
+    lldb_xmm28_x86_64, lldb_xmm29_x86_64, lldb_xmm30_x86_64, lldb_xmm31_x86_64};
+
+constexpr RegisterSet register_sets[] = {
+    {
+        "General Purpose Registers",
+        "gpr",
+        std::size(gpr_regnums),
+        gpr_regnums,
+    },
+    {"Floating Point Registers", "fpu", std::size(fpu_regnums), fpu_regnums}};
+
 } // namespace x86_64
 
 void AetherRegisterContext::InitOffsets() {
@@ -457,6 +533,28 @@ Status AetherRegisterContextX64::ReadRegister(const RegisterInfo *reg_info,
                                               RegisterValue &reg_value) {
   return DoReadRegister(reg_info, &x86_64::register_infos[0],
                         &x86_64::registers[0], reg_value);
+}
+
+uint32_t AetherRegisterContextARM64::GetRegisterSetCount() const {
+  return std::size(arm64::register_sets);
+}
+
+const RegisterSet *
+AetherRegisterContextARM64::GetRegisterSet(uint32_t set_index) const {
+  return set_index < std::size(arm64::register_sets)
+             ? &arm64::register_sets[set_index]
+             : nullptr;
+}
+
+uint32_t AetherRegisterContextX64::GetRegisterSetCount() const {
+  return std::size(x86_64::register_sets);
+}
+
+const RegisterSet *
+AetherRegisterContextX64::GetRegisterSet(uint32_t set_index) const {
+  return set_index < std::size(x86_64::register_sets)
+             ? &x86_64::register_sets[set_index]
+             : nullptr;
 }
 
 } // namespace lldb_private

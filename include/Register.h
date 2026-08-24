@@ -82,6 +82,9 @@ enum class Register : int {
   Q30,
   Q31,
 
+  FPSR,
+  FPCR,
+
   FP = X29,
   LR = X30,
   SP = X31,

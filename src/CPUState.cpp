@@ -188,6 +188,12 @@ const RegisterValue *CPUState::getRegisterAArch64(Register reg) {
   case Q31:
     ptr = &aarch64.simd.v[(int)reg - (int)Q0];
     break;
+  case FPSR:
+    ptr = &aarch64.fpsr;
+    break;
+  case FPCR:
+    ptr = &aarch64.fpcr;
+    break;
   default:
     return nullptr;
   }

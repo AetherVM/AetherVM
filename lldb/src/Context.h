@@ -20,8 +20,6 @@ public:
 
   uint32_t GetUserRegisterCount() const override { return GetRegisterCount(); }
 
-  uint32_t GetRegisterSetCount() const override { return 0; }
-
   Status ReadAllRegisterValues(lldb::WritableDataBufferSP &data_sp) override {
     abort();
     return Status();
@@ -30,10 +28,6 @@ public:
   Status WriteAllRegisterValues(const lldb::DataBufferSP &data_sp) override {
     abort();
     return Status();
-  }
-
-  const RegisterSet *GetRegisterSet(uint32_t set_index) const override {
-    abort();
   }
 
   static void InitOffsets();
@@ -56,6 +50,10 @@ public:
 
   const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
 
+  uint32_t GetRegisterSetCount() const override;
+
+  const RegisterSet *GetRegisterSet(uint32_t set_index) const override;
+
   Status ReadRegister(const RegisterInfo *reg_info,
                       RegisterValue &reg_value) override;
 
@@ -74,6 +72,10 @@ public:
   uint32_t GetRegisterCount() const override;
 
   const RegisterInfo *GetRegisterInfoAtIndex(uint32_t reg_index) const override;
+
+  uint32_t GetRegisterSetCount() const override;
+
+  const RegisterSet *GetRegisterSet(uint32_t set_index) const override;
 
   Status ReadRegister(const RegisterInfo *reg_info,
                       RegisterValue &reg_value) override;
