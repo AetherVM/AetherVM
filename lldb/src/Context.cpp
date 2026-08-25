@@ -566,6 +566,17 @@ Status AetherRegisterContext::DoReadRegister(const RegisterInfo *reg_info,
   return Status();
 }
 
+Status AetherRegisterContext::DoWriteRegister(const RegisterInfo *reg_info,
+                                              const RegisterInfo *reg_infos,
+                                              const aether::Register *registers,
+                                              const RegisterValue &reg_value) {
+  auto index = reg_info - reg_infos;
+  auto reg = registers[index];
+  auto regptr = Engine->getRegister(GetCPU(), reg);
+  std::memcpy((void *)regptr, reg_value.GetBytes(), reg_info->byte_size);
+  return Status();
+}
+
 Status AetherRegisterContextARM64::ReadRegister(const RegisterInfo *reg_info,
                                                 RegisterValue &reg_value) {
   return DoReadRegister(reg_info, &arm64::register_infos[0],
@@ -600,4 +611,16 @@ AetherRegisterContextX64::GetRegisterSet(uint32_t set_index) const {
              : nullptr;
 }
 
+Status
+AetherRegisterContextARM64::WriteRegister(const RegisterInfo *reg_info,
+                                          const RegisterValue &reg_value) {
+  return DoWriteRegister(reg_info, &arm64::register_infos[0],
+                         &arm64::registers[0], reg_value);
+}
+
+Status AetherRegisterContextX64::WriteRegister(const RegisterInfo *reg_info,
+                                               const RegisterValue &reg_value) {
+  return DoWriteRegister(reg_info, &x86_64::register_infos[0],
+                         &x86_64::registers[0], reg_value);
+}
 } // namespace lldb_private

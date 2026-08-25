@@ -39,6 +39,10 @@ protected:
                         const RegisterInfo *reg_infos,
                         const aether::Register *registers,
                         RegisterValue &reg_value);
+  Status DoWriteRegister(const RegisterInfo *reg_info,
+                         const RegisterInfo *reg_infos,
+                         const aether::Register *registers,
+                         const RegisterValue &reg_value);
 };
 
 class AetherRegisterContextARM64 : public AetherRegisterContext {
@@ -58,10 +62,7 @@ public:
                       RegisterValue &reg_value) override;
 
   Status WriteRegister(const RegisterInfo *reg_info,
-                       const RegisterValue &reg_value) override {
-    abort();
-    return Status();
-  }
+                       const RegisterValue &reg_value) override;
 };
 
 class AetherRegisterContextX64 : public AetherRegisterContext {
@@ -81,10 +82,7 @@ public:
                       RegisterValue &reg_value) override;
 
   Status WriteRegister(const RegisterInfo *reg_info,
-                       const RegisterValue &reg_value) override {
-    abort();
-    return Status();
-  }
+                       const RegisterValue &reg_value) override;
 };
 
 } // namespace lldb_private
