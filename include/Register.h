@@ -171,8 +171,7 @@ enum class Register : int {
   XMM31,
 };
 
-// A general register value representation, the value type is for GPR, the
-// pointer type is for NEON/SIMD/SSE vector register.
+// A general 8/16/32/64-bits register value representation
 union RegisterValue {
   // unsigned byte
   uint8_t u1;
@@ -254,6 +253,12 @@ union RegisterValue {
     uint32_t reserved_eflags : 10; // bits 22-31.
     uint32_t reserved_rflags;      // bits 32-63.
   } rflags;
+};
+
+// A general 128-bits register value representation
+struct RegisterValueSIMD {
+  RegisterValue low;
+  RegisterValue high;
 };
 
 } // namespace aether

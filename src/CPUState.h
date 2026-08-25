@@ -46,9 +46,11 @@ struct CPUState {
 
   const RegisterValue *getRegisterAArch64(Register reg);
   bool setRegisterAArch64(Register reg, RegisterValue val);
+  bool setRegisterNEON(Register reg, RegisterValueSIMD val);
 
   const RegisterValue *getRegisterX86(Register reg);
   bool setRegisterX86(Register reg, RegisterValue val);
+  bool setRegisterSSE(Register reg, RegisterValueSIMD val);
 };
 
 // execution state for each thread

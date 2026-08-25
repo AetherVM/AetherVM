@@ -572,8 +572,12 @@ Status AetherRegisterContext::DoWriteRegister(const RegisterInfo *reg_info,
                                               const RegisterValue &reg_value) {
   auto index = reg_info - reg_infos;
   auto reg = registers[index];
-  auto regptr = Engine->getRegister(GetCPU(), reg);
-  std::memcpy((void *)regptr, reg_value.GetBytes(), reg_info->byte_size);
+  aether::RegisterValueSIMD regval{0};
+  std::memcpy(&regval, reg_value.GetBytes(), reg_info->byte_size);
+  if (reg_info->byte_size > 8)
+    Engine->setRegister(GetCPU(), reg, regval); // fpu
+  else
+    Engine->setRegister(GetCPU(), reg, regval.low); // gpr
   return Status();
 }
 

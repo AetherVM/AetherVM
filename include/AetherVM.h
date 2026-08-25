@@ -59,11 +59,15 @@ public:
 
   // Get the readonly pointer of a specified register belonging to the calling
   // thread, return nullptr if reg is not invalid for this instance.
+  // If the high 64 bits is needed, convert the result to
+  // <const RegisterValueSIMD *>
   const RegisterValue *getRegister(Register reg);
 
   // Set the value of a specified register for the calling thread.
   // Don't reset SP register which is automatically set for each thread.
   bool setRegister(Register reg, RegisterValue val);
+  // Set the 128 bits value of a SIMD register.
+  bool setRegister(Register reg, RegisterValueSIMD val);
 
   // Map memory for VM guest, return 0 means OOM.
   addr_t mapMemory(size_t size);
@@ -86,6 +90,7 @@ public:
   // internally used by the debugger.
   const RegisterValue *getRegister(void *cpu, Register reg);
   bool setRegister(void *cpu, Register reg, RegisterValue val);
+  bool setRegister(void *cpu, Register reg, RegisterValueSIMD val);
 
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement....

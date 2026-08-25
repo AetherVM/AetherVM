@@ -93,6 +93,10 @@ bool BinaryEngine::setRegister(Register reg, RegisterValue val) {
   return setRegister(&CPU, reg, val);
 }
 
+bool BinaryEngine::setRegister(Register reg, RegisterValueSIMD val) {
+  return setRegister(&CPU, reg, val);
+}
+
 const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
   return engine->arch == ARM64 ? cpu->getRegisterAArch64(reg)
@@ -107,6 +111,13 @@ bool BinaryEngine::setRegister(void *rawcpu, Register reg, RegisterValue val) {
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
   return engine->arch == ARM64 ? cpu->setRegisterAArch64(reg, val)
                                : cpu->setRegisterX86(reg, val);
+}
+
+bool BinaryEngine::setRegister(void *rawcpu, Register reg,
+                               RegisterValueSIMD val) {
+  auto cpu = reinterpret_cast<CPUState *>(rawcpu);
+  return engine->arch == ARM64 ? cpu->setRegisterNEON(reg, val)
+                               : cpu->setRegisterSSE(reg, val);
 }
 
 addr_t BinaryEngine::mapMemory(size_t size) {

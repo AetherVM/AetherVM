@@ -209,6 +209,16 @@ bool CPUState::setRegisterAArch64(Register reg, RegisterValue val) {
   return true;
 }
 
+bool CPUState::setRegisterNEON(Register reg, RegisterValueSIMD val) {
+  if (Register::Q0 <= reg && reg <= Register::Q31) {
+    auto ptr = const_cast<RegisterValue *>(getRegisterAArch64(reg));
+    ptr[0] = val.low;
+    ptr[1] = val.high;
+    return true;
+  }
+  return false;
+}
+
 const RegisterValue *CPUState::getRegisterX86(Register reg) {
   const void *ptr = nullptr;
   using enum Register;
@@ -352,6 +362,16 @@ bool CPUState::setRegisterX86(Register reg, RegisterValue val) {
 
   *ptr = val;
   return true;
+}
+
+bool CPUState::setRegisterSSE(Register reg, RegisterValueSIMD val) {
+  if (Register::XMM0 <= reg && reg <= Register::XMM31) {
+    auto ptr = const_cast<RegisterValue *>(getRegisterX86(reg));
+    ptr[0] = val.low;
+    ptr[1] = val.high;
+    return true;
+  }
+  return false;
 }
 
 } // namespace aether
