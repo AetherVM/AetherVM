@@ -122,9 +122,23 @@ Status AetherProcess::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
   return Status(std::format("Invalid address 0x{:x}", addr));
 }
 
+Status AetherProcess::WriteMemory(lldb::addr_t addr, const void *buf,
+                                  size_t size, size_t &bytes_written) {
+  if (Engine->writeMemory(addr,
+                          {reinterpret_cast<const uint8_t *>(buf), size})) {
+    bytes_written = size;
+    return Status();
+  }
+  bytes_written = 0;
+  return Status(std::format("Invalid address 0x{:x}", addr));
+}
+
 Status AetherProcess::GetMemoryRegionInfo(lldb::addr_t load_addr,
                                           MemoryRegionInfo &range_info) {
   auto page = aether::align_down(load_addr, aether::page_size());
+  if (Engine->readMemory(page, 8).size() == 0)
+    return Status(std::format("Invalid address 0x{:x}", load_addr));
+
   range_info.GetRange().SetRangeBase(page);
   range_info.GetRange().SetByteSize(aether::page_size());
   range_info.SetReadable(MemoryRegionInfo::OptionalBool::eYes);

@@ -24,10 +24,7 @@ public:
 
   // Write memory (e.g., when debugger sets software breakpoint)
   Status WriteMemory(lldb::addr_t addr, const void *buf, size_t size,
-                     size_t &bytes_written) override {
-    abort();
-    return Status();
-  }
+                     size_t &bytes_written) override;
 
   // Resume execution across all VCPUs
   Status Resume(const ResumeActionList &resume_actions) override;

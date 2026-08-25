@@ -37,13 +37,11 @@ public:
 
   Status SetWatchpoint(lldb::addr_t addr, size_t size, uint32_t watch_flags,
                        bool hardware) override {
-    abort();
-    return Status();
+    return Status("Watchpoint is unsupported");
   }
 
   Status RemoveWatchpoint(lldb::addr_t addr) override {
-    abort();
-    return Status();
+    return Status("Watchpoint is unsupported");
   }
 
   Status SetHardwareBreakpoint(lldb::addr_t addr, size_t size) override {
