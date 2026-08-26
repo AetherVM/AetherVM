@@ -152,6 +152,10 @@ const RegisterValue *CPUState::getRegisterAArch64(Register reg) {
     ptr = &aarch64.gpr.sp;
     break;
   case NZCV:
+    aarch64.nzcv.n = aarch64.sr.n;
+    aarch64.nzcv.z = aarch64.sr.z;
+    aarch64.nzcv.c = aarch64.sr.c;
+    aarch64.nzcv.v = aarch64.sr.v;
     ptr = &aarch64.nzcv;
     break;
   case Q0:
@@ -206,6 +210,13 @@ bool CPUState::setRegisterAArch64(Register reg, RegisterValue val) {
     return false;
 
   *ptr = val;
+
+  if (reg == Register::NZCV) {
+    aarch64.sr.n = aarch64.nzcv.n;
+    aarch64.sr.z = aarch64.nzcv.z;
+    aarch64.sr.c = aarch64.nzcv.c;
+    aarch64.sr.v = aarch64.nzcv.v;
+  }
   return true;
 }
 
