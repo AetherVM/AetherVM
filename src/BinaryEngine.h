@@ -36,6 +36,10 @@ struct BinaryEngineImpl {
                    BinaryEngine *engine);
   ~BinaryEngineImpl();
 
+  addr_t guest2Host(addr_t target) {
+    return guestMemory.valid(target, 1) ? guestMemory.host(target) : target;
+  }
+
   bool startVM(addr_t entry);
 
 private:

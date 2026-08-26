@@ -14,7 +14,7 @@
 
 namespace aether {
 
-// should be the same as remill's definition
+// Must be the same as remill's definition.
 using addr_t = uint64_t;
 
 class Machine;
@@ -51,11 +51,11 @@ public:
   // loading, otherwise it fails instantly.
   virtual bool runMain();
 
-  // Make an executable function pointer from raw machine opcodes, in cases
+  // Make an executable function pointer from a virtual guest target, in cases
   // like: 1.the target of relocation is directly called by host system; 2.the
   // callback passes to host runtime; 3.you want to directly convert to a known
   // prototype and call without manually setting register contexts;
-  const void *makeExecutable(std::span<const uint8_t> raw);
+  const void *makeExecutable(addr_t target);
 
   // Get the readonly pointer of a specified register belonging to the calling
   // thread, return nullptr if reg is not invalid for this instance.
@@ -69,15 +69,17 @@ public:
   // Set the 128 bits value of a SIMD register.
   bool setRegister(Register reg, RegisterValueSIMD val);
 
-  // Map memory for VM guest, return 0 means OOM.
+  // Map a memory block from the guest reserved virtual memory range, the size
+  // will be aligned up to at least one page size, return 0 means OOM.
   addr_t mapMemory(size_t size);
 
-  // Read memory from VM guest, return empty if addr is not valid VM memory.
+  // Read memory from VM guest, return empty if addr is not valid memory.
   // The addr can be guest or any runtime memory within this process.
   std::vector<uint8_t> readMemory(addr_t addr, size_t size);
   uint64_t readUInt64(addr_t addr);
 
-  // Write memory to VM guest, return false if addr is not valid VM memory.
+  // Write memory to VM guest, return false if addr is not valid memory.
+  // The addr can be guest or any runtime memory within this process.
   bool writeMemory(addr_t addr, std::span<const uint8_t> buff);
 
   // Add an event callback.

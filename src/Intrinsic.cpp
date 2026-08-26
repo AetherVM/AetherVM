@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+#include "BinaryEngine.h"
 #include "CPUState.h"
 #include "Orchestrator.h"
 #include <Platform.h>
@@ -16,6 +17,7 @@ extern "C" int syscall(int number, ...);
 #endif
 
 template <typename T> static T &AccessMemory(addr_t addr) {
+  addr = aether::CPU.runtime->guest2Host(addr);
   return *reinterpret_cast<T *>(static_cast<uintptr_t>(addr));
 }
 

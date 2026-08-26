@@ -81,9 +81,7 @@ bool BinaryEngine::execute(addr_t target) {
 
 bool BinaryEngine::runMain() { return false; }
 
-const void *BinaryEngine::makeExecutable(std::span<const uint8_t> raw) {
-  return nullptr;
-}
+const void *BinaryEngine::makeExecutable(addr_t target) { return nullptr; }
 
 const RegisterValue *BinaryEngine::getRegister(Register reg) {
   return getRegister(&CPU, reg);
