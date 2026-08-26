@@ -165,6 +165,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
       case aether::CALL:
         // local or host call
         handlers->push_back(Instruction{call_interpret});
+        newbb = true;
         break;
       case aether::RET:
         // after function
