@@ -7,6 +7,8 @@
 
 #include "Orchestrator.h"
 
+#include <Register.h>
+
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +20,8 @@ namespace aarch64 {
 #include <remill/Arch/AArch64/Runtime/State.h>
 
 AETHER_VM_ENTRY();
+
+size_t offset_reg(Register reg);
 
 } // namespace aarch64
 

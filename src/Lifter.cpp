@@ -7,6 +7,7 @@
 #include <Platform.h>
 #include <Utils.h>
 
+#include "llvm/IR/InlineAsm.h"
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/InstIterator.h>
@@ -165,6 +166,27 @@ void upgrade_svc_signature(llvm::Module &M, llvm::Function *OldFunc) {
   call_self(*NewFunc);
 }
 
+void generate_naked_function(llvm::Function &Func, std::string_view asmbody) {
+  llvm::LLVMContext &Ctx = Func.getContext();
+  llvm::BasicBlock *EntryBB = llvm::BasicBlock::Create(Ctx, "entry", &Func);
+  llvm::IRBuilder<> Builder(EntryBB);
+  llvm::FunctionType *AsmFTy =
+      llvm::FunctionType::get(Builder.getVoidTy(), false);
+  llvm::InlineAsm *IA = llvm::InlineAsm::get(
+      AsmFTy, asmbody,
+      "",  // Constraints (empty string for basic top-level asm)
+      true // hasSideEffects (prevents optimizer from removing/hoisting it)
+  );
+  Builder.CreateCall(IA);
+  Builder.CreateUnreachable();
+  Func.addFnAttr(llvm::Attribute::Naked);
+}
+
+void emit_opcode(std::string &asmbody, std::span<const uint8_t> opcode) {
+  for (auto b : opcode)
+    asmbody += std::format(".byte {:#x}", b);
+}
+
 } // namespace
 
 std::map<uintptr_t, size_t> Lifter::dynhandlers;
@@ -253,7 +275,8 @@ Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
   return generate_object(M);
 }
 
-void Lifter::transform(std::span<const uint8_t> opcode) {
+void Lifter::transform(const llvm::MCInst &Inst,
+                       std::span<const uint8_t> opcode) {
   HandlerDynamic placeholder;
   placeholder.entry = reinterpret_cast<uintptr_t>(&abort);
   std::memcpy(&placeholder.opc4, opcode.data(), opcode.size());
@@ -267,8 +290,28 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
   name_handlers.insert(
       std::make_pair(name, const_cast<HandlerDynamic *>(&*newit)));
 
-  auto intrinsics = arch->GetInstrinsicTable();
+  remill::Instruction inst;
   auto func = arch->DeclareLiftedFunction(name, module);
+  std::ignore = arch->DecodeInstruction(
+      0, {(char *)opcode.data(), (char *)opcode.data() + opcode.size()}, inst,
+      arch->CreateInitialContext());
+  if (!inst.IsValid()) {
+    // Remill doesn't support this instruction, emit the raw instruction
+    // directly if guest and host have the same architecture
+#if AETHER_ARCH_ARM64
+    if (bin->archType() == ARM64) {
+      emitAArch64(*func, Inst, opcode);
+      return;
+    }
+#else
+    if (bin->archType() == X86_64) {
+      emitX64(*func, Inst, opcode);
+      return;
+    }
+#endif
+  }
+
+  auto intrinsics = arch->GetInstrinsicTable();
   arch->InitializeEmptyLiftedFunction(func);
 
   auto state_ptr = remill::NthArgument(func, remill::kStatePointerArgNum);
@@ -286,11 +329,6 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
     // Branch to the first basic block.
     llvm::BranchInst::Create(body, entry_block);
   }
-
-  remill::Instruction inst;
-  std::ignore = arch->DecodeInstruction(
-      0, {(char *)opcode.data(), (char *)opcode.data() + opcode.size()}, inst,
-      arch->CreateInitialContext());
 
   auto lifter = inst.GetLifter();
   auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
@@ -329,6 +367,28 @@ void Lifter::transform(std::span<const uint8_t> opcode) {
       }
     }
   }
+}
+
+void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
+                         std::span<const uint8_t> opcode) {
+  // during the chained execution of the vm handlers:
+  // x26 is "void *cpu"
+  // x27 is 'const Instruction *insns'
+  std::string asmbody;
+  abort();
+  emit_opcode(asmbody, opcode);
+  generate_naked_function(Func, asmbody);
+}
+
+void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
+                     std::span<const uint8_t> opcode) {
+  // during the chained execution of the vm handlers:
+  // r12 is "void *cpu"
+  // r13 is 'const Instruction *insns'
+  std::string asmbody;
+  abort();
+  emit_opcode(asmbody, opcode);
+  generate_naked_function(Func, asmbody);
 }
 
 void Lifter::apply(llvm::MemoryBuffer *mbuf) {

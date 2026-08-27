@@ -12,8 +12,6 @@
 #include "Handler.h"
 #include "Orchestrator.h"
 
-#include <llvm/MC/MCInst.h>
-
 namespace aether {
 
 // shortcuts for engine implementation stub
@@ -199,7 +197,7 @@ void BinaryEngine::liftOpcodes(const Binary *bin,
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;
          ptr += oplen) {
       if (diser.disassemble(ptr, 16, inst) == oplen)
-        lifter.transform({ptr, oplen});
+        lifter.transform(inst, {ptr, oplen});
     }
   } else {
     Disassembler diser{Binary::arch(X86_64)};
@@ -208,7 +206,7 @@ void BinaryEngine::liftOpcodes(const Binary *bin,
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
       size_t oplen = diser.disassemble(ptr, 16, inst);
       if (oplen)
-        lifter.transform({ptr, oplen});
+        lifter.transform(inst, {ptr, oplen});
       else
         oplen = mx86.defaultSize();
       ptr += oplen;

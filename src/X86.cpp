@@ -76,6 +76,57 @@ AETHER_VM_ENTRY() { AETHER_ASM("brk #0"); }
 
 #endif // end of AETHER_ARCH_X64
 
+size_t offset_reg(Register reg) {
+  // see remill/Arch/X86/Runtime/State.h for details
+  State *state = nullptr;
+  using enum Register;
+  switch (reg) {
+  case RIP:
+    return (size_t)&state->gpr.rip;
+  case RAX:
+    return (size_t)&state->gpr.rax;
+  case RBP:
+    return (size_t)&state->gpr.rbp;
+  case RBX:
+    return (size_t)&state->gpr.rbx;
+  case RCX:
+    return (size_t)&state->gpr.rcx;
+  case RDI:
+    return (size_t)&state->gpr.rdi;
+  case RDX:
+    return (size_t)&state->gpr.rdx;
+  case RSI:
+    return (size_t)&state->gpr.rsi;
+  case RSP:
+    return (size_t)&state->gpr.rsp;
+  case R8:
+    return (size_t)&state->gpr.r8;
+  case R9:
+    return (size_t)&state->gpr.r9;
+  case R10:
+    return (size_t)&state->gpr.r10;
+  case R11:
+    return (size_t)&state->gpr.r11;
+  case R12:
+    return (size_t)&state->gpr.r12;
+  case R13:
+    return (size_t)&state->gpr.r13;
+  case R14:
+    return (size_t)&state->gpr.r14;
+  case R15:
+    return (size_t)&state->gpr.r15;
+  default:
+    break;
+  }
+  if (ST0 <= reg && reg <= ST7)
+    return (size_t)&state->st.elems[0] + 0xA * ((int)reg - (int)ST0);
+  if (MM0 <= reg && reg <= MM7)
+    return (size_t)&state->mmx.elems[0] + 0x8 * ((int)reg - (int)MM0);
+  if (XMM0 <= reg && reg <= XMM31)
+    return (size_t)&state->vec[0].xmm + 0x40 * ((int)reg - (int)XMM0);
+  abort();
+}
+
 } // namespace x86
 
 } // namespace aether

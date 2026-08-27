@@ -115,6 +115,17 @@ AETHER_VM_ENTRY() { AETHER_ASM("int3"); }
 
 #endif // end of AETHER_ARCH_ARM64
 
+size_t offset_reg(Register reg) {
+  // see remill/Arch/AArch64/Runtime/State.h for details
+  State *state = nullptr;
+  using enum Register;
+  if (X0 <= reg && reg <= X31)
+    return (size_t)&state->gpr.x0 + 0x10 * ((int)reg - (int)X0);
+  if (Q0 <= reg && reg <= Q31)
+    return (size_t)&state->simd.v[0] + 0x16 * ((int)reg - (int)Q0);
+  abort();
+}
+
 } // namespace aarch64
 
 } // namespace aether

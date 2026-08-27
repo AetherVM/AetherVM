@@ -9,6 +9,7 @@
 #include <AetherBinary.h>
 
 #include <llvm/IR/Module.h>
+#include <llvm/MC/MCInst.h>
 #include <llvm/Support/MemoryBuffer.h>
 
 #include <remill/Arch/Arch.h>
@@ -61,9 +62,13 @@ struct Lifter {
   static void resetSemantic(llvm::Module &M);
   static std::unique_ptr<llvm::MemoryBuffer>
   createObject(llvm::Module &M, std::span<const uint8_t> text);
-  void transform(std::span<const uint8_t> opcode);
+  void transform(const llvm::MCInst &Inst, std::span<const uint8_t> opcode);
 
 private:
+  void emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
+                   std::span<const uint8_t> opcode);
+  void emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
+               std::span<const uint8_t> opcode);
   void apply(llvm::MemoryBuffer *mbuf);
   void clear();
 };
