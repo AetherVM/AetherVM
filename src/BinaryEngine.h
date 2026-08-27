@@ -21,7 +21,6 @@ struct BinaryEngineImpl {
   EventConfig eventConf;
   ArchType arch;
   GuestMemory guestMemory;
-  addr_t vmBase = 0;
 
   std::mutex mutex;
   std::vector<EventCallback> eventCallbacks;
@@ -35,10 +34,6 @@ struct BinaryEngineImpl {
   BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
                    BinaryEngine *engine);
   ~BinaryEngineImpl();
-
-  addr_t guest2Host(addr_t target) {
-    return guestMemory.valid(target, 1) ? guestMemory.host(target) : target;
-  }
 
   bool startVM(addr_t entry);
 

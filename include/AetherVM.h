@@ -82,6 +82,10 @@ public:
   // The addr can be guest or any runtime memory within this process.
   bool writeMemory(addr_t addr, std::span<const uint8_t> buff);
 
+  // Convert the address belonging to the initial binary file to runtime mapped
+  // one.
+  uintptr_t mappedAddress(addr_t addr, size_t size);
+
   // Add an event callback.
   // This's not thread-safe, only register any callbacks before executing the
   // guest code.

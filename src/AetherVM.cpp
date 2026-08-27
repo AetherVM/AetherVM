@@ -40,10 +40,7 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
     : m_binary(bin) {
   m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType(),
                                               eventcfg, this);
-  // treat this bin as the main binary, so use the image base as guest base
-  // memory address
-  memory.baseGuest = bin->imageBase();
-  orchBinary(bin, engine->vmBase);
+  orchBinary(bin, memory.basePointer);
 }
 
 BinaryEngine::~BinaryEngine() {}
@@ -71,12 +68,13 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
 }
 
 bool BinaryEngine::execute(addr_t target) {
-  target += engine->vmBase;
-
-  if (!memory.valid(target, 1))
+  if (!m_binary)
     return false;
 
-  return engine->startVM(target);
+  if (auto rtaddr = mappedAddress(target, 1))
+    return engine->startVM(rtaddr);
+
+  return false;
 }
 
 bool BinaryEngine::runMain() { return false; }
@@ -97,6 +95,12 @@ bool BinaryEngine::setRegister(Register reg, RegisterValueSIMD val) {
 
 const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
+  if (m_binary && reg == Register::PC) {
+    // convert the runtime pc value to the binary one so that user can apply it
+    // to any static analysis environment like IDA/Cutter/etc.
+    cpu->pc.u8 = m_binary->imageBase() + cpu->pcptr[0] - memory.basePointer;
+    return &cpu->pc;
+  }
   return engine->arch == ARM64 ? cpu->getRegisterAArch64(reg)
                                : cpu->getRegisterX86(reg);
 }
@@ -104,6 +108,9 @@ const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
 bool BinaryEngine::setRegister(void *rawcpu, Register reg, RegisterValue val) {
   // automatically set and managed by each thread cpu state
   if (reg == Register::SP)
+    return false;
+  // don't support set pc value
+  if (reg == Register::PC)
     return false;
 
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
@@ -124,12 +131,20 @@ addr_t BinaryEngine::mapMemory(size_t size) {
   return memory.commit(vmaddr, size, true, true) ? vmaddr : 0;
 }
 
+uintptr_t BinaryEngine::mappedAddress(addr_t addr, size_t size) {
+  auto rtaddr = memory.basePointer + addr;
+  return memory.valid(rtaddr, size) ? rtaddr : 0;
+}
+
 std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
   std::vector<uint8_t> buff;
+  if (!m_binary)
+    return buff;
+
   buff.resize(size);
-  if (memory.valid(addr, size)) {
+  if (auto rtaddr = mappedAddress(addr, size)) {
     // read guest memory directly
-    std::memcpy(buff.data(), reinterpret_cast<void *>(memory.host(addr)), size);
+    std::memcpy(buff.data(), reinterpret_cast<void *>(rtaddr), size);
   } else {
     // it may be host memory or invalid address
     if (!memory_read(addr, buff.data(), size))
@@ -140,10 +155,12 @@ std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
 
 uint64_t BinaryEngine::readUInt64(addr_t addr) {
   uint64_t result = 0;
-  if (memory.valid(addr, sizeof(result))) {
+  if (!m_binary)
+    return false;
+
+  if (auto rtaddr = mappedAddress(addr, sizeof(result))) {
     // read guest memory directly
-    std::memcpy(&result, reinterpret_cast<void *>(memory.host(addr)),
-                sizeof(result));
+    std::memcpy(&result, reinterpret_cast<void *>(rtaddr), sizeof(result));
   } else {
     auto buff = readMemory(addr, sizeof(result));
     if (buff.size())
@@ -153,10 +170,12 @@ uint64_t BinaryEngine::readUInt64(addr_t addr) {
 }
 
 bool BinaryEngine::writeMemory(addr_t addr, std::span<const uint8_t> buff) {
-  if (memory.valid(addr, buff.size())) {
+  if (!m_binary)
+    return false;
+
+  if (auto rtaddr = mappedAddress(addr, buff.size())) {
     // write guest memory directly
-    std::memcpy(reinterpret_cast<void *>(memory.host(addr)), buff.data(),
-                buff.size());
+    std::memcpy(reinterpret_cast<void *>(rtaddr), buff.data(), buff.size());
     return true;
   }
   // it may be host memory or invalid address

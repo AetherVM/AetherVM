@@ -14,9 +14,6 @@ public:
   // 4GB reservation for guest code and segment/section memory
   static constexpr size_t GUEST_SIZE = 4ul * 1024 * 1024 * 1024;
 
-  // The base vm address of guest
-  uintptr_t baseGuest = 0x10000;
-
   // The base host address for the guest
   uintptr_t basePointer = 0;
 
@@ -29,15 +26,12 @@ public:
 
   // Check whether [vmaddr, vmaddr + size) is in the committed range
   bool valid(uintptr_t vmaddr, size_t size) {
-    return baseGuest <= vmaddr && vmaddr < baseGuest + m_offset &&
-           vmaddr + size < baseGuest + m_offset;
+    return basePointer <= vmaddr && vmaddr < basePointer + m_offset &&
+           vmaddr + size < basePointer + m_offset;
   }
 
   // The current available address for guest
-  uintptr_t guestAvailable() { return baseGuest + m_offset; }
-
-  // Convert guest to host address
-  uintptr_t host(uintptr_t vmaddr) { return basePointer + vmaddr - baseGuest; }
+  uintptr_t guestAvailable() { return basePointer + m_offset; }
 
   // Commit physical RAM to a specific region inside the reserved space
   bool commit(uintptr_t vmaddr, size_t size, bool read, bool write);

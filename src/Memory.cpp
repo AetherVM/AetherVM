@@ -26,12 +26,12 @@ bool GuestMemory::commit(uintptr_t vmaddr, size_t size, bool read, bool write) {
   if (m_offset + size >= GUEST_SIZE)
     return false;
 
-  auto offset = vmaddr - baseGuest;
+  auto offset = vmaddr - basePointer;
   // OOM, no enough space for this vmaddr+size commit
   if (offset + size >= GUEST_SIZE)
     return false;
 
-  void *hostptr = reinterpret_cast<void *>(basePointer + offset);
+  void *hostptr = reinterpret_cast<void *>(vmaddr);
   m_offset += size;
 
   // won't let guest have executable page anyway

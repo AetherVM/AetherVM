@@ -214,6 +214,9 @@ Status AetherProcess::Kill() {
 
 Status AetherProcess::SetBreakpoint(lldb::addr_t addr, uint32_t size,
                                     bool hardware) {
+  if (auto rtaddr = Engine->mappedAddress(addr, 1))
+    addr = rtaddr;
+
   auto found = m_software_breakpoints.find(addr);
   if (found == m_software_breakpoints.end()) {
     found = m_software_breakpoints
@@ -225,6 +228,9 @@ Status AetherProcess::SetBreakpoint(lldb::addr_t addr, uint32_t size,
 }
 
 Status AetherProcess::RemoveBreakpoint(lldb::addr_t addr, bool hardware) {
+  if (auto rtaddr = Engine->mappedAddress(addr, 1))
+    addr = rtaddr;
+
   auto it = m_software_breakpoints.find(addr);
   if (it == m_software_breakpoints.end())
     return Status::FromErrorString("Breakpoint not found.");

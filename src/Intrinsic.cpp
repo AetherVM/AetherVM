@@ -17,7 +17,6 @@ extern "C" int syscall(int number, ...);
 #endif
 
 template <typename T> static T &AccessMemory(addr_t addr) {
-  addr = aether::CPU.runtime->guest2Host(addr);
   return *reinterpret_cast<T *>(static_cast<uintptr_t>(addr));
 }
 
