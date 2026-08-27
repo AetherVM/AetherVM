@@ -123,11 +123,13 @@ bool build_aethervm() {
   auto cmake = std::format(
       "-DCMAKE_PREFIX_PATH=\"{};{};{};{}\" "
       "-DCMAKE_INSTALL_PREFIX={} "
+      "-DLLVM_BUILD_PATH={} "
       "-DICPP_PATH={} "
       "-S {} "
       "-B {} ",
       install_llvm, install_aebi, install_remill_deps, install_remill,
       dqpath((fs::path(build_root) / "install").string()),
+      dqpath(((fs::path(install_llvm).parent_path() / "llvm").string())),
       dqpath(icpp::program()), dqpath(this_root), dqpath(build_root));
   return cmake_init(cmake, false) ? cmake_build(build_root) : false;
 }

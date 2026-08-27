@@ -122,7 +122,7 @@ size_t offset_reg(Register reg) {
   if (X0 <= reg && reg <= X31)
     return (size_t)&state->gpr.x0 + 0x10 * ((int)reg - (int)X0);
   if (Q0 <= reg && reg <= Q31)
-    return (size_t)&state->simd.v[0] + 0x16 * ((int)reg - (int)Q0);
+    return (size_t)&state->simd.v[0] + 0x10 * ((int)reg - (int)Q0);
   abort();
 }
 

@@ -99,6 +99,7 @@ target_include_directories(AetherVM PRIVATE
   third/remill
   third/remill/include
   ${LLVM_INCLUDE_DIRS}
+  ${LLVM_BUILD_PATH}/lib
 )
 
 if(APPLE)
