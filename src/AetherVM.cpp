@@ -62,7 +62,7 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
   }
   aether::Delete(bin);
 
-  return entry ? execute(entry) : false;
+  return entry ? engine->startVM(entry) : false;
 }
 
 bool BinaryEngine::execute(addr_t target) {

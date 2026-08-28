@@ -23,7 +23,9 @@ int main(int argc, const char *argv[]) {
     std::println("Failed to execute: {}.", asmcode);
     return -1;
   }
-  auto xmm0 = engine.getRegister(aether::Register::XMM0);
-  std::println("XMM0.D[0] = {:.1f}, XMM0.D[1] = {:.1f}", xmm0[0].d, xmm0[1].d);
+  auto xmm0 = reinterpret_cast<const aether::RegisterValueSIMD *>(
+      engine.getRegister(aether::Register::XMM0));
+  std::println("XMM0.D[0] = {:.1f}, XMM0.D[1] = {:.1f}", xmm0->low.d,
+               xmm0->high.d);
   return 0;
 }

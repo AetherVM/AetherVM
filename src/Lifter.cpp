@@ -434,6 +434,23 @@ void Lifter::transform(const llvm::MCInst &Inst,
 
   auto lifter = inst.GetLifter();
   auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
+  if (remill::kLiftedInstruction != lift_status) {
+    // Remill doesn't support this instruction, emit the raw instruction
+    // directly if guest and host have the same architecture
+#if AETHER_ARCH_ARM64
+    if (bin->archType() == ARM64) {
+      func->deleteBody();
+      emitAArch64(*func, Inst, opcode);
+      return;
+    }
+#else
+    if (bin->archType() == X86_64) {
+      func->deleteBody();
+      emitX64(*func, Inst, opcode);
+      return;
+    }
+#endif
+  }
   auto tailcall = remill::kLiftedInstruction == lift_status
                       ? intrinsics->function_return
                       : intrinsics->error;

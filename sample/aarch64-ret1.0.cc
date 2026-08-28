@@ -10,9 +10,18 @@ int main(int argc, const char *argv[]) {
     return -1;
 
   aether::MachineARM64 marm64;
-  std::string_view asmcode{"fmov d0, #1.0\n"
-                           "fmov d1, d0\n"
-                           "ret"};
+  std::string_view asmcode{
+      "fmov d0, #1.0\n"
+#if AETHER_ARCH_ARM64
+      // beacuse some advanced NEON instructions are not supported by Remill, so
+      // we only emulate it in the same architecture in order that the native
+      // execution can take care of them.
+      "dup v0.2d, v0.d[0]\n"
+#else
+      // cross architecture emulation is limited to simple NEON instructions.
+      "fmov d1, d0\n"
+#endif
+      "ret"};
   auto opcode = assemble(&marm64, asmcode);
   if (!opcode.size())
     return -1;
@@ -22,8 +31,14 @@ int main(int argc, const char *argv[]) {
     std::println("Failed to execute: {}.", asmcode);
     return -1;
   }
+#if AETHER_ARCH_ARM64
   auto q0 = engine.getRegister(aether::Register::Q0);
   auto q1 = engine.getRegister(aether::Register::Q1);
   std::println("Q0.D[0] = {:.1f}, Q1.D[0] = {:.1f}", q0->d, q1->d);
+#else
+  auto q0 = reinterpret_cast<const aether::RegisterValueSIMD *>(
+      engine.getRegister(aether::Register::Q0));
+  std::println("Q0.D[0] = {:.1f}, Q0.D[1] = {:.1f}", q0->low.d, q0->high.d);
+#endif
   return 0;
 }

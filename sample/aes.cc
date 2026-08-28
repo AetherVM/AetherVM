@@ -70,7 +70,17 @@ int main(int argc, const char *argv[]) {
   log_result("host", test_main(text.data(), text.size(), result));
 
   bool debug = argc > 1 && strcmp(argv[1], "debug") == 0;
-  for (auto arch : {"arm64", "x86_64"})
-    execute_endec(argv[0], arch, text, debug);
+  // beacuse the aes algorithm binary file was compiled with advanced NEON and
+  // SSE/AVX instructions which some of them are not supported by Remill, so we
+  // only emulate them in the same host architecture in order that the native
+  // execution can take care of them.
+  auto arch =
+#if AETHER_ARCH_ARM64
+      "arm64"
+#else
+      "x86_64"
+#endif
+      ;
+  execute_endec(argv[0], arch, text, debug);
   return 0;
 }
