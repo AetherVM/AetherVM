@@ -9,6 +9,10 @@ Build AetherVM in one go, usage: icpp build.cc [Debug]
 
 #include <icpp.hpp>
 
+#if __linux__
+#include <stdlib.h> // for setenv
+#endif
+
 namespace {
 
 std::string install_llvm;
@@ -52,7 +56,7 @@ bool build_prepare(const fs::path &root) {
   return true;
 }
 
-std::string cmake_extra(bool remill = true) {
+std::string cmake_extra(bool remill) {
   auto icpp_dir = fs::path(icpp::program()).parent_path().string();
   // the CLANG_PATH is for remill to build its semantics
   auto icpp_clang =
@@ -63,17 +67,27 @@ std::string cmake_extra(bool remill = true) {
   return icpp_clang +
          " -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl";
 #elif __linux__
-  return std::format("{} -DCMAKE_C_COMPILER={}/bin/clang "
-                     "-DCMAKE_CXX_COMPILER={}/bin/clang++ ",
-                     icpp_clang, icpp_dir, icpp_dir);
+  auto icpp_root = fs::path(icpp_dir).parent_path().string();
+  static bool setldenv = false;
+  if (!setldenv) {
+    setldenv = true;
+    // set rpath for the temporary tools dependent by remill
+    setenv("LD_LIBRARY_PATH", std::format("{}/lib", icpp_root).c_str(), true);
+  }
+  return std::format("{} -DICPP_INSTALL_DIR={} -DLLVM_BUILD_DIR={}/../llvm "
+                     "-DCMAKE_TOOLCHAIN_FILE={}/cmake/icpp.toolchain.cmake ",
+                     icpp_clang, icpp_root, install_llvm, this_root);
 #else
   return icpp_clang;
 #endif
 }
 
-bool cmake_init(std::string_view args, bool remill = true) {
+bool cmake_init(std::string_view args, bool remill) {
+  auto buildtype = build_type;
+  if (remill && buildtype == "Debug")
+    buildtype = "RelWithDebInfo";
   return command(std::format("cmake -G Ninja -DCMAKE_BUILD_TYPE={} {} {}",
-                             build_type, args, cmake_extra(remill)));
+                             buildtype, args, cmake_extra(remill)));
 }
 
 bool cmake_build(std::string_view path) {
@@ -98,7 +112,7 @@ bool build_remill_deps() {
       install_llvm, dqpath(install_remill_deps),
       dqpath((fs::path(this_root) / "third/remill/dependencies").string()),
       dqpath(remdeps.string()));
-  return cmake_init(cmake) ? cmake_build(remdeps.string()) : false;
+  return cmake_init(cmake, true) ? cmake_build(remdeps.string()) : false;
 }
 
 bool build_remill() {
@@ -116,7 +130,7 @@ bool build_remill() {
                   install_llvm, install_remill_deps, dqpath(install_remill),
                   dqpath((fs::path(this_root) / "third/remill").string()),
                   dqpath(remill.string()));
-  return cmake_init(cmake) ? cmake_build(remill.string()) : false;
+  return cmake_init(cmake, true) ? cmake_build(remill.string()) : false;
 }
 
 bool build_aethervm() {

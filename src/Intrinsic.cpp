@@ -11,7 +11,7 @@
 #include <cfenv>
 #include <cstdlib>
 
-#if AETHER_OS_DARWIN
+#if AETHER_OS_DARWIN || AETHER_OS_LINUX
 extern "C" int syscall(int number, ...);
 #else
 #endif
@@ -442,11 +442,11 @@ Memory *__remill_sync_hyper_call(void *state, Memory *memory,
   switch (name) {
   case SyncHyperCall::kX86SysCall: {
     auto gpr = &cpu->x86.gpr;
-#if AETHER_OS_DARWIN
+#if AETHER_OS_DARWIN || AETHER_OS_LINUX
     gpr->rax.qword = syscall(gpr->rax.qword, gpr->rdi, gpr->rsi, gpr->rdx,
                              gpr->r10, gpr->r8, gpr->r9);
 #else
-#error TODO:: implement __remill_sync_hyper_call for non-macOS platforms
+#error TODO:: implement __remill_sync_hyper_call for non-POSIX platforms
 #endif
     break;
   }
