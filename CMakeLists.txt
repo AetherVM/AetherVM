@@ -79,6 +79,11 @@ add_library(AetherVM SHARED
   ${SOURCE_FILES}
   ${HEADER_FILES}
 )
+  
+set_target_properties(AetherVM PROPERTIES
+  SKIP_BUILD_RPATH TRUE
+  SKIP_INSTALL_RPATH TRUE
+)
 
 # link the LLVM shared library
 if(MSVC)
@@ -103,10 +108,6 @@ target_include_directories(AetherVM PRIVATE
 )
 
 if(APPLE)
-  set_target_properties(AetherVM PROPERTIES
-    SKIP_BUILD_RPATH TRUE
-    SKIP_INSTALL_RPATH TRUE
-  )
   target_link_options(AetherVM PRIVATE
     -Wl,-rpath,@executable_path
     -Wl,-rpath,@executable_path/../lib
@@ -116,6 +117,10 @@ if(APPLE)
   )
 elseif(MSVC)
 else()
+  target_link_options(AetherVM PRIVATE 
+    @${CMAKE_SOURCE_DIR}/cmake/ld.txt
+    -Wl,--no-undefined
+  )
 endif()
 
 target_include_directories(AetherVM PUBLIC

@@ -84,8 +84,10 @@ std::string cmake_extra(bool remill) {
 
 bool cmake_init(std::string_view args, bool remill) {
   auto buildtype = build_type;
-  if (remill && buildtype == "Debug")
+#if __linux__
+  if (buildtype == "Debug")
     buildtype = "RelWithDebInfo";
+#endif
   return command(std::format("cmake -G Ninja -DCMAKE_BUILD_TYPE={} {} {}",
                              buildtype, args, cmake_extra(remill)));
 }

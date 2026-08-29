@@ -27,17 +27,14 @@
 namespace {
 
 #if __APPLE__
-const char *llvm_name = "libLLVM.dylib";
 const char *binary_name = "libAetherBinary.dylib";
 const char *vm_name = "libAetherVM.dylib";
 const char *lib_dir = "lib";
 #elif __linux__
-const char *llvm_name = "libLLVM.so";
 const char *binary_name = "libAetherBinary.so";
 const char *vm_name = "libAetherVM.so";
 const char *lib_dir = "lib";
 #else
-const char *llvm_name = "LLVM-22.dll";
 const char *binary_name = "AetherBinary.dll";
 const char *vm_name = "AetherVM.dll";
 const char *lib_dir = "bin";
@@ -48,12 +45,6 @@ bool load_libraries(std::string_view script_file) {
   auto script_dir = script_path.parent_path();
   auto vm_dir = script_dir.parent_path();
   auto binary_dir = vm_dir.parent_path() / "AetherBinary";
-  // load LLVM
-  auto libllvm = binary_dir / "build-llvm" / "install" / lib_dir / llvm_name;
-  if (!icpp::load_library(libllvm.string())) {
-    std::println("Failed to load {}", libllvm.string());
-    return false;
-  }
   for (std::string_view type :
        {"build-Debug", "build-RelWithDebInfo", "build-Release"}) {
     auto libvm = vm_dir / type / vm_name;

@@ -32,13 +32,13 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 #if AETHER_ARCH_ARM64
-  auto q0 = engine.getRegister(aether::Register::Q0);
-  auto q1 = engine.getRegister(aether::Register::Q1);
-  std::println("Q0.D[0] = {:.1f}, Q1.D[0] = {:.1f}", q0->d, q1->d);
-#else
   auto q0 = reinterpret_cast<const aether::RegisterValueSIMD *>(
       engine.getRegister(aether::Register::Q0));
   std::println("Q0.D[0] = {:.1f}, Q0.D[1] = {:.1f}", q0->low.d, q0->high.d);
+#else
+  auto q0 = engine.getRegister(aether::Register::Q0);
+  auto q1 = engine.getRegister(aether::Register::Q1);
+  std::println("Q0.D[0] = {:.1f}, Q1.D[0] = {:.1f}", q0->d, q1->d);
 #endif
   return 0;
 }
