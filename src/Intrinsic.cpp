@@ -446,7 +446,9 @@ Memory *__remill_sync_hyper_call(void *state, Memory *memory,
     gpr->rax.qword = syscall(gpr->rax.qword, gpr->rdi, gpr->rsi, gpr->rdx,
                              gpr->r10, gpr->r8, gpr->r9);
 #else
-#error TODO:: implement __remill_sync_hyper_call for non-POSIX platforms
+    printf("[AetherVM]  TODO:: implement __remill_sync_hyper_call for "
+           "non-POSIX platforms.\n");
+    abort();
 #endif
     break;
   }

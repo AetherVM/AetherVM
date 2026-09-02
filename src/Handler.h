@@ -10,8 +10,9 @@
 #include <vector>
 
 #define ISEL_NAME(name) ISEL_##name
-#define ISEL_DECL(name) extern const void **ISEL_NAME(name)
-#define ISEL_RAW_ITEM(name) {#name, ISEL_NAME(name)}
+#define ISEL_DECL(name) // extern const void **ISEL_NAME(name)
+#define ISEL_RAW_ITEM(name)                                                    \
+  {#name, reinterpret_cast<const void *>(ISEL_NAME(name))}
 
 namespace aether {
 

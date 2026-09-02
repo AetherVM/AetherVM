@@ -9,3 +9,5 @@
 #define ISEL_INVALID_INSTRUCTION ISEL_INVALID_INSTRUCTION_AArch64
 
 #include <lib/Arch/AArch64/Runtime/Instructions.cpp>
+
+#include <generated/HandlerAArch64.cpp>

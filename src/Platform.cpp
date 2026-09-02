@@ -140,7 +140,7 @@ size_t stack_size() {
 #if AETHER_OS_DARWIN
   return pthread_get_stacksize_np(pthread_self());
 #elif AETHER_OS_WINDOWS
-  LONG_PTR stack_low_limit = 0;
+  ULONG_PTR stack_low_limit = 0;
   ULONG_PTR stack_high_limit = 0;
   ::GetCurrentThreadStackLimits(&stack_low_limit, &stack_high_limit);
   return static_cast<size_t>(stack_high_limit - stack_low_limit);
@@ -160,7 +160,7 @@ size_t stack_size() {
 }
 
 const void *load_library(std::string_view path) {
-#if ON_WINDOWS
+#if AETHER_OS_WINDOWS
   auto handle = reinterpret_cast<void *>(::LoadLibraryExA(
       path.data(), nullptr,
       LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_USER_DIRS |
@@ -183,7 +183,7 @@ const void *load_library(std::string_view path) {
 }
 
 const void *resolve_symbol(const void *handle, std::string_view name) {
-#if ON_WINDOWS
+#if AETHER_OS_WINDOWS
   return reinterpret_cast<const void *>(::GetProcAddress(
       reinterpret_cast<HMODULE>(const_cast<void *>(handle)), name.data()));
 #else
@@ -192,7 +192,7 @@ const void *resolve_symbol(const void *handle, std::string_view name) {
 }
 
 int current_pid() {
-#if ON_WINDOWS
+#if AETHER_OS_WINDOWS
   return ::GetCurrentProcessId();
 #else
   return getpid();

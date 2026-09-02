@@ -30,7 +30,7 @@
 // r13 is 'const Instruction *insns'
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
-    AETHER_ASM("mov %r13, " ARGREG_0 "\n"                                      \
+    AETHER_ASM("mov %r13, %" ARGREG_0 "\n"                                     \
                "call " HOST_CALL_PREFIX "host_" #n "\n"                        \
                "mov %rax, %r13\n"                                              \
                "jmp *%r13");                                                   \

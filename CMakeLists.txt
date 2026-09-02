@@ -67,12 +67,9 @@ set(SOURCE_FILES
   src/Orchestrator.cpp
   src/Orchestrator.h
   src/Platform.cpp
-  src/Undefine.cpp
   src/Utils.cpp
   src/X86.cpp
   src/X86.h
-  ${CMAKE_BINARY_DIR}/generated/HandlerAArch64.cpp
-  ${CMAKE_BINARY_DIR}/generated/HandlerX86.cpp
 )
 
 add_library(AetherVM SHARED
@@ -105,6 +102,7 @@ target_include_directories(AetherVM PRIVATE
   third/remill/include
   ${LLVM_INCLUDE_DIRS}
   ${LLVM_BUILD_PATH}/lib
+  ${CMAKE_BINARY_DIR}
 )
 
 if(APPLE)

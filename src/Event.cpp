@@ -48,7 +48,9 @@ IMPL_EVENT_HOST(syscall_interpret) {
   gpr->x0.qword = syscall(gpr->x0.qword, gpr->x1, gpr->x2, gpr->x3, gpr->x4,
                           gpr->x5, gpr->x6, gpr->x7);
 #else
-#error TODO:: implement syscall_interpret for non-POSIX platforms
+  printf("[AetherVM]  TODO:: implement syscall_interpret for non-POSIX "
+         "platforms.\n");
+  abort();
 #endif
   return forward_event_default();
 }
