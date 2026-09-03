@@ -3,6 +3,30 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+/*
+AetherVM x86-64 ABI
+────────────────────────
+
+R12     CPU*
+R13     Instruction*
+R10     next handler
+
+CPU[-0x10]   VM PC*
+
+vm_enter:
+    host → VM
+
+handler:
+    execute instruction
+    R10 = next handler
+    jmp R10
+
+event:
+    VM → host callback
+    callback returns Instruction*
+    resume VM
+*/
+
 #include "X86.h"
 #include <Platform.h>
 
@@ -134,10 +158,7 @@ AETHER_VM_ENTRY() {
 #endif
       "call " HOST_CALL_PREFIX "vm_enter_x64\n"
 #if AETHER_OS_WINDOWS
-      // shadow space + alignment padding + return address
-      "add $0x30, %rsp\n"
-#else
-      "add $0x8, %rsp\n" // pop return address
+      "add $0x28, %rsp\n"
 #endif
       "pop %r13\n"
       "pop %r12\n"

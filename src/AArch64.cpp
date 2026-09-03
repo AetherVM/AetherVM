@@ -3,6 +3,30 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+/*
+AetherVM AArch64 ABI
+────────────────────────
+
+X26     CPU*
+X27     Instruction*
+X16     next handler
+
+CPU[-0x10]   VM PC*
+
+vm_enter:
+    host → VM
+
+handler:
+    execute instruction
+    X16 = next handler
+    jmp X16
+
+event:
+    VM → host callback
+    callback returns Instruction*
+    resume VM
+*/
+
 #include "AArch64.h"
 #include <Platform.h>
 
