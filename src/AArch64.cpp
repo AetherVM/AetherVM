@@ -137,6 +137,8 @@ size_t offset_reg(Register reg) {
   // see remill/Arch/AArch64/Runtime/State.h for details
   State *state = nullptr;
   using enum Register;
+  static_assert(sizeof(state->simd.v[0]) == 0x10,
+                "SIMD register size mismatch");
   if (X0 <= reg && reg <= X31)
     return (size_t)&state->gpr.x0 + 0x10 * ((int)reg - (int)X0);
   if (Q0 <= reg && reg <= Q31)

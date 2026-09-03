@@ -213,10 +213,15 @@ size_t offset_reg(Register reg) {
   default:
     break;
   }
+  static_assert(sizeof(state->st.elems[0]) == 0x10,
+                "ST register size mismatch");
+  static_assert(sizeof(state->mmx.elems[0]) == 0x10,
+                "MMX register size mismatch");
+  static_assert(sizeof(state->vec[0]) == 0x40, "Vector register size mismatch");
   if (ST0 <= reg && reg <= ST7)
-    return (size_t)&state->st.elems[0] + 0xA * ((int)reg - (int)ST0);
+    return (size_t)&state->st.elems[0] + 0x10 * ((int)reg - (int)ST0);
   if (MM0 <= reg && reg <= MM7)
-    return (size_t)&state->mmx.elems[0] + 0x8 * ((int)reg - (int)MM0);
+    return (size_t)&state->mmx.elems[0] + 0x10 * ((int)reg - (int)MM0);
   if (XMM0 <= reg && reg <= XMM31)
     return (size_t)&state->vec[0].xmm + 0x40 * ((int)reg - (int)XMM0);
   abort();

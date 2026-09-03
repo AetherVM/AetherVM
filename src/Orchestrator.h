@@ -15,6 +15,8 @@ using event_func_t = void (*)(void);
 // an executable instruction
 struct Instruction {
   // the handler of this instruction
+  // NOTE: this width is duplicated in extract_handler_r10/extract_handler_x16 —
+  // keep in sync
   uintptr_t handler : 59;
   // insn/block/func before/after event flag
   uintptr_t event : 1;
@@ -36,6 +38,9 @@ struct Instruction {
     oplen = size;
   }
 };
+
+static_assert(sizeof(Instruction) == 8,
+              "Instruction must pack into one word with 8 bytes");
 
 // instruction sequence
 using Instructions = std::vector<Instruction>;
