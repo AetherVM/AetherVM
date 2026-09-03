@@ -39,7 +39,7 @@ size_t page_size() {
 
 uintptr_t page_alloc(size_t size) {
 #if defined(AETHER_OS_WINDOWS)
-  // Reserve 16GB of virtual address space on Windows without committing
+  // Reserve 'size' bytes of virtual address space on Windows without committing
   // physical memory
   void *reserved = ::VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_NOACCESS);
 
@@ -55,7 +55,7 @@ uintptr_t page_alloc(size_t size) {
 #endif
 
 #if defined(AETHER_OS_LINUX)
-  // Don't reserve swap space for uncommitted 16GB
+  // Don't reserve swap space for uncommitted 'size' bytes
   flags |= MAP_NORESERVE;
 #endif
 

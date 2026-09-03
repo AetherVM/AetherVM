@@ -20,6 +20,7 @@ namespace aether {
 struct BinaryEngineImpl {
   EventConfig eventConf;
   ArchType arch;
+  FileType osFile;
   GuestMemory guestMemory;
 
   std::mutex mutex;

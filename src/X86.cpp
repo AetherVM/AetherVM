@@ -14,7 +14,6 @@
 #define HOST_CALL_PREFIX ""
 #endif
 
-// r13 is 'const Instruction *insns'
 #if AETHER_OS_WINDOWS
 #define ARGREG_0 "rcx"
 #define ARGREG_1 "rdx"
@@ -25,6 +24,8 @@
 #define ARGREG_1 "rsi"
 #define ARGREG_2 "rdx"
 #define ARGREG_3 "rcx"
+#define ARGREG_4 "r8"
+#define ARGREG_5 "r9"
 #endif
 
 // r13 is 'const Instruction *insns'
@@ -62,12 +63,69 @@ namespace x86 {
 
 #if AETHER_ARCH_X64
 
+extern "C" AETHER_NAKED void vm_enter_x64(void) {
+  AETHER_ASM(
+      // get the return address
+      "mov 0x0(%rsp), %r10\n"
+      // save the return address flag to cpu context
+      "mov %r10, 0x0(%" ARGREG_3 ")\n"
+      // set the return address to vm context
+      "mov %r10, 0x0(%rax)\n"
+      // get the real handler address
+      "" extract_handler_r10 ""
+      // ABI defined in remill/BC/ABI.h
+      // call handler(state, vmaddr, memory)
+      "jmp *%r10\n");
+}
+
 AETHER_VM_ENTRY() {
-  /*
-  r12: cpu
-  r13: insns
-  */
-  AETHER_ASM("int3");
+  AETHER_ASM(
+#if AETHER_OS_WINDOWS
+      /*
+      On Windows x64, every caller must allocate 32 bytes (0x20) of stack
+      space before making a function call, regardless of how many parameters
+      are passed. This space is reserved directly at the top of the stack
+      (rsp + 0x00 through rsp + 0x1F). Plus another 8 bytes for the return
+      address, so the fifth argument is passed on the stack at [rsp + 0x20 +
+      0x8].
+      */
+      "mov 0x28(%rsp), %rax\n"
+#else
+      "mov %" ARGREG_4 ", %rax\n"
+#endif
+      /*
+      Argument ABI:
+      REGARG_0: void *cpu
+      REGARG_1: addr_t vmaddr
+      REGARG_2: const Instruction *insns
+      REGARG_3: uintptr_t *host_retaddr
+      rax: void *(*vm_retaddr)()
+      */
+      "push %r12\n"
+      "push %r13\n"
+      // The extra runtime context of vm handlers:
+      // r12: cpu
+      // r13: insns
+      "mov %" ARGREG_0 ", %r12\n"
+      "mov %" ARGREG_2 ", %r13\n"
+      "push %" ARGREG_1 "\n" // save vmaddr
+      "push %" ARGREG_3 "\n" // save host_retaddr
+#if AETHER_OS_WINDOWS
+      "sub $0x20, %rsp\n" // shadow space for arguments
+#endif
+      "call *%rax\n"
+#if AETHER_OS_WINDOWS
+      "add $0x20, %rsp\n"
+#endif
+      "pop %" ARGREG_3 "\n" // restore host_retaddr
+      "pop %" ARGREG_1 "\n" // restore vmaddr
+      "mov %r12, %" ARGREG_0 "\n"
+      "mov %r13, %" ARGREG_2 "\n"
+      "call " HOST_CALL_PREFIX "vm_enter_x64\n"
+      "add $0x8, %rsp\n" // pop return address
+      "pop %r13\n"
+      "pop %r12\n"
+      "ret");
 }
 
 #else

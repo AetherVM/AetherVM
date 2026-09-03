@@ -11,8 +11,8 @@ namespace aether {
 
 class GuestMemory {
 public:
-  // 4GB reservation for guest code and segment/section memory
-  static constexpr size_t GUEST_SIZE = 4ul * 1024 * 1024 * 1024;
+  // 3GB reservation for guest code and segment/section memory
+  static constexpr size_t GUEST_SIZE = 3ul * 1024 * 1024 * 1024;
 
   // The base host address for the guest
   uintptr_t basePointer = 0;

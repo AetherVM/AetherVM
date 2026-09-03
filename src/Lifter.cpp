@@ -593,6 +593,51 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
   // r12 is "void *cpu"
   // r13 is 'const Instruction *insns'
   std::string asmbody;
+
+  /*
+  Linux x86-64 (System V AMD64 ABI)
+
+  Registers       Role                                          Saved By
+  ------------------------------------------------------------------------------
+  rax             1st Return Value / Indirect Result            Caller
+  rdx             2nd Return Value / 3rd Argument               Caller
+  rdi             1st Integer/Pointer Argument                  Caller
+  rsi             2nd Integer/Pointer Argument                  Caller
+  rcx             4th Integer/Pointer Argument                  Caller
+  r8  – r9        5th and 6th Integer/Pointer Arguments         Caller
+  r10             Static Chain Pointer / Temporary              Caller
+  r11             Temporary / Scratch (PLT / Linker)            Caller
+  r12 – r15       Callee-saved GPRs                             Callee
+  rbx             Callee-saved GPR                              Callee
+  rbp             Frame Pointer (FP) / Callee-saved             Callee
+  rsp             Stack Pointer                                 Callee (aligned
+  to 16 bytes)
+
+  xmm0 – xmm1     FP/Vector Arguments & Return Values           Caller
+  xmm2 – xmm7     FP/Vector Arguments                           Caller
+  xmm8 – xmm15    FP/Vector Temporary / Scratch                 Caller
+
+
+  Windows x64 (Microsoft x64 ABI)
+
+  Registers       Role                                          Saved By
+  ------------------------------------------------------------------------------
+  rax             Return Value / Scratch                        Caller
+  rcx             1st Integer/Pointer Argument                  Caller
+  rdx             2nd Integer/Pointer Argument                  Caller
+  r8  – r9        3rd and 4th Integer/Pointer Arguments         Caller
+  r10 – r11       Temporary / Scratch                           Caller
+  r12 – r15       Callee-saved GPRs                             Callee
+  rbx, rsi, rdi   Callee-saved GPRs                             Callee
+  rbp             Frame Pointer (FP) / Callee-saved (optional)  Callee
+  rsp             Stack Pointer                                 Callee (aligned
+  to 16 bytes)
+
+  xmm0            1st FP/Vector Argument & Return Value         Caller
+  xmm1 – xmm3     2nd, 3rd, and 4th FP/Vector Arguments         Caller
+  xmm4 – xmm5     FP/Vector Temporary / Scratch                 Caller
+  xmm6 – xmm15    Callee-saved (Lower 128-bits)                 Callee
+  */
   abort();
   emit_opcode(asmbody, opcode);
   generate_naked_function(Func, asmbody);

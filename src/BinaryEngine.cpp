@@ -15,15 +15,20 @@ namespace aether {
 
 BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
                                    BinaryEngine *engine)
-    : eventConf(cfg), arch(type) {
+    : eventConf(cfg), arch(type), osFile(os) {
   using enum remill::ArchName;
   using enum remill::OSName;
   if (cfg.debug) {
     dbgContext.engine = engine;
     startDebugger(type);
   }
-  // use windows coff as our in-memory object anyway
-  remill::OSName os_name = kOSWindows;
+
+  remill::OSName os_name = kOSLinux;
+  if (os == MachO)
+    os_name = kOSmacOS;
+  else if (os == PE)
+    os_name = kOSWindows;
+
   remill::ArchName arch_name;
   // lazily load handlers, only support AArch64 and X86_64
   if (arch == ARM64) {
@@ -33,6 +38,7 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
     Handler::loadX86();
     arch_name = kArchAMD64_AVX512;
   }
+
   remillArch = remill::Arch::Get(llvmContext, os_name, arch_name);
   remillSemantic = remill::LoadArchSemantics(
       remillArch.get(), {fs::path(self_path()).parent_path() / "bitcode"});
@@ -55,7 +61,10 @@ static void *retaddr_aarch64() {
 
 static void *retaddr_x86() {
   auto sp = const_cast<RegisterValue *>(CPU.getRegisterX86(Register::SP));
-  sp->uptr--;
+  if (CPU.runtime->osFile == PE)
+    sp->uptr -= (1 + 4); // 1 for return address and 4 shadow space
+  else
+    sp->uptr -= (1 + 0);
   // the return address storage pointer
   return &sp->uptr[0];
 }
