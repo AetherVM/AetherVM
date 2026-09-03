@@ -30,9 +30,10 @@
 #if AETHER_OS_WINDOWS
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
-    AETHER_ASM("sub $20, %rsp");                                               \
+    /* 0x20 shadow space + 0x08 alignment */                                   \
+    AETHER_ASM("sub $0x28, %rsp");                                             \
     IMPL_EVENT_VM_IMPL(#n);                                                    \
-    AETHER_ASM("add $20, %rsp\n"                                               \
+    AETHER_ASM("add $0x28, %rsp\n"                                             \
                "jmp *%r10");                                                   \
   }
 #else
@@ -117,18 +118,27 @@ AETHER_VM_ENTRY() {
       "push %" ARGREG_1 "\n" // save vmaddr
       "push %" ARGREG_3 "\n" // save host_retaddr
 #if AETHER_OS_WINDOWS
-      "sub $0x20, %rsp\n" // shadow space for arguments
+      // shadow space (0x20) + alignment padding (0x08)
+      "sub $0x28, %rsp\n"
 #endif
       "call *%rax\n"
 #if AETHER_OS_WINDOWS
-      "add $0x20, %rsp\n"
+      "add $0x28, %rsp\n"
 #endif
       "pop %" ARGREG_3 "\n" // restore host_retaddr
       "pop %" ARGREG_1 "\n" // restore vmaddr
       "mov %r12, %" ARGREG_0 "\n"
       "mov %r13, %" ARGREG_2 "\n"
+#if AETHER_OS_WINDOWS
+      "sub $0x28, %rsp\n"
+#endif
       "call " HOST_CALL_PREFIX "vm_enter_x64\n"
+#if AETHER_OS_WINDOWS
+      // shadow space + alignment padding + return address
+      "add $0x30, %rsp\n"
+#else
       "add $0x8, %rsp\n" // pop return address
+#endif
       "pop %r13\n"
       "pop %r12\n"
       "ret");
