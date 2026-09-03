@@ -286,14 +286,17 @@ Memory *__remill_function_call(State &, addr_t, Memory *) { abort(); }
 
 AETHER_NAKED Memory *__remill_function_return(State &, addr_t, Memory *) {
   // for the register context, see AArch64.cpp and X86.cpp
+  // advance the current executable insn to the next one and call it
 #if AETHER_ARCH_ARM64
-  // advance the current executable insn and call it
   AETHER_ASM("add x27, x27, #8\n"
              "mov x2, x27\n"
              "" extract_handler_x16 ""
              "br x16");
 #else
-  AETHER_ASM("int3");
+  AETHER_ASM("add $0x8, %r13\n"
+             "mov %r13, %" ARGREG_2 "\n"
+             "" extract_handler_r10 ""
+             "jmp *%r10");
 #endif
 }
 

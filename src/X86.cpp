@@ -8,34 +8,40 @@
 
 #if AETHER_ARCH_X64
 
-#if AETHER_OS_DARWIN
-#define HOST_CALL_PREFIX "_"
-#else
-#define HOST_CALL_PREFIX ""
-#endif
+// during the chained execution of the vm handlers:
+// r12 is "void *cpu"
+// r13 is 'const Instruction *insns'
+// [r12-0x10] is pc pointer
+// this event handler trampoline does:
+// 1.call the real event handler to decide the next instruction to execute;
+// 2.construct the right ABI(defined in remill/BC/ABI.h) to run;
+#define IMPL_EVENT_VM_IMPL(n)                                                  \
+  AETHER_ASM("mov %r12, %" ARGREG_0 "\n"                                       \
+             "mov $0, %" ARGREG_1 "\n"                                         \
+             "mov %r13, %" ARGREG_2 "\n"                                       \
+             "call " HOST_CALL_PREFIX "host_" n "\n"                           \
+             "mov %rax, %r13\n"                                                \
+             "mov %r12, %" ARGREG_0 "\n"                                       \
+             "mov -0x10(%r12), %" ARGREG_1 "\n"                                \
+             "mov 0x0(%" ARGREG_1 "), %" ARGREG_1 "\n"                         \
+             "mov %r13, %" ARGREG_2 "\n"                                       \
+             "" extract_handler_r10 "")
 
 #if AETHER_OS_WINDOWS
-#define ARGREG_0 "rcx"
-#define ARGREG_1 "rdx"
-#define ARGREG_2 "r8"
-#define ARGREG_3 "r9"
-#else
-#define ARGREG_0 "rdi"
-#define ARGREG_1 "rsi"
-#define ARGREG_2 "rdx"
-#define ARGREG_3 "rcx"
-#define ARGREG_4 "r8"
-#define ARGREG_5 "r9"
-#endif
-
-// r13 is 'const Instruction *insns'
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
-    AETHER_ASM("mov %r13, %" ARGREG_0 "\n"                                     \
-               "call " HOST_CALL_PREFIX "host_" #n "\n"                        \
-               "mov %rax, %r13\n"                                              \
-               "jmp *%r13");                                                   \
+    AETHER_ASM("sub $20, %rsp");                                               \
+    IMPL_EVENT_VM_IMPL(#n);                                                    \
+    AETHER_ASM("add $20, %rsp\n"                                               \
+               "jmp *%r10");                                                   \
   }
+#else
+#define IMPL_EVENT_VM(n)                                                       \
+  AETHER_NAKED void n(void) {                                                  \
+    IMPL_EVENT_VM_IMPL(#n);                                                    \
+    AETHER_ASM("jmp *%r10");                                                   \
+  }
+#endif
 
 IMPL_EVENT_VM(event_func_before);
 IMPL_EVENT_VM(event_func_after);

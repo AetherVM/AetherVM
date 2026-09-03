@@ -112,6 +112,26 @@ struct CPUState;
 #define AETHER_ASM __asm__ __volatile__
 #define AETHER_NAKED __attribute__((naked))
 
+#if AETHER_OS_DARWIN
+#define HOST_CALL_PREFIX "_"
+#else
+#define HOST_CALL_PREFIX ""
+#endif
+
+#if AETHER_OS_WINDOWS
+#define ARGREG_0 "rcx"
+#define ARGREG_1 "rdx"
+#define ARGREG_2 "r8"
+#define ARGREG_3 "r9"
+#else
+#define ARGREG_0 "rdi"
+#define ARGREG_1 "rsi"
+#define ARGREG_2 "rdx"
+#define ARGREG_3 "rcx"
+#define ARGREG_4 "r8"
+#define ARGREG_5 "r9"
+#endif
+
 // the host event handler use the same ABI defined in remill/BC/ABI.h
 #define DECL_EVENT_TWIN(n)                                                     \
   AETHER_NAKED void n(void);                                                   \

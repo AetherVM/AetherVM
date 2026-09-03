@@ -8,12 +8,6 @@
 
 #if AETHER_ARCH_ARM64
 
-#if AETHER_OS_DARWIN
-#define HOST_CALL_PREFIX "_"
-#else
-#define HOST_CALL_PREFIX ""
-#endif
-
 // during the chained execution of the vm handlers:
 // x26 is "void *cpu"
 // x27 is 'const Instruction *insns'
