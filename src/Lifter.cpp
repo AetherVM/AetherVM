@@ -45,12 +45,283 @@ namespace fs = std::filesystem;
 namespace aether {
 
 namespace aarch64 {
+
 size_t offset_reg(Register reg);
+
+std::set<aether::Register> parse_regused(const llvm::MCInst &inst) {
+  using namespace llvm;
+  std::set<uint8_t> xregs, qregs;
+  for (unsigned i = 0; i < inst.getNumOperands(); i++) {
+    auto opr = inst.getOperand(i);
+    if (!opr.isReg())
+      continue;
+    auto reg = opr.getReg();
+    if (reg == AArch64::WZR || reg == AArch64::XZR)
+      continue;
+    if (reg >= AArch64::W0 && reg <= AArch64::W30) {
+      xregs.insert(reg - AArch64::W0);
+    } else if (reg == AArch64::WSP) {
+      xregs.insert(31);
+    } else if (reg >= AArch64::W0_W1 && reg <= AArch64::W28_W29) {
+      xregs.insert(reg - AArch64::W0_W1 + 0);
+      xregs.insert(reg - AArch64::W0_W1 + 1);
+    } else if (reg >= AArch64::X0 && reg <= AArch64::X28) {
+      xregs.insert(reg - AArch64::X0);
+    } else if (reg >= AArch64::X0_X1 && reg <= AArch64::X26_X27) {
+      xregs.insert(reg - AArch64::X0_X1 + 0);
+      xregs.insert(reg - AArch64::X0_X1 + 1);
+    } else if (reg == AArch64::FP) {
+      xregs.insert(29);
+    } else if (reg == AArch64::LR) {
+      xregs.insert(30);
+    } else if (reg == AArch64::SP) {
+      xregs.insert(31);
+    } else if (reg >= AArch64::B0 && reg <= AArch64::B31) {
+      qregs.insert(reg - AArch64::B0);
+    } else if (reg >= AArch64::H0 && reg <= AArch64::H31) {
+      qregs.insert(reg - AArch64::H0);
+    } else if (reg >= AArch64::S0 && reg <= AArch64::S31) {
+      qregs.insert(reg - AArch64::S0);
+    } else if (reg >= AArch64::D0 && reg <= AArch64::D31) {
+      qregs.insert(reg - AArch64::D0);
+    } else if (reg >= AArch64::D0_D1 && reg <= AArch64::D30_D31) {
+      qregs.insert(reg - AArch64::D0_D1 + 0);
+      qregs.insert(reg - AArch64::D0_D1 + 1);
+    } else if (reg >= AArch64::D0_D1_D2 && reg <= AArch64::D29_D30_D31) {
+      qregs.insert(reg - AArch64::D0_D1_D2 + 0);
+      qregs.insert(reg - AArch64::D0_D1_D2 + 1);
+      qregs.insert(reg - AArch64::D0_D1_D2 + 2);
+    } else if (reg >= AArch64::D0_D1_D2_D3 && reg <= AArch64::D28_D29_D30_D31) {
+      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 0);
+      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 1);
+      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 2);
+      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 3);
+    } else if (reg >= AArch64::Q0 && reg <= AArch64::Q31) {
+      qregs.insert(reg - AArch64::Q0);
+    } else if (reg >= AArch64::Q0_Q1 && reg <= AArch64::Q30_Q31) {
+      qregs.insert(reg - AArch64::Q0_Q1 + 0);
+      qregs.insert(reg - AArch64::Q0_Q1 + 1);
+    } else if (reg >= AArch64::Q0_Q1_Q2 && reg <= AArch64::Q29_Q30_Q31) {
+      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 0);
+      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 1);
+      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 2);
+    } else if (reg >= AArch64::Q0_Q1_Q2_Q3 && reg <= AArch64::Q28_Q29_Q30_Q31) {
+      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 0);
+      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 1);
+      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 2);
+      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 3);
+    } else if (reg >= AArch64::Z0 && reg <= AArch64::Z31) {
+      qregs.insert(reg - AArch64::Z0);
+    } else if (reg >= AArch64::Z0_Z1 && reg <= AArch64::Z30_Z31) {
+      qregs.insert(reg - AArch64::Z0_Z1 + 0);
+      qregs.insert(reg - AArch64::Z0_Z1 + 1);
+    } else if (reg >= AArch64::Z0_Z1_Z2 && reg <= AArch64::Z29_Z30_Z31) {
+      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 0);
+      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 1);
+      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 2);
+    } else if (reg >= AArch64::Z0_Z1_Z2_Z3 && reg <= AArch64::Z28_Z29_Z30_Z31) {
+      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 0);
+      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 1);
+      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 2);
+      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 3);
+    }
+  }
+  std::set<aether::Register> regused;
+  for (auto x : xregs)
+    regused.insert((aether::Register)((uint8_t)Register::X0 + x));
+  for (auto q : qregs)
+    regused.insert((aether::Register)((uint8_t)Register::Q0 + q));
+  return regused;
 }
 
+} // namespace aarch64
+
 namespace x86 {
+
 size_t offset_reg(Register reg);
+
+aether::Register canonicalize(unsigned reg) {
+  using namespace llvm;
+  switch (reg) {
+  case X86::RAX:
+  case X86::EAX:
+  case X86::AX:
+  case X86::AL:
+  case X86::AH:
+    return Register::RAX;
+  case X86::RBX:
+  case X86::EBX:
+  case X86::BX:
+  case X86::BL:
+  case X86::BH:
+    return Register::RBX;
+  case X86::RCX:
+  case X86::ECX:
+  case X86::CX:
+  case X86::CL:
+  case X86::CH:
+    return Register::RCX;
+  case X86::RDX:
+  case X86::EDX:
+  case X86::DX:
+  case X86::DL:
+  case X86::DH:
+    return Register::RDX;
+  case X86::RDI:
+  case X86::EDI:
+  case X86::DI:
+  case X86::DIL:
+    return Register::RDI;
+  case X86::RSI:
+  case X86::ESI:
+  case X86::SI:
+  case X86::SIL:
+    return Register::RSI;
+  case X86::RBP:
+  case X86::EBP:
+  case X86::BP:
+  case X86::BPL:
+    return Register::RBP;
+  case X86::RSP:
+  case X86::ESP:
+  case X86::SP:
+  case X86::SPL:
+    return Register::RSP;
+  case X86::R8:
+  case X86::R8D:
+  case X86::R8W:
+  case X86::R8B:
+    return Register::R8;
+  case X86::R9:
+  case X86::R9D:
+  case X86::R9W:
+  case X86::R9B:
+    return Register::R9;
+  case X86::R10:
+  case X86::R10D:
+  case X86::R10W:
+  case X86::R10B:
+    return Register::R10;
+  case X86::R11:
+  case X86::R11D:
+  case X86::R11W:
+  case X86::R11B:
+    return Register::R11;
+  case X86::R12:
+  case X86::R12D:
+  case X86::R12W:
+  case X86::R12B:
+    return Register::R12;
+  case X86::R13:
+  case X86::R13D:
+  case X86::R13W:
+  case X86::R13B:
+    return Register::R13;
+  case X86::R14:
+  case X86::R14D:
+  case X86::R14W:
+  case X86::R14B:
+    return Register::R14;
+  case X86::R15:
+  case X86::R15D:
+  case X86::R15W:
+  case X86::R15B:
+    return Register::R15;
+  default:
+    abort();
+  }
 }
+
+bool is_gpr64(Register r) {
+  switch (r) {
+  case Register::RAX:
+  case Register::RBX:
+  case Register::RCX:
+  case Register::RDX:
+  case Register::RDI:
+  case Register::RSI:
+  case Register::RSP:
+  case Register::RBP:
+  case Register::R8:
+  case Register::R9:
+  case Register::R10:
+  case Register::R11:
+  case Register::R12:
+  case Register::R13:
+  case Register::R14:
+  case Register::R15:
+    return true;
+  default:
+    return false;
+  }
+}
+
+const char *gpr_name64(Register r) {
+  switch (r) {
+  case Register::RAX:
+    return "rax";
+  case Register::RBX:
+    return "rbx";
+  case Register::RCX:
+    return "rcx";
+  case Register::RDX:
+    return "rdx";
+  case Register::RDI:
+    return "rdi";
+  case Register::RSI:
+    return "rsi";
+  case Register::RSP:
+    return "rsp";
+  case Register::RBP:
+    return "rbp";
+  case Register::R8:
+    return "r8";
+  case Register::R9:
+    return "r9";
+  case Register::R10:
+    return "r10";
+  case Register::R11:
+    return "r11";
+  case Register::R12:
+    return "r12";
+  case Register::R13:
+    return "r13";
+  case Register::R14:
+    return "r14";
+  case Register::R15:
+    return "r15";
+  default:
+    return "?";
+  }
+}
+
+std::string xmm_name(Register r) {
+  return std::format("xmm{}", (int)r - (int)Register::XMM0);
+}
+
+std::set<aether::Register> parse_regused(const llvm::MCInst &inst) {
+  using namespace llvm;
+  std::set<aether::Register> regused;
+  for (unsigned i = 0; i < inst.getNumOperands(); i++) {
+    auto opr = inst.getOperand(i);
+    if (!opr.isReg())
+      continue;
+    auto reg = opr.getReg();
+    if (reg == X86::NoRegister)
+      continue;
+    // Scope to XMM0-15 (legacy/AVX-128 encodings); the enum reserves up to
+    // XMM31 for AVX-512, out of scope for this handler shape.
+    if (reg >= X86::XMM0 && reg <= X86::XMM31) {
+      regused.insert(
+          (aether::Register)((int)Register::XMM0 + (reg - X86::XMM0)));
+      continue;
+    }
+    regused.insert(x86::canonicalize(reg));
+  }
+  return regused;
+}
+
+} // namespace x86
 
 namespace {
 
@@ -192,8 +463,10 @@ void generate_naked_function(llvm::Function &Func, std::string_view asmbody) {
       llvm::FunctionType::get(Builder.getVoidTy(), false);
   llvm::InlineAsm *IA = llvm::InlineAsm::get(
       AsmFTy, asmbody,
-      "",  // Constraints (empty string for basic top-level asm)
-      true // hasSideEffects (prevents optimizer from removing/hoisting it)
+      "",    // Constraints (empty string for basic top-level asm)
+      true,  // hasSideEffects (prevents optimizer from removing/hoisting it)
+      false, // isAlignStack
+      llvm::InlineAsm::AD_ATT // Explicitly set AT&T dialect
   );
   Builder.CreateCall(IA);
   Builder.CreateUnreachable();
@@ -203,92 +476,6 @@ void generate_naked_function(llvm::Function &Func, std::string_view asmbody) {
 void emit_opcode(std::string &asmbody, std::span<const uint8_t> opcode) {
   for (auto b : opcode)
     asmbody += std::format(".byte {:#x}\n", b);
-}
-
-std::set<aether::Register> parse_regused(const llvm::MCInst &inst) {
-  using namespace llvm;
-  std::set<uint8_t> xregs, qregs;
-  for (unsigned i = 0; i < inst.getNumOperands(); i++) {
-    auto opr = inst.getOperand(i);
-    if (!opr.isReg())
-      continue;
-    auto reg = opr.getReg();
-    if (reg == AArch64::WZR || reg == AArch64::XZR)
-      continue;
-    if (reg >= AArch64::W0 && reg <= AArch64::W30) {
-      xregs.insert(reg - AArch64::W0);
-    } else if (reg == AArch64::WSP) {
-      xregs.insert(31);
-    } else if (reg >= AArch64::W0_W1 && reg <= AArch64::W28_W29) {
-      xregs.insert(reg - AArch64::W0_W1 + 0);
-      xregs.insert(reg - AArch64::W0_W1 + 1);
-    } else if (reg >= AArch64::X0 && reg <= AArch64::X28) {
-      xregs.insert(reg - AArch64::X0);
-    } else if (reg >= AArch64::X0_X1 && reg <= AArch64::X26_X27) {
-      xregs.insert(reg - AArch64::X0_X1 + 0);
-      xregs.insert(reg - AArch64::X0_X1 + 1);
-    } else if (reg == AArch64::FP) {
-      xregs.insert(29);
-    } else if (reg == AArch64::LR) {
-      xregs.insert(30);
-    } else if (reg == AArch64::SP) {
-      xregs.insert(31);
-    } else if (reg >= AArch64::B0 && reg <= AArch64::B31) {
-      qregs.insert(reg - AArch64::B0);
-    } else if (reg >= AArch64::H0 && reg <= AArch64::H31) {
-      qregs.insert(reg - AArch64::H0);
-    } else if (reg >= AArch64::S0 && reg <= AArch64::S31) {
-      qregs.insert(reg - AArch64::S0);
-    } else if (reg >= AArch64::D0 && reg <= AArch64::D31) {
-      qregs.insert(reg - AArch64::D0);
-    } else if (reg >= AArch64::D0_D1 && reg <= AArch64::D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1 + 0);
-      qregs.insert(reg - AArch64::D0_D1 + 1);
-    } else if (reg >= AArch64::D0_D1_D2 && reg <= AArch64::D29_D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1_D2 + 0);
-      qregs.insert(reg - AArch64::D0_D1_D2 + 1);
-      qregs.insert(reg - AArch64::D0_D1_D2 + 2);
-    } else if (reg >= AArch64::D0_D1_D2_D3 && reg <= AArch64::D28_D29_D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 0);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 1);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 2);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 3);
-    } else if (reg >= AArch64::Q0 && reg <= AArch64::Q31) {
-      qregs.insert(reg - AArch64::Q0);
-    } else if (reg >= AArch64::Q0_Q1 && reg <= AArch64::Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1 + 1);
-    } else if (reg >= AArch64::Q0_Q1_Q2 && reg <= AArch64::Q29_Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 1);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 2);
-    } else if (reg >= AArch64::Q0_Q1_Q2_Q3 && reg <= AArch64::Q28_Q29_Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 1);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 2);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 3);
-    } else if (reg >= AArch64::Z0 && reg <= AArch64::Z31) {
-      qregs.insert(reg - AArch64::Z0);
-    } else if (reg >= AArch64::Z0_Z1 && reg <= AArch64::Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1 + 1);
-    } else if (reg >= AArch64::Z0_Z1_Z2 && reg <= AArch64::Z29_Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 1);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 2);
-    } else if (reg >= AArch64::Z0_Z1_Z2_Z3 && reg <= AArch64::Z28_Z29_Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 1);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 2);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 3);
-    }
-  }
-  std::set<aether::Register> regused;
-  for (auto x : xregs)
-    regused.insert((aether::Register)((uint8_t)Register::X0 + x));
-  for (auto q : qregs)
-    regused.insert((aether::Register)((uint8_t)Register::Q0 + q));
-  return regused;
 }
 
 } // namespace
@@ -497,7 +684,7 @@ void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
   // x27 is 'const Instruction *insns'
   std::string asmbody;
 
-  auto regused = parse_regused(Inst);
+  auto regused = aarch64::parse_regused(Inst);
   /*
   Registers        Role                          Saved By
   --------------------------------------------------------------
@@ -596,6 +783,7 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
   // r13 is 'const Instruction *insns'
   std::string asmbody;
 
+  auto regused = x86::parse_regused(Inst);
   /*
   Linux x86-64 (System V AMD64 ABI)
 
@@ -640,8 +828,120 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
   xmm4 – xmm5     FP/Vector Temporary / Scratch                 Caller
   xmm6 – xmm15    Callee-saved (Lower 128-bits)                 Callee
   */
-  abort();
+#if AETHER_OS_WINDOWS
+  // Microsoft x64 ABI: rbx/rbp/rdi/rsi/r12-r15 are callee-saved GPRs;
+  // xmm6-xmm15 are callee-saved too. r12/r13 reserved for cpu/insns.
+  auto is_callee_saved_gpr = [](Register r) {
+    return r == Register::RBX || r == Register::RBP || r == Register::RDI ||
+           r == Register::RSI || r == Register::R14 || r == Register::R15;
+  };
+  auto is_callee_saved_xmm = [](Register r) {
+    return r >= Register::XMM6 && r <= Register::XMM15;
+  };
+  // Volatile GPRs available to stand in for r12 if it's live in the guest
+  // instruction; rdi/rsi/r14/r15 are NOT eligible here since Windows treats
+  // them as callee-saved and this path never pushes/pops the stand-in.
+  static constexpr Register kCpuCandidates[] = {
+      Register::RAX, Register::RCX, Register::RDX, Register::R8,
+      Register::R9,  Register::R10, Register::R11};
+#else
+  // System V AMD64 ABI: rbx/rbp/r12-r15 are callee-saved GPRs; no xmm
+  // register is callee-saved. r12/r13 reserved for cpu/insns.
+  auto is_callee_saved_gpr = [](Register r) {
+    return r == Register::RBX || r == Register::RBP || r == Register::R14 ||
+           r == Register::R15;
+  };
+  auto is_callee_saved_xmm = [](Register) { return false; };
+  static constexpr Register kCpuCandidates[] = {
+      Register::RAX, Register::RCX, Register::RDX, Register::RSI, Register::RDI,
+      Register::R8,  Register::R9,  Register::R10, Register::R11};
+#endif
+  constexpr const char *kArgState = ARGREG_0;
+  constexpr const char *kArgVmAddr = ARGREG_1;
+  constexpr const char *kArgInsn = ARGREG_2;
+
+  // save host context
+  for (auto r : regused) {
+    if (is_callee_saved_gpr(r))
+      asmbody += std::format("push %{}\n", x86::gpr_name64(r));
+  }
+  for (auto r : regused) {
+    if (is_callee_saved_xmm(r))
+      asmbody += std::format("sub $$0x10, %rsp\n"
+                             "movdqu %{}, (%rsp)\n",
+                             x86::xmm_name(r));
+  }
+
+  // just use the original r12 or find an unused, ABI-volatile gpr as our
+  // cpu context register (candidates differ per platform above, since a
+  // callee-saved register standing in here would need its own save/restore
+  // that this loop doesn't do)
+  Register regcpu = Register::R12;
+  if (regused.find(Register::R12) != regused.end()) {
+    for (auto cand : kCpuCandidates) {
+      if (regused.find(cand) == regused.end()) {
+        regcpu = cand;
+        break;
+      }
+    }
+  }
+  if (regcpu != Register::R12)
+    asmbody += std::format("mov %r12, %{}\n", x86::gpr_name64(regcpu));
+
+  // load guest context
+  for (auto r : regused) {
+    if (x86::is_gpr64(r))
+      asmbody += std::format("mov {:#x}(%{}), %{}\n", x86::offset_reg(r),
+                             x86::gpr_name64(regcpu), x86::gpr_name64(r));
+    else if (r >= Register::XMM0 && r <= Register::XMM15)
+      asmbody += std::format("movdqu {:#x}(%{}), %{}\n", x86::offset_reg(r),
+                             x86::gpr_name64(regcpu), x86::xmm_name(r));
+  }
+
   emit_opcode(asmbody, opcode);
+
+  // save guest context
+  for (auto r : regused) {
+    if (x86::is_gpr64(r))
+      asmbody += std::format("mov %{}, {:#x}(%{})\n", x86::gpr_name64(r),
+                             x86::offset_reg(r), x86::gpr_name64(regcpu));
+    else if (r >= Register::XMM0 && r <= Register::XMM15)
+      asmbody += std::format("movdqu %{}, {:#x}(%{})\n", x86::xmm_name(r),
+                             x86::offset_reg(r), x86::gpr_name64(regcpu));
+  }
+
+  // load host context (reverse of the two save loops above, XMM block first
+  // since it was pushed last)
+  for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
+    if (is_callee_saved_xmm(*rit))
+      asmbody += std::format("movdqu (%rsp), %{}\n"
+                             "add $$0x10, %rsp\n",
+                             x86::xmm_name(*rit));
+  }
+  for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
+    if (is_callee_saved_gpr(*rit))
+      asmbody += std::format("pop %{}\n", x86::gpr_name64(*rit));
+  }
+
+  // update pc
+  asmbody += "mov %r12, %rax\n"        // stash cpu ptr; rax is volatile
+                                       // on both ABIs and isn't an arg reg
+                                       // on either, so safe as scratch
+             "mov -0x10(%rax), %rcx\n" // load pcptr into scratch (rcx: not
+                                       // yet holding an arg value at this
+                                       // point on either ABI)
+             "mov (%rcx), %rdx\n";     // load pc into scratch
+  asmbody += std::format("add $${:#x}, %rdx\n", opcode.size()); // next pc
+  asmbody += "mov %rdx, (%rcx)\n";                              // set new pc
+  asmbody += std::format("mov %rax, %{}\n", kArgState);  // argument: state
+  asmbody += std::format("mov %rdx, %{}\n", kArgVmAddr); // argument: vmaddr
+
+  // advance to the next instruction
+  asmbody += "add $$8, %r13\n";
+  asmbody += std::format("mov %r13, %{}\n", kArgInsn); // argument: instruction
+  asmbody += extract_handler_r10_llvmir;
+  asmbody += "jmp *%r10\n";
+
   generate_naked_function(Func, asmbody);
 }
 

@@ -162,6 +162,13 @@ struct CPUState;
   "shl $5, %r10\n"                                                             \
   "shr $5, %r10\n"
 
+// $ is a special character in LLVM's bitcode inline asm, so we need to double
+// it to escape it
+#define extract_handler_r10_llvmir                                             \
+  "mov 0x0(%r13), %r10\n"                                                      \
+  "shl $$5, %r10\n"                                                            \
+  "shr $$5, %r10\n"
+
 #define decl_cpu() auto cpu = (aether::CPUState *)((int64_t)state - 0x10)
 #define forward_event(n) host_##n(state, vmaddr, current)
 #define forward_event_default() &current[1]
