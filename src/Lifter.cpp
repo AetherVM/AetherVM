@@ -38,6 +38,8 @@
 #include <fstream>
 #include <sstream>
 
+#define DUMP_MIDDLE_IROBJECT 0
+
 namespace fs = std::filesystem;
 
 namespace aether {
@@ -76,7 +78,7 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
                                      llvm::CodeGenFileType::ObjectFile);
   pm.run(module);
 
-#if 0
+#if DUMP_MIDDLE_IROBJECT
   auto llpath = fs::temp_directory_path() / "aethervm.ll";
   std::error_code ec;
   llvm::raw_fd_ostream file(llpath.string(), ec,
@@ -669,7 +671,8 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
         // normal call for other handlers
         if (name && name->contains("__remill"))
           jumps.insert(from);
-        relocrefs.insert(std::make_pair(from, to));
+        if (name->starts_with(dyn_prefix))
+          relocrefs.insert(std::make_pair(from, to));
       }
       auto expBuff = sect.getContents();
       if (expBuff) {
@@ -706,7 +709,9 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
     opcptr[0] = bin->genBranchOpcode(from, to, call);
   }
 #else
-  for (auto [from, to] : relocrefs) {
+  for (auto [fr, to] : relocrefs) {
+    // go back 1 byte to patch the call/jump opcode
+    auto from = fr - 1;
     auto opcptr = reinterpret_cast<char *>(pagestart + from);
     bin->patchCallOffset(opcptr, from, to);
   }

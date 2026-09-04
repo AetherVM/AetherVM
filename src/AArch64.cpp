@@ -28,7 +28,6 @@ event:
 */
 
 #include "AArch64.h"
-#include <Platform.h>
 
 #if AETHER_ARCH_ARM64
 

@@ -28,7 +28,6 @@ event:
 */
 
 #include "X86.h"
-#include <Platform.h>
 
 #if AETHER_ARCH_X64
 
@@ -158,7 +157,11 @@ AETHER_VM_ENTRY() {
 #endif
       "call " HOST_CALL_PREFIX "vm_enter_x64\n"
 #if AETHER_OS_WINDOWS
-      "add $0x28, %rsp\n"
+      // popup the return address and the shadow space
+      "add $0x30, %rsp\n"
+#else
+      // popup the return address of calling vm_enter_x64
+      "add $0x8, %rsp\n"
 #endif
       "pop %r13\n"
       "pop %r12\n"

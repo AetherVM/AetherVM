@@ -7,6 +7,7 @@
 
 #include <AetherBinary.h>
 #include <Event.h>
+#include <Platform.h>
 
 namespace aether {
 
