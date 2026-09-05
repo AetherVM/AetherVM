@@ -23,11 +23,13 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
     startDebugger(type);
   }
 
+  // host os which we're gonna running those handlers on
   remill::OSName os_name = kOSLinux;
-  if (os == MachO)
-    os_name = kOSmacOS;
-  else if (os == PE)
-    os_name = kOSWindows;
+#if AETHER_OS_DARWIN
+  os_name = kOSmacOS;
+#elif AETHER_OS_WINDOWS
+  os_name = kOSWindows;
+#endif
 
   remill::ArchName arch_name;
   // lazily load handlers, only support AArch64 and X86_64

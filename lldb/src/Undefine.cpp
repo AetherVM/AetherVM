@@ -62,9 +62,6 @@ UNDEFINE_LLDB(_ZTVN5clang17ASTFrontendActionE);
 #pragma comment(linker, "/alternatename:?EndSourceFile@FrontendAction@clang@@UEAAXXZ=abort")
 #pragma comment(linker, "/alternatename:?getFormats@ObjectFilePCHContainerReader@clang@@EEBA?AV?$ArrayRef@VStringRef@llvm@@@llvm@@XZ=abort")
 #pragma comment(linker, "/alternatename:?ExtractPCH@ObjectFilePCHContainerReader@clang@@EEBA?AVStringRef@llvm@@VMemoryBufferRef@4@@Z=abort")
-#pragma comment(linker, "/alternatename:?ID@ECError@llvm@@2DA=abort")
-#pragma comment(linker, "/alternatename:?ID@ErrorList@llvm@@2DA=abort")
-#pragma comment(linker, "/alternatename:?ID@ErrorInfoBase@llvm@@0DA=abort")
 // clang-format on
 #endif
 }

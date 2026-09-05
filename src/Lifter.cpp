@@ -1050,6 +1050,8 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
     if (!expAddr || !expName)
       continue;
     auto name = expName.get().str();
+    if (name[0] == '_')
+      name = llvm::StringRef(name.data() + 1, name.size() - 1);
     if (!name.starts_with(dyn_prefix))
       continue;
     auto addr = expAddr.get();

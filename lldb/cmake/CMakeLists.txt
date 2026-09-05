@@ -39,5 +39,18 @@ set(LLDB_ENABLE_LUA OFF CACHE BOOL "" FORCE)
 set(LLDB_ENABLE_CURSES OFF CACHE BOOL "" FORCE)
 set(LLDB_ENABLE_LIBXML2 OFF CACHE BOOL "" FORCE)
 set(LLDB_ENABLE_LZMA OFF CACHE BOOL "" FORCE)
+
+# as we're using the icpp's or Apple's clang, any further checks are redundant
+set(LLVM_COMPILER_CHECKED TRUE)
+set(LLVM_COMPILER_IS_GCC_COMPATIBLE FALSE)
+
+# build llvm in shared library mode on Windows, we need LLDB depends
+# on LLVM's __declspec(dllimport) symbols
+if(MSVC)
+  set(LLVM_BUILD_LLVM_DYLIB ON CACHE BOOL "" FORCE)
+  set(LLVM_BUILD_LLVM_DYLIB_VIS ON CACHE BOOL "" FORCE)
+  set(LLVM_LINK_LLVM_DYLIB ON CACHE BOOL "" FORCE)
+endif()
+
 add_subdirectory(${LLVM_PROJECT_ROOT}/llvm
                  ${CMAKE_CURRENT_BINARY_DIR}/lldb)

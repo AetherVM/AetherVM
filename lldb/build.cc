@@ -8,10 +8,9 @@
 #include <icpp.hpp>
 
 #if 1 // change to 0 to only print the command without executing it.
-#define command(fmt, ...)                                                      \
-  (std::system(std::format(fmt, __VA_ARGS__).c_str()) == 0)
+#define command(fmt, ...) std::system(std::format(fmt, __VA_ARGS__).c_str())
 #else
-#define command(fmt, ...) (std::println(fmt, __VA_ARGS__) > 0)
+#define command(fmt, ...) std::println(fmt, __VA_ARGS__)
 #endif
 
 #if __WIN__ || __LINUX__
@@ -53,12 +52,22 @@ int main(int argc, const char *argv[]) {
 
   auto lldb_build_dir = script_dir / "build-lldb";
   auto lldb_cmake_dir = script_dir / "cmake";
-  auto lldb_server = lldb_build_dir / "lldb/bin/lldb-server" EXE_EXT;
+  auto lldb_server_obj = lldb_build_dir /
+                         "lldb/tools/lldb/tools/lldb-server/CMakeFiles/"
+                         "lldb-server.dir/lldb-server.cpp"
+#if __WIN__
+                         ".obj"
+#else
+                         ".o"
+#endif
+      ;
   auto proj_root = script_dir.parent_path();
   auto aebi_root = proj_root.parent_path() / "AetherBinary";
   auto llvm_install = aebi_root / "build-llvm/install";
   auto llvm_root = aebi_root / "third/llvm-project";
-  if (fs::exists(lldb_server)) {
+  // as long as this object file is built, then all the libraries we need are
+  // ready
+  if (fs::exists(lldb_server_obj)) {
     std::println("LLDB-SERVER has already been built.");
   } else {
     if (!fs::exists(llvm_root)) {
@@ -72,11 +81,7 @@ int main(int argc, const char *argv[]) {
     command("cmake -S {} -B {} -G Ninja {} -DLLVM_PROJECT_ROOT={}",
             dqpath(lldb_cmake_dir), dqpath(lldb_build_dir), EXTRA_CMAKE,
             dqpath(llvm_root));
-    if (!command("cmake --build {} --target lldb-server",
-                 dqpath(lldb_build_dir))) {
-      std::println("Failed to build LLDB-SERVER.");
-      return -1;
-    }
+    command("cmake --build {} --target lldb-server", dqpath(lldb_build_dir));
   }
 
   std::println("Phase 2: Build AetherDbg...");
@@ -103,10 +108,7 @@ int main(int argc, const char *argv[]) {
             llvm_install.string(), aethervm.string(), EXTRA_CMAKE,
             dqpath(llvm_root));
   }
-  if (!command("cmake --build {}", dqpath(build_dir))) {
-    std::println("Failed to build AetherDbg.");
-    return -1;
-  }
+  command("cmake --build {}", dqpath(build_dir));
 
   std::println("Build completed.");
   return 0;

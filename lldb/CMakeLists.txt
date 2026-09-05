@@ -38,12 +38,7 @@ add_library(AetherDbg SHARED
 if(MSVC)
   set(LLVMSupport_Dir ${LLVM_BUILD_DIR}/lib/Support/CMakeFiles/LLVMSupport.dir)
   target_link_directories(AetherDbg PRIVATE ${LLVM_LIBRARY_DIRS})
-  target_link_libraries(AetherDbg PRIVATE LLVM-22
-    ${LLVMSupport_Dir}/APFloat.cpp.obj
-    ${LLVMSupport_Dir}/Chrono.cpp.obj
-    ${LLVMSupport_Dir}/DynamicLibrary.cpp.obj
-    ${LLVMSupport_Dir}/ExtensibleRTTI.cpp.obj
-  )
+  target_link_libraries(AetherDbg PRIVATE LLVM-22)
 else()
   target_link_libraries(AetherDbg PRIVATE LLVM LLVMSupport)
 endif()
