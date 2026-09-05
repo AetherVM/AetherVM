@@ -8,6 +8,7 @@
 #include "Orchestrator.h"
 #include <Platform.h>
 
+#undef __FE_DENORM
 #include <cfenv>
 #include <cstdlib>
 

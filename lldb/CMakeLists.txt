@@ -57,7 +57,8 @@ target_include_directories(AetherDbg PRIVATE
 target_link_directories(AetherDbg PRIVATE
   build-lldb/lldb/lib
 )
-target_link_libraries(AetherDbg PRIVATE
+
+set(LLDB_LIBS   
   lldbInitialization     
   lldbPluginProcessGDBRemote    
   lldbCore  
@@ -72,9 +73,20 @@ target_link_libraries(AetherDbg PRIVATE
   lldbInterpreter
   lldbCommands
   lldbExpression
-
-  AetherVM::AetherVM
 )
+if(LINUX)
+  target_link_libraries(AetherDbg PRIVATE
+    -Wl,--start-group
+    ${LLDB_LIBS}
+    -Wl,--end-group
+    AetherVM::AetherVM
+  )
+else()
+  target_link_libraries(AetherDbg PRIVATE
+    ${LLDB_LIBS}
+    AetherVM::AetherVM
+  )
+endif()
 
 if(APPLE)
   target_link_libraries(AetherDbg PRIVATE
@@ -102,6 +114,10 @@ elseif(MSVC)
   #target_link_options(AetherDbg PRIVATE "/demangle:no")
   target_link_libraries(AetherDbg PRIVATE ws2_32.lib rpcrt4.lib)
 else()
+  target_link_options(AetherDbg PRIVATE 
+    @${CMAKE_SOURCE_DIR}/../cmake/ld.txt
+    -Wl,--no-undefined
+  )
 endif()
 
 target_include_directories(AetherDbg PUBLIC

@@ -7,7 +7,7 @@
   void n(void) { abort(); }
 
 extern "C" {
-#if __APPLE__
+#if __APPLE__ || __linux__
 UNDEFINE_LLDB(_ZN12lldb_private12LinuxSignalsC1Ev);
 UNDEFINE_LLDB(_ZN12lldb_private13NetBSDSignalsC1Ev);
 UNDEFINE_LLDB(_ZN12lldb_private14FreeBSDSignalsC1Ev);
@@ -35,7 +35,7 @@ UNDEFINE_LLDB(_ZTVN5clang28ObjectFilePCHContainerReaderE);
 UNDEFINE_LLDB(_ZN4llvm23EnableABIBreakingChecksE);
 UNDEFINE_LLDB(_ZNK4llvm5Error19fatalUncheckedErrorEv);
 UNDEFINE_LLDB(_ZTVN5clang17ASTFrontendActionE);
-#else
+#elif _WIN32
 // clang-format off
 #pragma comment(linker, "/alternatename:?getDefaultModuleCachePath@Driver@driver@clang@@SA_NAEAV?$SmallVectorImpl@D@llvm@@@Z=abort")
 #pragma comment(linker, "/alternatename:??0FreeBSDSignals@lldb_private@@QEAA@XZ=abort")

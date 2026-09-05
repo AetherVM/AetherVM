@@ -52,5 +52,15 @@ if(MSVC)
   set(LLVM_LINK_LLVM_DYLIB ON CACHE BOOL "" FORCE)
 endif()
 
+if(MSVC)
+  add_compile_options(
+    # /EHsc enables standard synchronous C++ exception handling
+    /EHsc
+    # disable rtti
+    /GR-)
+else()
+  add_compile_options(-fno-rtti)
+endif()
+
 add_subdirectory(${LLVM_PROJECT_ROOT}/llvm
                  ${CMAKE_CURRENT_BINARY_DIR}/lldb)
