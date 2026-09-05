@@ -21,7 +21,7 @@ endif()
 
 # apply the icpp's c++ runtime
 if(WIN32)
-  set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib clang_rt.builtins.lib /FORCE:MULTIPLE")
+  set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib cxxabi_msvc.lib clang_rt.builtins.lib /FORCE:MULTIPLE")
   string(APPEND CMAKE_CXX_FLAGS " /clang:-nostdinc++ /clang:-nostdlib++ -I${ICPP_INSTALL_DIR}/include/c++/v1 -D_LIBCPP_NO_AUTO_LINK")
 else()
   set(ICPP_CXX_LDFLAGS " -nostdlib++ ${ICPP_INSTALL_DIR}/lib/libunwind.so.1 ${ICPP_INSTALL_DIR}/lib/libc++abi.so.1 ${ICPP_INSTALL_DIR}/lib/libc++.so.1 ${LLVM_BUILD_DIR}/lib/libLLVMSupport.a")
@@ -33,7 +33,7 @@ string(APPEND CMAKE_SHARED_LINKER_FLAGS ${ICPP_CXX_LDFLAGS})
 # enable -fPIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if(NOT TARGET llvm-link)
+if(NOT BUILDING_AETHERDBG AND NOT TARGET llvm-link)
   # to let get_target_property(LLVMLINK_PATH llvm-link LOCATION) work in remill
   add_executable(llvm-link IMPORTED GLOBAL)
   set_target_properties(llvm-link PROPERTIES

@@ -7,24 +7,33 @@
 
 #include <icpp.hpp>
 
-namespace fs = std::filesystem;
-
 #if 1 // change to 0 to only print the command without executing it.
-#define command(fmt, ...) std::system(std::format(fmt, __VA_ARGS__).c_str())
+#define command(fmt, ...)                                                      \
+  (std::system(std::format(fmt, __VA_ARGS__).c_str()) == 0)
 #else
-#define command(fmt, ...) std::println(fmt, __VA_ARGS__);
+#define command(fmt, ...) (std::println(fmt, __VA_ARGS__) > 0)
 #endif
 
+#if __WIN__ || __LINUX__
+std::string extra_cmake(std::string_view install_llvm,
+                        std::string_view proj_root) {
+  auto icpp_dir = fs::path(icpp::program()).parent_path().generic_string();
+  auto icpp_root = fs::path(icpp_dir).parent_path().generic_string();
+  static bool setldenv = false;
+  if (!setldenv) {
+    setldenv = true;
 #if __WIN__
-#define EXTRA_CMAKE                                                            \
-  " -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl "
-#elif __LINUX__
-std::string extra_cmake(std::string_view icpp_dir) {
-  return std::format(
-      " -DCMAKE_C_COMPILER={}/bin/clang -DCMAKE_CXX_COMPILER={}/bin/clang++ ",
-      icpp_dir, icpp_dir);
+    icpp::set_env("PATH", std::format("{};{}", icpp_dir, std::getenv("PATH")));
+#else
+    icpp::set_env("LD_LIBRARY_PATH", std::format("{}/lib", icpp_root).c_str());
+#endif
+  }
+  return std::format("-DICPP_INSTALL_DIR={} -DLLVM_BUILD_DIR={}/../llvm "
+                     "-DBUILDING_AETHERDBG=ON "
+                     "-DCMAKE_TOOLCHAIN_FILE={}/cmake/icpp.toolchain.cmake ",
+                     icpp_root, install_llvm, proj_root);
 }
-#define EXTRA_CMAKE extra_cmake(icpp_dir.string())
+#define EXTRA_CMAKE extra_cmake(llvm_install.string(), proj_root.string())
 #else
 #define EXTRA_CMAKE ""
 #endif
@@ -44,9 +53,10 @@ int main(int argc, const char *argv[]) {
 
   auto lldb_build_dir = script_dir / "build-lldb";
   auto lldb_cmake_dir = script_dir / "cmake";
-  auto lldb_server = lldb_build_dir / "lldb/bin/lldb-server";
+  auto lldb_server = lldb_build_dir / "lldb/bin/lldb-server" EXE_EXT;
   auto proj_root = script_dir.parent_path();
   auto aebi_root = proj_root.parent_path() / "AetherBinary";
+  auto llvm_install = aebi_root / "build-llvm/install";
   auto llvm_root = aebi_root / "third/llvm-project";
   if (fs::exists(lldb_server)) {
     std::println("LLDB-SERVER has already been built.");
@@ -62,7 +72,11 @@ int main(int argc, const char *argv[]) {
     command("cmake -S {} -B {} -G Ninja {} -DLLVM_PROJECT_ROOT={}",
             dqpath(lldb_cmake_dir), dqpath(lldb_build_dir), EXTRA_CMAKE,
             dqpath(llvm_root));
-    command("cmake --build {} --target lldb-server", dqpath(lldb_build_dir));
+    if (!command("cmake --build {} --target lldb-server",
+                 dqpath(lldb_build_dir))) {
+      std::println("Failed to build LLDB-SERVER.");
+      return -1;
+    }
   }
 
   std::println("Phase 2: Build AetherDbg...");
@@ -71,25 +85,28 @@ int main(int argc, const char *argv[]) {
   auto aethervm_build_type = build_type;
   if (argc > 1) {
     build_type = argv[1];
-    aethervm_build_type = build_type;
-#if __WIN__
+#if __WIN__ || __LINUX__
     build_type = "RelWithDebInfo";
 #endif
+    aethervm_build_type = build_type;
   }
 
   auto build_dir = script_dir / (std::string("build") + "-" + build_type);
   if (!fs::exists(build_dir / "build.ninja")) {
-    auto llvm = aebi_root / "build-llvm/install";
     auto aethervm = proj_root /
                     (std::string("build") + "-" + aethervm_build_type) /
                     "install";
     command("cmake -S {} -B {} -G Ninja -DCMAKE_BUILD_TYPE={} "
             "-DCMAKE_PREFIX_PATH=\"{};{}\" {} "
             "-DLLVM_PROJECT_ROOT={}",
-            dqpath(script_dir), dqpath(build_dir), build_type, llvm.string(),
-            aethervm.string(), EXTRA_CMAKE, dqpath(llvm_root));
+            dqpath(script_dir), dqpath(build_dir), build_type,
+            llvm_install.string(), aethervm.string(), EXTRA_CMAKE,
+            dqpath(llvm_root));
   }
-  command("cmake --build {}", dqpath(build_dir));
+  if (!command("cmake --build {}", dqpath(build_dir))) {
+    std::println("Failed to build AetherDbg.");
+    return -1;
+  }
 
   std::println("Build completed.");
   return 0;

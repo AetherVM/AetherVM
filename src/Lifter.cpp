@@ -958,7 +958,10 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
   std::set<addr_t> jumps;
   for (auto sect : expObject.get()->sections()) {
     auto expName = sect.getName();
-    if (expName && expName.get() == ".text") {
+    if (!expName)
+      continue;
+    auto sectname = expName.get();
+    if (sectname == ".text" || sectname == "__text") {
       for (auto &r : sect.relocations()) {
         auto sym = r.getSymbol();
         auto toExp = sym->getValue();

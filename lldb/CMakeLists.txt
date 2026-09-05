@@ -36,8 +36,14 @@ add_library(AetherDbg SHARED
 
 # link the LLVM shared library
 if(MSVC)
+  set(LLVMSupport_Dir ${LLVM_BUILD_DIR}/lib/Support/CMakeFiles/LLVMSupport.dir)
   target_link_directories(AetherDbg PRIVATE ${LLVM_LIBRARY_DIRS})
-  target_link_libraries(AetherDbg PRIVATE LLVM-22 LLVMSupport)
+  target_link_libraries(AetherDbg PRIVATE LLVM-22
+    ${LLVMSupport_Dir}/APFloat.cpp.obj
+    ${LLVMSupport_Dir}/Chrono.cpp.obj
+    ${LLVMSupport_Dir}/DynamicLibrary.cpp.obj
+    ${LLVMSupport_Dir}/ExtensibleRTTI.cpp.obj
+  )
 else()
   target_link_libraries(AetherDbg PRIVATE LLVM LLVMSupport)
 endif()
@@ -98,6 +104,8 @@ if(APPLE)
     -lobjc
   )
 elseif(MSVC)
+  #target_link_options(AetherDbg PRIVATE "/demangle:no")
+  target_link_libraries(AetherDbg PRIVATE ws2_32.lib rpcrt4.lib)
 else()
 endif()
 

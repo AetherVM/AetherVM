@@ -93,7 +93,12 @@ void BinaryEngineImpl::startDebugger(ArchType type) {
   dbgContext.arm64 = type == ARM64;
 
   auto path = fs::path(self_path());
-  path.replace_filename("libAetherDbg" + path.extension().string());
+  path.replace_filename(
+#if AETHER_OS_POSIX
+      "lib"
+#endif
+      "AetherDbg" +
+      path.extension().string());
   auto handle = load_library(path.string());
   if (handle) {
     auto main = (aether_dbgmain_t)resolve_symbol(handle, "aether_dbgmain");
