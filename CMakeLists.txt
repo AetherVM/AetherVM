@@ -133,8 +133,10 @@ if(MSVC)
     /EHsc)
 
   set(DISABLE_RTTI /GR-)
+  set(AetherDbg_INSTALL_DIR ${CMAKE_INSTALL_BINDIR})
 else()
   set(DISABLE_RTTI -fno-rtti)
+  set(AetherDbg_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 target_compile_options(AetherVM PRIVATE
@@ -203,7 +205,7 @@ else()
 endif()
 
 install(FILES
-  ${CMAKE_SOURCE_DIR}/lldb/build-${AetherDbg_BUILD_TYPE}/libAetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ${CMAKE_SOURCE_DIR}/lldb/build-${AetherDbg_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}AetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
+  DESTINATION ${AetherDbg_INSTALL_DIR}
   OPTIONAL
 )
