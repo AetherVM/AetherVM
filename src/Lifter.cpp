@@ -309,11 +309,31 @@ std::set<aether::Register> parse_regused(const llvm::MCInst &inst) {
     auto reg = opr.getReg();
     if (reg == X86::NoRegister)
       continue;
-    // Scope to XMM0-15 (legacy/AVX-128 encodings); the enum reserves up to
-    // XMM31 for AVX-512, out of scope for this handler shape.
-    if (reg >= X86::XMM0 && reg <= X86::XMM31) {
+    // the register value of XMM and YMM are not contiguous from 0-31, they're
+    // splitted in two groups [0,15] and [16,31]
+    if (X86::XMM0 <= reg && reg <= X86::XMM15) {
       regused.insert(
           (aether::Register)((int)Register::XMM0 + (reg - X86::XMM0)));
+      continue;
+    }
+    if (X86::XMM16 <= reg && reg <= X86::XMM31) {
+      regused.insert(
+          (aether::Register)((int)Register::XMM16 + (reg - X86::XMM16)));
+      continue;
+    }
+    if (X86::YMM0 <= reg && reg <= X86::YMM15) {
+      regused.insert(
+          (aether::Register)((int)Register::XMM0 + (reg - X86::YMM0)));
+      continue;
+    }
+    if (X86::YMM16 <= reg && reg <= X86::YMM31) {
+      regused.insert(
+          (aether::Register)((int)Register::XMM16 + (reg - X86::YMM16)));
+      continue;
+    }
+    if (X86::ZMM0 <= reg && reg <= X86::ZMM31) {
+      regused.insert(
+          (aether::Register)((int)Register::XMM0 + (reg - X86::ZMM0)));
       continue;
     }
     regused.insert(x86::canonicalize(reg));
@@ -471,6 +491,10 @@ void generate_naked_function(llvm::Function &Func, std::string_view asmbody) {
   Builder.CreateCall(IA);
   Builder.CreateUnreachable();
   Func.addFnAttr(llvm::Attribute::Naked);
+
+#if DUMP_MIDDLE_IROBJECT
+  log_print(Develop, "Native emitted instruction {}", Func.getName().data());
+#endif
 }
 
 void emit_opcode(std::string &asmbody, std::span<const uint8_t> opcode) {
@@ -830,10 +854,11 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
   */
 #if AETHER_OS_WINDOWS
   // Microsoft x64 ABI: rbx/rbp/rdi/rsi/r12-r15 are callee-saved GPRs;
-  // xmm6-xmm15 are callee-saved too. r12/r13 reserved for cpu/insns.
+  // xmm6-xmm15 are callee-saved too.
   auto is_callee_saved_gpr = [](Register r) {
     return r == Register::RBX || r == Register::RBP || r == Register::RDI ||
-           r == Register::RSI || r == Register::R14 || r == Register::R15;
+           r == Register::RSI || r == Register::R12 || r == Register::R13 ||
+           r == Register::R14 || r == Register::R15;
   };
   auto is_callee_saved_xmm = [](Register r) {
     return r >= Register::XMM6 && r <= Register::XMM15;
@@ -846,10 +871,10 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
       Register::R9,  Register::R10, Register::R11};
 #else
   // System V AMD64 ABI: rbx/rbp/r12-r15 are callee-saved GPRs; no xmm
-  // register is callee-saved. r12/r13 reserved for cpu/insns.
+  // register is callee-saved.
   auto is_callee_saved_gpr = [](Register r) {
-    return r == Register::RBX || r == Register::RBP || r == Register::R14 ||
-           r == Register::R15;
+    return r == Register::RBX || r == Register::RBP || r == Register::R12 ||
+           r == Register::R13 || r == Register::R14 || r == Register::R15;
   };
   auto is_callee_saved_xmm = [](Register) { return false; };
   static constexpr Register kCpuCandidates[] = {
