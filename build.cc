@@ -184,7 +184,7 @@ struct BuildConfig {
   bool build_remill_deps() {
     auto remdeps = fs::path(build_root) / "remill-deps";
     install_remill_deps = (remdeps / "install").generic_string();
-    if (fs::exists(remdeps / "install/lib/cmake/gflags/gflags-config.cmake"))
+    if (fs::exists(remdeps / "install/include/xed/xed-version.h"))
       return true; // already built
 
     auto remdeps_root =
@@ -253,17 +253,20 @@ struct BuildConfig {
   }
 
   bool build_aethervm() {
+    auto aebi_build = fs::path(install_llvm).parent_path();
     auto cmake = std::format(
         "-DCMAKE_PREFIX_PATH=\"{};{};{};{}\" "
         "-DCMAKE_INSTALL_PREFIX={} "
+        "-DLLVM_PROJECT_ROOT={} "
         "-DLLVM_BUILD_PATH={} "
         "-DICPP_PATH={} "
         "-S {} "
         "-B {} ",
         install_llvm, install_aebi, install_remill_deps, install_remill,
         dqpath((fs::path(build_root) / "install").generic_string()),
-        dqpath(
-            ((fs::path(install_llvm).parent_path() / "llvm").generic_string())),
+        dqpath(((aebi_build.parent_path() / "third/llvm-project")
+                    .generic_string())),
+        dqpath(((aebi_build / "llvm").generic_string())),
         dqpath(icpp::program()), dqpath(this_root), dqpath(build_root));
     return cmake_init(cmake, false) ? cmake_build(build_root) : false;
   }

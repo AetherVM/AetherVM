@@ -21,7 +21,10 @@ endif()
 
 # apply the icpp's c++ runtime
 if(WIN32)
-  set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib cxxabi_msvc.lib clang_rt.builtins.lib /FORCE:MULTIPLE")
+  if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64|AMD64")
+    set(ClangBuiltinLib clang_rt.builtins.lib)
+  endif()
+  set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib cxxabi_msvc.lib ${ClangBuiltinLib} /FORCE:MULTIPLE /STACK:8388608")
   string(APPEND CMAKE_CXX_FLAGS " /clang:-nostdinc++ /clang:-nostdlib++ -I${ICPP_INSTALL_DIR}/include/c++/v1 -D_LIBCPP_NO_AUTO_LINK")
 else()
   set(ICPP_CXX_LDFLAGS " -nostdlib++ ${ICPP_INSTALL_DIR}/lib/libunwind.so.1 ${ICPP_INSTALL_DIR}/lib/libc++abi.so.1 ${ICPP_INSTALL_DIR}/lib/libc++.so.1 ${LLVM_BUILD_DIR}/lib/libLLVMSupport.a")

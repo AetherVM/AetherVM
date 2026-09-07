@@ -72,11 +72,20 @@ set(SOURCE_FILES
   src/X86.h
 )
 
+if(MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+  set(SOURCE_FILES_EXTRA 
+    ${LLVM_PROJECT_ROOT}/compiler-rt/lib/builtins/udivmodti4.c
+    ${LLVM_PROJECT_ROOT}/compiler-rt/lib/builtins/divti3.c
+    ${LLVM_PROJECT_ROOT}/compiler-rt/lib/builtins/udivti3.c
+  )
+endif()
+
 add_library(AetherVM SHARED
   ${SOURCE_FILES}
+  ${SOURCE_FILES_EXTRA}
   ${HEADER_FILES}
 )
-  
+
 set_target_properties(AetherVM PROPERTIES
   SKIP_BUILD_RPATH TRUE
   SKIP_INSTALL_RPATH TRUE
