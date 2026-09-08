@@ -91,8 +91,9 @@ If you're building on Windows, firstly setup the MSVC environment, otherwise ski
 # replace it to arm64 if you're on a Windows-ARM64 device.
 vcvarsall x64
 ```
+
 ### ICPP Build
-To build your own version, you need to have [ICPP](https://github.com/vpand/icpp), **Ninja**, **CMake** available in current terminal session. After a recursive clone of this repo, then build it in one go:
+To build your own version, you need to have [ICPP](https://github.com/vpand/icpp), **Ninja**, **CMake** available in current terminal session, and pre-build [AetherBinary](https://github.com/AetherVM/AetherBinary). After a recursive clone of this repo to the same directory which contains `AetherBinary`, then build it in one go:
 ```sh
 # build AetherVM
 /path/to/icpp build.cc
