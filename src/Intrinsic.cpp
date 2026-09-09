@@ -479,12 +479,22 @@ void __remill_mark_as_used(void *mem) { asm("" ::"m"(mem)); }
 Memory *__remill_sync_hyper_call(void *state, Memory *memory,
                                  SyncHyperCall::Name name) {
   decl_cpu();
+  auto engine = cpu->runtime;
   switch (name) {
   case SyncHyperCall::kX86SysCall: {
     auto gpr = &cpu->x86.gpr;
 #if AETHER_OS_DARWIN || AETHER_OS_LINUX
+    Event event = EventHyperCall{{EventType::SyscallBefore, *cpu->pcptr},
+                                 {.sysno = (int)gpr->rax.qword}};
+    if (engine->handleEvent(event) == EventResult::Processed)
+      break;
+
     gpr->rax.qword = syscall(gpr->rax.qword, gpr->rdi, gpr->rsi, gpr->rdx,
                              gpr->r10, gpr->r8, gpr->r9);
+    if (engine->hasEventHandler()) {
+      std::get<EventHyperCall>(event).type = EventType::SyscallAfter;
+      engine->handleEvent(event);
+    }
 #else
     printf("[AetherVM]  TODO:: implement __remill_sync_hyper_call for "
            "non-POSIX platforms.\n");
@@ -493,6 +503,9 @@ Memory *__remill_sync_hyper_call(void *state, Memory *memory,
     break;
   }
   case SyncHyperCall::kAArch64Breakpoint: {
+    Event event = EventRuntime{EventType::TrapHit, *cpu->pcptr};
+    engine->handleEvent(event);
+
     auto gpr = &cpu->aarch64.gpr;
     printf("[AetherVM] AArch64 guest hit a breakpoint instruction at 0x%llx\n",
            gpr->pc.qword);

@@ -42,6 +42,8 @@ struct HandlerDynamic {
   }
 };
 
+struct BinaryEngineImpl;
+
 struct Lifter {
   // in-memory dynamic handler pages
   static std::map<uintptr_t, size_t> dynhandlers;
@@ -49,6 +51,7 @@ struct Lifter {
   static std::set<HandlerDynamic> aarch64;
   static std::set<HandlerDynamic> x86;
 
+  BinaryEngineImpl *engine = nullptr;
   const Binary *bin = nullptr;
   remill::Arch *arch = nullptr;
   const std::vector<Handler> *isel_handlers = nullptr;
@@ -56,13 +59,14 @@ struct Lifter {
   std::map<std::string, HandlerDynamic *> name_handlers;
   llvm::Module *module = nullptr;
 
-  Lifter(const Binary *bin, remill::Arch *ptr, llvm::Module *pre);
+  Lifter(BinaryEngineImpl *engine, const Binary *bin, remill::Arch *ptr, llvm::Module *pre);
   ~Lifter();
 
   static void resetSemantic(llvm::Module &M);
   static std::unique_ptr<llvm::MemoryBuffer>
   createObject(llvm::Module &M, std::span<const uint8_t> text);
-  void transform(const llvm::MCInst &Inst, std::span<const uint8_t> opcode);
+  void transform(const llvm::MCInst &Inst, std::span<const uint8_t> opcode,
+                 addr_t addr);
 
 private:
   void emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,

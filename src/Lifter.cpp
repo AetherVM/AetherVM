@@ -4,7 +4,9 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "Lifter.h"
+#include "BinaryEngine.h"
 #include "Orchestrator.h"
+
 #include <Platform.h>
 #include <Register.h>
 #include <Utils.h>
@@ -509,8 +511,9 @@ std::map<uintptr_t, size_t> Lifter::dynhandlers;
 std::set<HandlerDynamic> Lifter::aarch64;
 std::set<HandlerDynamic> Lifter::x86;
 
-Lifter::Lifter(const Binary *binptr, remill::Arch *ptr, llvm::Module *pre)
-    : bin(binptr), arch(ptr), module(pre) {
+Lifter::Lifter(BinaryEngineImpl *engineptr, const Binary *binptr,
+               remill::Arch *ptr, llvm::Module *pre)
+    : engine(engineptr), bin(binptr), arch(ptr), module(pre) {
   if (arch->arch_name == remill::kArchAArch64LittleEndian) {
     isel_handlers = &Handler::aarch64;
     handlers = &Lifter::aarch64;
@@ -591,12 +594,23 @@ Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
 }
 
 void Lifter::transform(const llvm::MCInst &Inst,
-                       std::span<const uint8_t> opcode) {
+                       std::span<const uint8_t> opcode, addr_t addr) {
   HandlerDynamic placeholder;
   placeholder.entry = reinterpret_cast<uintptr_t>(&abort);
   std::memcpy(&placeholder.opc4, opcode.data(), opcode.size());
   if (handlers->find(placeholder) != handlers->end())
     return; // already lifted
+
+  Event eventvar =
+      EventLift{{EventType::LiftBefore, addr}, {0}, opcode.size(), ""};
+  auto &event = std::get<EventLift>(eventvar);
+  if (engine->hasEventHandler()) {
+    std::memcpy(&event.opcode[0], opcode.data(), opcode.size());
+    if (engine->handleEvent(eventvar) == EventResult::Processed) {
+      // apply the user's customized opcode
+      opcode = {&event.opcode[0], event.size};
+    }
+  }
 
   std::string name{dyn_prefix};
   for (auto b : opcode)
@@ -611,6 +625,11 @@ void Lifter::transform(const llvm::MCInst &Inst,
       0, {(char *)opcode.data(), (char *)opcode.data() + opcode.size()}, inst,
       arch->CreateInitialContext());
   if (!inst.IsValid()) {
+    if (engine->hasEventHandler()) {
+      event.type = EventType::LiftAfter;
+      event.name = "AetherVM_NativeImpl";
+      engine->handleEvent(eventvar);
+    }
     // Remill doesn't support this instruction, emit the raw instruction
     // directly if guest and host have the same architecture
 #if AETHER_ARCH_ARM64
@@ -648,6 +667,11 @@ void Lifter::transform(const llvm::MCInst &Inst,
   auto lifter = inst.GetLifter();
   auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
   if (remill::kLiftedInstruction != lift_status) {
+    if (engine->hasEventHandler()) {
+      event.type = EventType::LiftAfter;
+      event.name = "AetherVM_NativeImpl";
+      engine->handleEvent(eventvar);
+    }
     // Remill doesn't support this instruction, emit the raw instruction
     // directly if guest and host have the same architecture
 #if AETHER_ARCH_ARM64
@@ -691,6 +715,13 @@ void Lifter::transform(const llvm::MCInst &Inst,
           // isel handler, skip .ISEL_
           std::string_view iselname{name.data() + 6, name.size() - 6};
           find_target(isel_handlers, iselname);
+          if (engine->hasEventHandler()) {
+            event.type = EventType::LiftAfter;
+            event.name = target == reinterpret_cast<uint64_t>(&abort)
+                             ? std::string_view{"abort"}
+                             : iselname;
+            engine->handleEvent(eventvar);
+          }
         } else {
           // intrinsic handler
           find_target(&Handler::intrinsic, name);

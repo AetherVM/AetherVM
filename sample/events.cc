@@ -13,6 +13,7 @@ struct EventVisitor {
   aether::EventResult operator()(const aether::EventLift &ev) const {
     std::cout << "[UNIFIED ][LIFT] Type: " << static_cast<int>(ev.type)
               << " | PC: 0x" << std::hex << ev.addr << std::dec
+              << " | Size: " << ev.size << " bytes\n"
               << " | Handler/Symbol: " << (ev.name.empty() ? "<none>" : ev.name)
               << "\n";
     return aether::EventResult::Continue;
@@ -105,6 +106,7 @@ int main(int argc, const char *argv[]) {
     if (auto *liftEv = std::get_if<aether::EventLift>(&event)) {
       std::cout << "[GRANULAR][LIFT] Type: " << static_cast<int>(liftEv->type)
                 << " | PC: 0x" << std::hex << liftEv->addr << std::dec
+                << " | Size: " << liftEv->size << " bytes\n"
                 << " | Handler/Symbol: "
                 << (liftEv->name.empty() ? "<none>" : liftEv->name) << "\n";
       return aether::EventResult::Continue;

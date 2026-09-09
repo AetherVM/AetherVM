@@ -38,7 +38,6 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
     : m_binary(bin) {
   m_impl = std::make_unique<BinaryEngineImpl>(bin->archType(), bin->fileType(),
                                               eventcfg, this);
-  orchBinary(bin, memory.basePointer);
 }
 
 BinaryEngine::~BinaryEngine() {}
@@ -68,6 +67,10 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
 bool BinaryEngine::execute(addr_t target) {
   if (!m_binary)
     return false;
+
+  // orchestrate this main binary first if hasn't done yet
+  if (memory.guestAvailable() == memory.basePointer)
+    orchBinary(m_binary, memory.basePointer);
 
   if (auto rtaddr = mappedAddress(target, 1))
     return engine->startVM(rtaddr);
@@ -185,19 +188,25 @@ int BinaryEngine::registerCallback(EventCallback callback) {
   return (int)callbacks.size();
 }
 
-void BinaryEngine::liftOpcodes(const Binary *bin,
+void BinaryEngine::liftOpcodes(const Binary *bin, addr_t addr,
                                std::span<const uint8_t> opcodes) {
   llvm::MCInst inst;
-  Lifter lifter{bin, const_cast<remill::Arch *>(engine->remillArch.get()),
+  Lifter lifter{engine, bin,
+                const_cast<remill::Arch *>(engine->remillArch.get()),
                 engine->remillSemantic.get()};
+  Event eventvar = EventRuntime{EventType::InvalidInsn, 0};
+  auto &event = std::get<EventRuntime>(eventvar);
   if (bin->archType() == ARM64) {
     // arm64 has fixed 4 bytes instruction set
     constexpr size_t oplen = 4;
     Disassembler diser{Binary::arch(ARM64)};
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;
          ptr += oplen) {
+      event.addr = addr + ptr - opcodes.data();
       if (diser.disassemble(ptr, 16, inst) == oplen)
-        lifter.transform(inst, {ptr, oplen});
+        lifter.transform(inst, {ptr, oplen}, event.addr);
+      else
+        engine->handleEvent(eventvar);
     }
   } else {
     Disassembler diser{Binary::arch(X86_64)};
@@ -205,10 +214,13 @@ void BinaryEngine::liftOpcodes(const Binary *bin,
     // iterate each x86 instruction
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
       size_t oplen = diser.disassemble(ptr, 16, inst);
-      if (oplen)
-        lifter.transform(inst, {ptr, oplen});
-      else
+      event.addr = addr + ptr - opcodes.data();
+      if (oplen) {
+        lifter.transform(inst, {ptr, oplen}, event.addr);
+      } else {
+        engine->handleEvent(eventvar);
         oplen = mx86.defaultSize();
+      }
       ptr += oplen;
     }
   }
@@ -223,13 +235,14 @@ void BinaryEngine::orchBinary(const Binary *bin, addr_t addend) {
 
   // map all the sections
   memory.commit(bin->imageBase() + addend, size, true, true);
-  for (auto &[addr, sect] : bin->sections()) {
+  for (auto &[adr, sect] : bin->sections()) {
     if (!sect.size)
       continue;
     auto sectbuff = reinterpret_cast<const uint8_t *>(bin->addrBuff(sect.addr));
-    writeMemory(sect.addr + addend, {sectbuff, sect.size});
+    auto addr = sect.addr + addend;
+    writeMemory(addr, {sectbuff, sect.size});
     if (sect.type == TEXT)
-      liftOpcodes(bin, {sectbuff, sect.size});
+      liftOpcodes(bin, addr, {sectbuff, sect.size});
   }
 
   Orchestrator::inst()->encode(bin, addend, engine->eventConf);

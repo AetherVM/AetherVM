@@ -52,16 +52,6 @@ static void do_setup_event(Instructions *handlers, EventConfig eventcfg,
     if (eventcfg.func)
       handlers->push_back(Instruction{event});
     break;
-  case SyscallBefore:
-  case SyscallAfter:
-    if (eventcfg.syscall)
-      handlers->push_back(Instruction{event});
-    break;
-  case TrapBefore:
-  case TrapAfter:
-    if (eventcfg.trap)
-      handlers->push_back(Instruction{event});
-    break;
   default:
     break;
   }
@@ -107,17 +97,7 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
       }
 
       // before instruction
-      switch (i->info.type) {
-      case aether::SYSCALL:
-        setup_event(SyscallBefore, syscall_before);
-        break;
-      case aether::TRAP:
-        setup_event(TrapBefore, trap_before);
-        break;
-      default:
-        setup_event(InsnBefore, insn_before);
-        break;
-      }
+      setup_event(InsnBefore, insn_before);
 
       // the debugger handler
       if (eventcfg.debug)
@@ -140,7 +120,6 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
           // by __remill_sync_hyper_call
           handlers->push_back(Instruction{syscall_interpret});
         }
-        setup_event(SyscallAfter, syscall_after);
         break;
       case aether::TRAP:
         if (bin->archType() == X86_64) {
@@ -148,7 +127,6 @@ void Orchestrator::encode(const Binary *bin, addr_t addend,
           // __remill_sync_hyper_call
           handlers->push_back(Instruction{interrupt_interpret});
         }
-        setup_event(TrapAfter, trap_after);
         break;
       default:
         setup_event(InsnAfter, insn_after);

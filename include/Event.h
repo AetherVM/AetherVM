@@ -36,14 +36,13 @@ enum class EventType {
   // syscall
   SyscallBefore,
   SyscallAfter,
-  // breakpoint
-  TrapBefore,
-  TrapAfter,
+
   // native bridge
   HostBridgeBefore,
   HostBridgeAfter,
 
   // Exceptional States
+  TrapHit, // hit breakpoint instruction
   ExceptionThrown,
   InvalidInsn,
 };
@@ -86,7 +85,10 @@ struct EventRuntime {
 };
 
 struct EventLift : public EventRuntime {
+  // return Processed in this event callback indicates you've changed this
+  // (opcode,size) to what you want the guest to execute for the current address
   uint8_t opcode[16]; // the opcode of this address
+  size_t size;
   // if LiftBefore it's empty
   // if LiftAfter it's the handler name
   std::string_view name;
@@ -97,14 +99,14 @@ struct EventMemory : public EventRuntime {
   uintptr_t mem;
   size_t size;
   // return Processed in this event callback indicates you've changed this value
-  // to what you want the guest read/write for the current address
+  // to what you want the guest to read/write for the current address
   RegisterValue value;
 };
 
 struct EventHyperCall : public EventRuntime {
   union {
     int sysno;       // if Syscall it's syscall number
-    uint64_t target; // if Host it's host native target address
+    uint64_t target; // if HostBridge it's host native target address
   };
 };
 
