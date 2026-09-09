@@ -589,7 +589,12 @@ Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
       M, DataInit->getType(),
       /*isConstant=*/true, llvm::GlobalValue::ExternalLinkage, DataInit,
       "aethervm_snippet_entry");
-  TextSecGV->setSection(".text");
+
+  if (llvm::Triple(M.getTargetTriple()).isOSDarwin())
+    TextSecGV->setSection("__TEXT,__text");
+  else
+    TextSecGV->setSection(".text");
+
   return generate_object(M);
 }
 
@@ -1042,7 +1047,7 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
     }
   }
   if (!textbuff.size()) {
-    log_print(Runtime, "Fatal error, failed to parse .text section.");
+    log_print(Runtime, "Fatal error, failed to parse text section.");
     return;
   }
 

@@ -51,6 +51,9 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
   if (!bin)
     return false;
 
+  auto oldbin = m_binary;
+  m_binary = bin;
+
   addr_t entry = 0;
   auto funcs = bin->functions();
   if (funcs.size()) {
@@ -59,9 +62,11 @@ bool BinaryEngine::execute(std::span<const uint8_t> raw) {
     entry = vmbase + bin->functions().begin()->first - bin->imageBase();
     orchBinary(bin, vmbase);
   }
-  aether::Delete(bin);
 
-  return entry ? engine->startVM(entry) : false;
+  auto result = entry ? engine->startVM(entry) : false;
+  aether::Delete(bin);
+  m_binary = oldbin;
+  return result;
 }
 
 bool BinaryEngine::execute(addr_t target) {

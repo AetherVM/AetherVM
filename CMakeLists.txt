@@ -218,3 +218,19 @@ install(FILES
   DESTINATION ${AetherDbg_INSTALL_DIR}
   OPTIONAL
 )
+
+get_target_property(AetherBinary_PATH AetherBinary::AetherBinary IMPORTED_LOCATION_RELEASE)
+if(AetherBinary_PATH)
+  get_filename_component(AetherBinary_DIR "${AetherBinary_PATH}" DIRECTORY)
+  get_filename_component(AetherBinary_ROOT "${AetherBinary_DIR}" DIRECTORY)
+  install(DIRECTORY
+    ${AetherBinary_ROOT}/include
+    ${AetherBinary_ROOT}/lib
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/aebi
+  )
+endif()
+
+install(FILES
+  ${CMAKE_SOURCE_DIR}/script/aevm.cc
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
