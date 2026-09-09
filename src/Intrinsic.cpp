@@ -17,7 +17,43 @@ extern "C" int syscall(int number, ...);
 #else
 #endif
 
-template <typename T> static T &AccessMemory(addr_t addr) {
+using namespace aether;
+
+template <typename T> static T &AccessMemory(addr_t addr, const T *inptr) {
+  auto engine = CPU.runtime;
+  if (engine->hasEventHandler()) {
+    if (inptr) {
+      Event event = EventMemory{{EventType::MemWrite, *CPU.pcptr},
+                                addr,
+                                sizeof(T),
+                                {.u8 = (uint64_t)*inptr}};
+      auto result = engine->handleEvent(event);
+      if (result == EventResult::Processed) {
+        // apply user's customized value
+        *(T *)(inptr) = static_cast<T>(std::get<EventMemory>(event).value.u8);
+      }
+    } else {
+      Event event = EventMemory{{EventType::MemRead, *CPU.pcptr},
+                                addr,
+                                sizeof(T),
+                                {.u8 = (uint64_t)*reinterpret_cast<T *>(
+                                     static_cast<uintptr_t>(addr))}};
+      auto result = engine->handleEvent(event);
+      if (result == EventResult::Processed) {
+        // apply user's customized value
+        CPU.rvalue = std::get<EventMemory>(event).value;
+        return *reinterpret_cast<T *>(&CPU.rvalue);
+      }
+    }
+  }
+  if (engine->eventConf.debug) {
+    // notify debugger memory event
+    engine->dbgContext.memory_handler(&CPU, addr, sizeof(T), inptr != nullptr);
+  }
+  return *reinterpret_cast<T *>(static_cast<uintptr_t>(addr));
+}
+
+template <typename T> static T &AccessMemoryFloat(addr_t addr) {
   return *reinterpret_cast<T *>(static_cast<uintptr_t>(addr));
 }
 
@@ -26,22 +62,22 @@ extern "C" {
 #define MAKE_RW_MEMORY(size)                                                   \
   NEVER_INLINE uint##size##_t __remill_read_memory_##size(Memory *,            \
                                                           addr_t addr) {       \
-    return AccessMemory<uint##size##_t>(addr);                                 \
+    return AccessMemory<uint##size##_t>(addr, nullptr);                        \
   }                                                                            \
   NEVER_INLINE Memory *__remill_write_memory_##size(Memory *, addr_t addr,     \
                                                     const uint##size##_t in) { \
-    AccessMemory<uint##size##_t>(addr) = in;                                   \
+    AccessMemory<uint##size##_t>(addr, &in) = in;                              \
     return nullptr;                                                            \
   }
 
 #define MAKE_RW_FP_MEMORY(size)                                                \
   NEVER_INLINE float##size##_t __remill_read_memory_f##size(Memory *,          \
                                                             addr_t addr) {     \
-    return AccessMemory<float##size##_t>(addr);                                \
+    return AccessMemory<float##size##_t>(addr, nullptr);                       \
   }                                                                            \
   NEVER_INLINE Memory *__remill_write_memory_f##size(Memory *, addr_t addr,    \
                                                      float##size##_t in) {     \
-    AccessMemory<float##size##_t>(addr) = in;                                  \
+    AccessMemory<float##size##_t>(addr, &in) = in;                             \
     return nullptr;                                                            \
   }
 
@@ -56,13 +92,13 @@ MAKE_RW_FP_MEMORY(128)
 
 NEVER_INLINE Memory *__remill_read_memory_f80(Memory *, addr_t addr,
                                               float80_t &out) {
-  out = AccessMemory<float80_t>(addr);
+  out = AccessMemoryFloat<float80_t>(addr);
   return nullptr;
 }
 
 NEVER_INLINE Memory *__remill_write_memory_f80(Memory *, addr_t addr,
                                                const float80_t &in) {
-  AccessMemory<float80_t>(addr) = in;
+  AccessMemoryFloat<float80_t>(addr) = in;
   return nullptr;
 }
 

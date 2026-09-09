@@ -11,30 +11,31 @@ namespace {
 // Helper visitor for the Unified Callback
 struct EventVisitor {
   aether::EventResult operator()(const aether::EventLift &ev) const {
-    std::cout << "[UNIFIED][LIFT] Type: " << static_cast<int>(ev.type)
-              << " | VM Addr: 0x" << std::hex << ev.addr << std::dec
+    std::cout << "[UNIFIED ][LIFT] Type: " << static_cast<int>(ev.type)
+              << " | PC: 0x" << std::hex << ev.addr << std::dec
               << " | Handler/Symbol: " << (ev.name.empty() ? "<none>" : ev.name)
               << "\n";
     return aether::EventResult::Continue;
   }
 
   aether::EventResult operator()(const aether::EventMemory &ev) const {
-    std::cout << "[UNIFIED][MEMORY] Type: " << static_cast<int>(ev.type)
-              << " | VM Addr: 0x" << std::hex << ev.addr << std::dec
-              << " | Size: " << ev.size << " bytes\n";
+    std::cout << "[UNIFIED ][MEMORY] Type: " << static_cast<int>(ev.type)
+              << " | PC: 0x" << std::hex << ev.addr << std::dec
+              << " | Size: " << ev.size << " bytes\n"
+              << " | Value: 0x" << std::hex << ev.value.u8 << std::endl;
     return aether::EventResult::Continue;
   }
 
   aether::EventResult operator()(const aether::EventHyperCall &ev) const {
-    std::cout << "[UNIFIED][HYPERCALL] Type: " << static_cast<int>(ev.type)
-              << " | VM Addr: 0x" << std::hex << ev.addr << std::dec;
+    std::cout << "[UNIFIED ][HYPERCALL] Type: " << static_cast<int>(ev.type)
+              << " | PC: 0x" << std::hex << ev.addr << std::dec;
 
     if (ev.type == aether::EventType::SyscallBefore ||
         ev.type == aether::EventType::SyscallAfter) {
       std::cout << " | Syscall No: " << ev.sysno << "\n";
       if (ev.type == aether::EventType::SyscallBefore &&
           ev.sysno == 60 /* SYS_exit */) {
-        std::cout << "[UNIFIED] Intercepted exit syscall, setting result to "
+        std::cout << "[UNIFIED ] Intercepted exit syscall, setting result to "
                      "Processed.\n";
         return aether::EventResult::Processed;
       }
@@ -46,11 +47,11 @@ struct EventVisitor {
   }
 
   aether::EventResult operator()(const aether::EventRuntime &ev) const {
-    std::cout << "[UNIFIED][RUNTIME] Type: " << static_cast<int>(ev.type)
-              << " | VM Addr: 0x" << std::hex << ev.addr << std::dec << "\n";
+    std::cout << "[UNIFIED ][RUNTIME] Type: " << static_cast<int>(ev.type)
+              << " | PC: 0x" << std::hex << ev.addr << std::dec << "\n";
 
     if (ev.type == aether::EventType::InvalidInsn) {
-      std::cerr << "[UNIFIED] Error: Hit invalid instruction, terminating "
+      std::cerr << "[UNIFIED ] Error: Hit invalid instruction, terminating "
                    "execution.\n";
       return aether::EventResult::Terminate;
     }
@@ -103,7 +104,7 @@ int main(int argc, const char *argv[]) {
   engine.registerCallback([](aether::Event &event) -> aether::EventResult {
     if (auto *liftEv = std::get_if<aether::EventLift>(&event)) {
       std::cout << "[GRANULAR][LIFT] Type: " << static_cast<int>(liftEv->type)
-                << " | VM Addr: 0x" << std::hex << liftEv->addr << std::dec
+                << " | PC: 0x" << std::hex << liftEv->addr << std::dec
                 << " | Handler/Symbol: "
                 << (liftEv->name.empty() ? "<none>" : liftEv->name) << "\n";
       return aether::EventResult::Continue;
@@ -111,15 +112,16 @@ int main(int argc, const char *argv[]) {
 
     if (auto *memEv = std::get_if<aether::EventMemory>(&event)) {
       std::cout << "[GRANULAR][MEMORY] Type: " << static_cast<int>(memEv->type)
-                << " | VM Addr: 0x" << std::hex << memEv->addr << std::dec
-                << " | Size: " << memEv->size << " bytes\n";
+                << " | PC: 0x" << std::hex << memEv->addr << std::dec
+                << " | Size: " << memEv->size << " bytes\n"
+                << " | Value: 0x" << std::hex << memEv->value.u8 << std::endl;
       return aether::EventResult::Continue;
     }
 
     if (auto *hyperEv = std::get_if<aether::EventHyperCall>(&event)) {
       std::cout << "[GRANULAR][HYPERCALL] Type: "
-                << static_cast<int>(hyperEv->type) << " | VM Addr: 0x"
-                << std::hex << hyperEv->addr << std::dec;
+                << static_cast<int>(hyperEv->type) << " | PC: 0x" << std::hex
+                << hyperEv->addr << std::dec;
 
       if (hyperEv->type == aether::EventType::SyscallBefore ||
           hyperEv->type == aether::EventType::SyscallAfter) {
@@ -139,8 +141,8 @@ int main(int argc, const char *argv[]) {
 
     if (auto *runtimeEv = std::get_if<aether::EventRuntime>(&event)) {
       std::cout << "[GRANULAR][RUNTIME] Type: "
-                << static_cast<int>(runtimeEv->type) << " | VM Addr: 0x"
-                << std::hex << runtimeEv->addr << std::dec << "\n";
+                << static_cast<int>(runtimeEv->type) << " | PC: 0x" << std::hex
+                << runtimeEv->addr << std::dec << "\n";
 
       if (runtimeEv->type == aether::EventType::InvalidInsn) {
         std::cerr << "[GRANULAR] Error: Hit invalid instruction, terminating "

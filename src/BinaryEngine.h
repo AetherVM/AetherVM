@@ -38,6 +38,17 @@ struct BinaryEngineImpl {
 
   bool startVM(addr_t entry);
 
+  bool hasEventHandler() const { return eventCallbacks.size() > 0; }
+
+  EventResult handleEvent(Event &event) {
+    for (auto &callback : eventCallbacks) {
+      auto result = callback(event);
+      if (result != EventResult::Continue)
+        return result;
+    }
+    return EventResult::Continue;
+  }
+
 private:
   void startDebugger(ArchType type);
 };

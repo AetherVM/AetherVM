@@ -622,11 +622,19 @@ void insn_handler(void *state, uintptr_t pc, const void *insn) {
   dbgContext.proc->WatchDog(pc);
 }
 
+void memory_handler(void *state, uintptr_t addr, size_t size, bool write) {
+  if (dbgContext.detached)
+    return;
+
+  dbgContext.proc->WatchDog(addr, size, write);
+}
+
 } // namespace lldb_private
 
 void aether_dbgmain(AetherDbgContext *context) {
   context->thread_handler = thread_handler;
   context->insn_handler = insn_handler;
+  context->memory_handler = memory_handler;
 
   dbgContext.context = context;
   Engine = context->engine;

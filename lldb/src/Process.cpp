@@ -64,6 +64,8 @@ void AetherProcess::WatchDog(uintptr_t pc) {
   ThisThread()->WatchDog(pc);
 }
 
+void AetherProcess::WatchDog(uintptr_t addr, size_t size, bool write) {}
+
 AetherThread *AetherProcess::ThisThread() const {
   if (thisThread)
     return thisThread;

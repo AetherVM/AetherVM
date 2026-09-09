@@ -86,6 +86,7 @@ public:
   void DetachThread();
 
   void WatchDog(uintptr_t pc);
+  void WatchDog(uintptr_t addr, size_t size, bool write);
 
   AetherThread *ThisThread() const;
   AetherThread *MainThread() const {

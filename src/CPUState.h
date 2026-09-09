@@ -32,6 +32,8 @@ struct CPUState {
   };
   // the pc value for debugger and getRegister(PC) within the binary file
   RegisterValue pc;
+  // the temporary register value for memory read event
+  RegisterValue rvalue;
   // when vm pc reaches retaddr, it means the emulation has finished
   // successfully
   uintptr_t retaddr = 0;

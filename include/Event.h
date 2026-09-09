@@ -8,6 +8,8 @@
 #include <functional>
 #include <variant>
 
+#include "Register.h"
+
 namespace aether {
 
 enum class EventType {
@@ -91,7 +93,12 @@ struct EventLift : public EventRuntime {
 };
 
 struct EventMemory : public EventRuntime {
+  // the target memory address and size
+  uintptr_t mem;
   size_t size;
+  // return Processed in this event callback indicates you've changed this value
+  // to what you want the guest read/write for the current address
+  RegisterValue value;
 };
 
 struct EventHyperCall : public EventRuntime {
