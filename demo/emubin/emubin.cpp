@@ -167,9 +167,9 @@ int main(int argc, const char *argv[]) {
 -debug : start the internal gdb-remote debug server
 
 e.g.:
-  icpp aevm.cc -bin /path/to/binary -entry 0x1000
-  icpp aevm.cc -bin /path/to/binary -entry 0x1000 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
-  icpp aevm.cc -bin /path/to/binary -entry 0x1000 -reg "rdi=1;rsi=2;rdx=0xa;rcx=0xb" -debug)",
+  emubin -bin /path/to/binary -entry 0x1000
+  emubin -bin /path/to/binary -entry 0x1000 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
+  emubin -bin /path/to/binary -entry 0x1000 -reg "rdi=1;rsi=2;rdx=0xa;rcx=0xb" -debug)",
         argv[0]);
     return 0;
   }
