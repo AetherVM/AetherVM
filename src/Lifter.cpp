@@ -1031,11 +1031,13 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
         auto from = r.getOffset();
         auto to = toExp.get();
         auto name = sym->getName();
+        if (!name)
+          continue;
         // tail call of __remill intrinsic is a jump
         // normal call for other handlers
-        if (name && name->contains("__remill"))
+        if (name->contains("__remill"))
           jumps.insert(from);
-        if (name->starts_with(dyn_prefix))
+        if (name->contains(dyn_prefix))
           relocrefs.insert(std::make_pair(from, to));
       }
       auto expBuff = sect.getContents();
