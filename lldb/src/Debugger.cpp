@@ -7,7 +7,6 @@
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/FileSystem.h"
-#include "lldb/Host/HostInfoBase.h"
 #include "lldb/Host/MainLoop.h"
 #include "lldb/Host/StreamFile.h"
 #include "lldb/Target/RegisterFlags.h"
@@ -22,6 +21,14 @@
 #include <AetherVM.h>
 #include <iostream>
 #include <thread>
+
+#if AETHER_OS_WINDOWS
+#include "lldb/Host/windows/HostInfoWindows.h"
+#elif AETHER_OS_LINUX
+#include "lldb/Host/linux/HostInfoLinux.h"
+#else
+#include "lldb/Host/HostInfoBase.h"
+#endif
 
 using namespace lldb_private;
 using namespace process_gdb_remote;
@@ -576,7 +583,13 @@ void DebuggingContext::initialize(void *cpu) {
   // wait for lldb/Cutter client to connect
   lldb::ConnectionStatus conn_status = connection->Connect(url, &status);
   if (conn_status == lldb::eConnectionStatusSuccess && status.Success()) {
+#if AETHER_OS_LINUX
+    HostInfoLinux::Initialize(nullptr);
+#elif AETHER_OS_WINDOWS
+    HostInfoWindows::Initialize(nullptr);
+#else
     HostInfoBase::Initialize(nullptr);
+#endif
     FileSystem::Initialize();
     // attach AetherProcess itself
     server.AttachToProcess(aether::current_pid());

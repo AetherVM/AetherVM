@@ -360,7 +360,7 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
       triple.getArch() == llvm::Triple::aarch64 ? "+all" : "";
   auto targetMachine =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          triple, "generic", feature, opt, llvm::Reloc::Static, std::nullopt,
+          triple, "generic", feature, opt, llvm::Reloc::PIC_, std::nullopt,
           llvm::CodeGenOptLevel::Default));
 
   llvm::SmallVector<char, 0> buffer;
@@ -583,17 +583,26 @@ void Lifter::resetSemantic(llvm::Module &M) {
 std::unique_ptr<llvm::MemoryBuffer>
 Lifter::createObject(llvm::Module &M, std::span<const uint8_t> text) {
   llvm::LLVMContext &Ctx = M.getContext();
-  llvm::ArrayRef<uint8_t> Bytes(text.data(), text.size());
-  llvm::Constant *DataInit = llvm::ConstantDataArray::get(Ctx, Bytes);
-  llvm::GlobalVariable *TextSecGV = new llvm::GlobalVariable(
-      M, DataInit->getType(),
-      /*isConstant=*/true, llvm::GlobalValue::ExternalLinkage, DataInit,
-      "aethervm_snippet_entry");
 
-  if (llvm::Triple(M.getTargetTriple()).isOSDarwin())
-    TextSecGV->setSection("__TEXT,__text");
-  else
-    TextSecGV->setSection(".text");
+  // create a function prototype
+  llvm::FunctionType *FTy =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(Ctx), false);
+  llvm::Function *F = llvm::Function::Create(
+      FTy, llvm::GlobalValue::ExternalLinkage, "aethervm_snippet_entry", M);
+  F->addFnAttr(llvm::Attribute::Naked);
+
+  // format raw bytes as inline assembly hex string (.byte 0x1f, 0x20, ...)
+  std::string asm_str;
+  for (size_t i = 0; i < text.size(); ++i) {
+    asm_str += std::format(".byte {:#x}\n", text[i]);
+  }
+
+  // attach inline assembly to the function body
+  llvm::BasicBlock *BB = llvm::BasicBlock::Create(Ctx, "entry", F);
+  llvm::InlineAsm *IA =
+      llvm::InlineAsm::get(FTy, asm_str, "", /*hasSideEffects=*/true);
+  llvm::CallInst::Create(IA, "", BB);
+  llvm::ReturnInst::Create(Ctx, BB);
 
   return generate_object(M);
 }
@@ -1022,7 +1031,8 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
     if (!expName)
       continue;
     auto sectname = expName.get();
-    if (sectname == ".text" || sectname == "__text") {
+    if (sectname == ".text" || sectname == "__text" ||
+        sectname == ".rela.text") {
       for (auto &r : sect.relocations()) {
         auto sym = r.getSymbol();
         auto toExp = sym->getValue();
@@ -1040,11 +1050,12 @@ void Lifter::apply(llvm::MemoryBuffer *mbuf) {
         if (name->contains(dyn_prefix))
           relocrefs.insert(std::make_pair(from, to));
       }
-      auto expBuff = sect.getContents();
-      if (expBuff) {
-        textbuff = expBuff.get();
-        textaddr = sect.getAddress();
-        break;
+      if (sectname == ".text" || sectname == "__text") {
+        auto expBuff = sect.getContents();
+        if (expBuff) {
+          textbuff = expBuff.get();
+          textaddr = sect.getAddress();
+        }
       }
     }
   }

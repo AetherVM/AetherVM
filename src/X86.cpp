@@ -127,6 +127,7 @@ AETHER_VM_ENTRY() {
       REGARG_3: uintptr_t *host_retaddr
       rax: void *(*vm_retaddr)()
       */
+      "push %rbp\n"
       "push %r12\n"
       "push %r13\n"
       // The extra runtime context of vm handlers:
@@ -161,6 +162,7 @@ AETHER_VM_ENTRY() {
 #endif
       "pop %r13\n"
       "pop %r12\n"
+      "pop %rbp\n"
       "ret");
 }
 
