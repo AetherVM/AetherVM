@@ -56,6 +56,62 @@ Subclasses (e.g. Mach-O/ELF/PE engines) override `recursiveLoad()` to implement 
 ### Platform layer
 `Platform.h` exposes OS primitives used internally by the engine and available for host-side tooling: page allocation/commit/decommit, process memory read/write (optionally targeting another `pid`), dynamic library loading and symbol resolution, and basic process info (`self_path`, `current_pid`, `stack_size`).
 
+### Examples
+#### Script aevm.cc
+```sh
+Usage: aevm.cc [-arch x64|arm64] [-bin hex-opcodes] [-reg init-list] [-debug]
+-arch  : if omitted then the current host architecture will be applied
+-bin   : raw opcode in hex format
+-reg   : register initial name=val list split with ';'
+-debug : start the internal gdb-remote debug server
+
+e.g.:
+  icpp aevm.cc -arch arm64 -bin 1f2003d51f2003d51f2003d5
+  icpp aevm.cc -arch arm64 -bin 1f2003d51f2003d51f2003d5 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
+  icpp aevm.cc -arch x64 -bin 909090
+  icpp aevm.cc -arch x64 -bin 909090 -reg "rdi=1;rsi=2;rdx=0xa;rcx=0xb" -debug
+```
+You can use `lldb`, `Cutter`, or `IDA` to connect to AetherVM if `-debug` is specified.
+```sh
+% icpp aevm.cc -arch arm64 -bin 1f2003d51f2003d51f2003d5 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
+Start emulating...
+Aether Debugger - listen://0.0.0.0:60807
+
+(lldb) proc conn connect://localhost:60807
+Attached to process 30311...
+Process 30311 stopped
+* thread #1, name = 'AetherThread-1', stop reason = Finished attaching
+    frame #0: 0x0000000000000000 
+->  0x0: nop    
+    0x4: nop    
+    0x8: nop    
+    0xc: udf    #0x0
+Target 0: (No executable module.) stopped.
+(lldb) reg read x0 x1 x2 x3
+      x0 = 0x0000000000000001
+      x1 = 0x0000000000000002
+      x2 = 0x000000000000000a
+      x3 = 0x000000000000000b   
+```
+
+#### Executable emubin
+The `emubin` demo should be compiled within the [Release](https://github.com/AetherVM/AetherVM/releases) package.
+```sh
+emubin % cd demo/emubin
+emubin % icpp build.cc
+emubin % ./build-RelWithDebInfo/emubin 
+Usage: ./build-RelWithDebInfo/emubin -bin /path/to/binary [-entry hex-rva] [-reg init-list] [-debug]
+-bin   : the binary path in PE/ELF/MachO format
+-entry : the rva value in hexidecimal format
+-reg   : register initial name=val list split with ';'
+-debug : start the internal gdb-remote debug server
+
+e.g.:
+  icpp aevm.cc -bin /path/to/binary -entry 0x1000
+  icpp aevm.cc -bin /path/to/binary -entry 0x1000 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
+  icpp aevm.cc -bin /path/to/binary -entry 0x1000 -reg "rdi=1;rsi=2;rdx=0xa;rcx=0xb" -debug
+```
+
 ## How It Works
 
 AetherVM bridges host execution and guest analysis by lifting native machine code into LLVM IR and dynamic execution handlers:
