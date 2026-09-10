@@ -202,6 +202,11 @@ install(FILES
 )
 
 install(FILES
+  "${CMAKE_SOURCE_DIR}/cmake/icpp.toolchain.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+)
+
+install(FILES
   "${remill_DIR}/../../../share/remill/22/semantics/aarch64.bc"
   "${remill_DIR}/../../../share/remill/22/semantics/amd64_avx512.bc"
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/bitcode
@@ -232,5 +237,10 @@ endif()
 
 install(FILES
   ${CMAKE_SOURCE_DIR}/script/aevm.cc
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
+
+install(DIRECTORY
+  ${CMAKE_SOURCE_DIR}/demo
   DESTINATION ${CMAKE_INSTALL_PREFIX}
 )

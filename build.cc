@@ -151,6 +151,7 @@ struct BuildConfig {
     if (remill)
       icpp_clang += ".exe";
     return std::format("{} -DICPP_INSTALL_DIR={} -DLLVM_BUILD_DIR={}/../llvm "
+                       "-DBUILDING_AETHERVM=ON "
                        "-DCMAKE_TOOLCHAIN_FILE={}/cmake/icpp.toolchain.cmake ",
                        icpp_clang, icpp_root, install_llvm, this_root);
 #elif __LINUX__
@@ -161,6 +162,7 @@ struct BuildConfig {
                     std::format("{}/lib", icpp_root).c_str());
     }
     return std::format("{} -DICPP_INSTALL_DIR={} -DLLVM_BUILD_DIR={}/../llvm "
+                       "-DBUILDING_AETHERVM=ON "
                        "-DCMAKE_TOOLCHAIN_FILE={}/cmake/icpp.toolchain.cmake ",
                        icpp_clang, icpp_root, install_llvm, this_root);
 #else

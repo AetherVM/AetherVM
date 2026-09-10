@@ -26,17 +26,24 @@ if(WIN32)
   endif()
   set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib cxxabi_msvc.lib ${ClangBuiltinLib} /FORCE:MULTIPLE /STACK:8388608")
   string(APPEND CMAKE_CXX_FLAGS " /clang:-nostdinc++ /clang:-nostdlib++ -I${ICPP_INSTALL_DIR}/include/c++/v1 -D_LIBCPP_NO_AUTO_LINK")
+elseif(APPLE)
+  set(ICPP_CXX_LDFLAGS " -nostdlib++ ${ICPP_INSTALL_DIR}/lib/libunwind.1.dylib ${ICPP_INSTALL_DIR}/lib/libc++abi.1.dylib ${ICPP_INSTALL_DIR}/lib/libc++.1.dylib")
+  string(APPEND CMAKE_CXX_FLAGS " -nostdinc++ -nostdlib++ -I${ICPP_INSTALL_DIR}/include/c++/v1")
 else()
-  set(ICPP_CXX_LDFLAGS " -nostdlib++ ${ICPP_INSTALL_DIR}/lib/libunwind.so.1 ${ICPP_INSTALL_DIR}/lib/libc++abi.so.1 ${ICPP_INSTALL_DIR}/lib/libc++.so.1 ${LLVM_BUILD_DIR}/lib/libLLVMSupport.a")
+  set(ICPP_CXX_LDFLAGS " -nostdlib++ ${ICPP_INSTALL_DIR}/lib/libunwind.so.1 ${ICPP_INSTALL_DIR}/lib/libc++abi.so.1 ${ICPP_INSTALL_DIR}/lib/libc++.so.1")
+  if(BUILDING_AETHERVM OR BUILDING_AETHERDBG)
+    string(APPEND ICPP_CXX_LDFLAGS " ${LLVM_BUILD_DIR}/lib/libLLVMSupport.a")
+  endif()
   string(APPEND CMAKE_CXX_FLAGS " -nostdinc++ -nostdlib++ -I${ICPP_INSTALL_DIR}/include/c++/v1")
 endif()
+
 string(APPEND CMAKE_EXE_LINKER_FLAGS ${ICPP_CXX_LDFLAGS})
 string(APPEND CMAKE_SHARED_LINKER_FLAGS ${ICPP_CXX_LDFLAGS})
 
 # enable -fPIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if(NOT BUILDING_AETHERDBG AND NOT TARGET llvm-link)
+if(BUILDING_AETHERVM AND NOT TARGET llvm-link)
   # to let get_target_property(LLVMLINK_PATH llvm-link LOCATION) work in remill
   add_executable(llvm-link IMPORTED GLOBAL)
   set_target_properties(llvm-link PROPERTIES
