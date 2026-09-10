@@ -54,7 +54,7 @@ event:
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
     /* 0x20 shadow space + 0x08 alignment */                                   \
-    AETHER_ASM("sub $0x28, %rsp");                                             \
+    AETHER_ASM("sub $0x28, %rsp\n");                                           \
     IMPL_EVENT_VM_IMPL(#n);                                                    \
     AETHER_ASM("add $0x28, %rsp\n"                                             \
                "jmp *%r10");                                                   \
@@ -62,8 +62,11 @@ event:
 #else
 #define IMPL_EVENT_VM(n)                                                       \
   AETHER_NAKED void n(void) {                                                  \
+    /* stack alignment */                                                      \
+    AETHER_ASM("push %rbp\n");                                                 \
     IMPL_EVENT_VM_IMPL(#n);                                                    \
-    AETHER_ASM("jmp *%r10");                                                   \
+    AETHER_ASM("pop %rbp\n"                                                    \
+               "jmp *%r10");                                                   \
   }
 #endif
 
