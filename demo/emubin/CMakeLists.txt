@@ -21,4 +21,7 @@ target_link_libraries(emubin PRIVATE
 
 if(UNIX)
   target_link_options(emubin PRIVATE -Wl,-rpath,${ICPP_INSTALL_DIR}/lib)
+  if (NOT APPLE)
+    target_link_options(emubin PRIVATE ${ICPP_INSTALL_DIR}/lib/libLLVM.so.22.1)
+  endif()
 endif()
