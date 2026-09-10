@@ -39,19 +39,6 @@ struct BuildConfig {
 
     auto icpp_root =
         fs::path(icpp::program()).parent_path().parent_path().generic_string();
-#if __WIN__
-    // setup Visual Studio build environment, you should set this util tool in
-    // the PATH environment variable
-    if (!command("vcvarsall "
-#if __ARM64__
-                 "arm64"
-#else
-                 "x64"
-#endif
-                 ))
-      return false;
-#endif
-
     auto icpp_toolchain =
         (fs::path(install_aevm) / "lib/cmake/icpp.toolchain.cmake")
             .generic_string();
@@ -67,8 +54,8 @@ struct BuildConfig {
     // setup emubin running environment on Windows
     command(std::format(R"(mklink "{}/c++.dll" "{}/bin/c++.dll")", build_root,
                         icpp_root));
-    command(std::format(R"(mklink "{}/LLVM.dll" "{}/bin/LLVM.dll")", build_root,
-                        icpp_root));
+    command(std::format(R"(mklink "{}/LLVM-22.dll" "{}/bin/LLVM-22.dll")",
+                        build_root, icpp_root));
     command(
         std::format(R"(mklink "{}/AetherBinary.dll" "{}/bin/AetherBinary.dll")",
                     build_root, install_aebi));

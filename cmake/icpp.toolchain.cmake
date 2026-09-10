@@ -21,7 +21,7 @@ endif()
 
 # apply the icpp's c++ runtime
 if(WIN32)
-  if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64|AMD64")
+  if(${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
     set(ClangBuiltinLib clang_rt.builtins.lib)
   endif()
   set(ICPP_CXX_LDFLAGS " /libpath:${ICPP_INSTALL_DIR}/lib /nodefaultlib:msvcprt.lib c++.lib cxxabi_msvc.lib ${ClangBuiltinLib} /FORCE:MULTIPLE /STACK:8388608")

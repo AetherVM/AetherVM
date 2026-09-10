@@ -72,6 +72,8 @@ e.g.:
   icpp aevm.cc -arch x64 -bin 909090 -reg "rdi=1;rsi=2;rdx=0xa;rcx=0xb" -debug
 ```
 You can use `lldb`, `Cutter`, or `IDA` to connect to AetherVM if `-debug` is specified.
+
+If you're using IDA, make sure un-check the `No-Ack mode` in GDB Configuration.
 ```sh
 % icpp aevm.cc -arch arm64 -bin 1f2003d51f2003d51f2003d5 -reg "x0=1;x1=2;x2=0xa;x3=0xb" -debug
 Start emulating...
@@ -96,6 +98,8 @@ Target 0: (No executable module.) stopped.
 
 #### Executable emubin
 The `emubin` demo should be compiled within the [Release](https://github.com/AetherVM/AetherVM/releases) package.
+
+Setup the Visual Studio build environment firstly in you're building on Windows, e.g.: vcvarsall x64.
 ```sh
 emubin % cd demo/emubin
 emubin % icpp build.cc

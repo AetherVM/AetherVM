@@ -233,6 +233,12 @@ if(AetherBinary_PATH)
     ${AetherBinary_ROOT}/lib
     DESTINATION ${CMAKE_INSTALL_PREFIX}/aebi
   )
+  if(MSVC)
+    install(DIRECTORY
+      ${AetherBinary_ROOT}/bin
+      DESTINATION ${CMAKE_INSTALL_PREFIX}/aebi
+    )
+  endif()
 endif()
 
 install(FILES
