@@ -141,24 +141,24 @@ AETHER_VM_ENTRY() {
       "push %" ARGREG_1 "\n" // save vmaddr
       "push %" ARGREG_3 "\n" // save host_retaddr
 #if AETHER_OS_WINDOWS
-      // shadow space (0x20) + alignment padding (0x08)
-      "sub $0x28, %rsp\n"
+      // shadow space (0x20)
+      "sub $0x20, %rsp\n"
 #endif
       "call *%rax\n"
 #if AETHER_OS_WINDOWS
-      "add $0x28, %rsp\n"
+      "add $0x20, %rsp\n"
 #endif
       "pop %" ARGREG_3 "\n" // restore host_retaddr
       "pop %" ARGREG_1 "\n" // restore vmaddr
       "mov %r12, %" ARGREG_0 "\n"
       "mov %r13, %" ARGREG_2 "\n"
 #if AETHER_OS_WINDOWS
-      "sub $0x28, %rsp\n"
+      "sub $0x20, %rsp\n"
 #endif
       "call " HOST_CALL_PREFIX "vm_enter_x64\n"
 #if AETHER_OS_WINDOWS
       // popup the return address and the shadow space
-      "add $0x30, %rsp\n"
+      "add $0x28, %rsp\n"
 #else
       // popup the return address of calling vm_enter_x64
       "add $0x8, %rsp\n"
