@@ -8,6 +8,7 @@
 #include "CPUState.h"
 #include "Lifter.h"
 #include "Memory.h"
+#include "OpcodeEngine.h"
 
 #include <AetherArch.h>
 #include <Debugger.h>
@@ -31,6 +32,7 @@ struct BinaryEngineImpl {
   std::unique_ptr<llvm::Module> remillSemantic;
 
   AetherDbgContext dbgContext;
+  OpcodeEngine opcodeEmu;
 
   BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
                    BinaryEngine *engine);
@@ -47,6 +49,10 @@ struct BinaryEngineImpl {
         return result;
     }
     return EventResult::Continue;
+  }
+
+  template <typename T> bool emulate(T opcode) {
+    return opcodeEmu.emulate(opcode);
   }
 
 private:

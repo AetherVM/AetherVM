@@ -48,6 +48,9 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
   // remove all the handlers' definition as we have built them into AetherVM
   // itself, and rename ISEL handler to the final one we need
   Lifter::resetSemantic(*remillSemantic);
+
+  // make it readonly so that each thread can share its handlers
+  opcodeEmu.readonly = true;
 }
 
 BinaryEngineImpl::~BinaryEngineImpl() {

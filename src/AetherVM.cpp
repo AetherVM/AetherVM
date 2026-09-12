@@ -43,16 +43,28 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
 
 BinaryEngine::~BinaryEngine() {}
 
-bool BinaryEngine::emulate(uint8_t opcode) { return EMU.emulate(opcode); }
+size_t BinaryEngine::prefetch(std::span<const uint8_t> opcodes) {
+  return engine->opcodeEmu.prefetch(opcodes);
+}
 
-bool BinaryEngine::emulate(uint16_t opcode) { return EMU.emulate(opcode); }
+bool BinaryEngine::emulate(uint8_t opcode) {
+  return engine->emulate(opcode) || EMU.emulate(opcode);
+}
 
-bool BinaryEngine::emulate(uint32_t opcode) { return EMU.emulate(opcode); }
+bool BinaryEngine::emulate(uint16_t opcode) {
+  return engine->emulate(opcode) || EMU.emulate(opcode);
+}
 
-bool BinaryEngine::emulate(uint64_t opcode) { return EMU.emulate(opcode); }
+bool BinaryEngine::emulate(uint32_t opcode) {
+  return engine->emulate(opcode) || EMU.emulate(opcode);
+}
+
+bool BinaryEngine::emulate(uint64_t opcode) {
+  return engine->emulate(opcode) || EMU.emulate(opcode);
+}
 
 bool BinaryEngine::emulate(std::span<const uint8_t> opcode) {
-  return EMU.emulate(opcode);
+  return engine->emulate(opcode) || EMU.emulate(opcode);
 }
 
 bool BinaryEngine::execute(std::span<const uint8_t> raw) {

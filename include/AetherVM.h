@@ -37,6 +37,9 @@ public:
 
   virtual ~BinaryEngine();
 
+  // Prefetch and cache some opcodes so that later emulation can run faster.
+  size_t prefetch(std::span<const uint8_t> opcodes);
+
   // Emulate one single opcode of arm64 or x86_64 directly.
   bool emulate(uint8_t opcode);
   bool emulate(uint16_t opcode);
