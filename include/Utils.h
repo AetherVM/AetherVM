@@ -84,5 +84,6 @@ inline void log_print(LogType type, std::format_string<Args...> format,
 }
 
 AETHER_VMAPI size_t hash_value(std::string_view str);
+AETHER_VMAPI size_t opcode_generator(std::string_view path);
 
 } // namespace aether

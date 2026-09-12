@@ -59,14 +59,17 @@ struct Lifter {
   std::map<std::string, HandlerDynamic *> name_handlers;
   llvm::Module *module = nullptr;
 
-  Lifter(BinaryEngineImpl *engine, const Binary *bin, remill::Arch *ptr, llvm::Module *pre);
+  Lifter(BinaryEngineImpl *engine, const Binary *bin, remill::Arch *ptr,
+         llvm::Module *pre);
   ~Lifter();
 
   static void resetSemantic(llvm::Module &M);
   static std::unique_ptr<llvm::MemoryBuffer>
   createObject(llvm::Module &M, std::span<const uint8_t> text);
+  
   void transform(const llvm::MCInst &Inst, std::span<const uint8_t> opcode,
                  addr_t addr);
+  bool canLift(std::span<const uint8_t> opcode);
 
 private:
   void emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,

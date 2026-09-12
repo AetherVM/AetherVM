@@ -11,9 +11,9 @@
 #include <Register.h>
 #include <Utils.h>
 
-#include "llvm/IR/InlineAsm.h"
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LegacyPassManager.h>
@@ -744,6 +744,28 @@ void Lifter::transform(const llvm::MCInst &Inst,
       }
     }
   }
+}
+
+bool Lifter::canLift(std::span<const uint8_t> opcode) {
+  remill::Instruction inst;
+  auto func = arch->DeclareLiftedFunction(__FUNCTION__, module);
+  
+  std::ignore = arch->DecodeInstruction(
+      0, {(char *)opcode.data(), (char *)opcode.data() + opcode.size()}, inst,
+      arch->CreateInitialContext());
+  bool liftable = false;
+  if (inst.IsValid()) {
+    arch->InitializeEmptyLiftedFunction(func);
+
+    auto state_ptr = remill::NthArgument(func, remill::kStatePointerArgNum);
+    auto body = llvm::BasicBlock::Create(module->getContext(), "", func);
+    auto lifter = inst.GetLifter();
+    auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
+    liftable = remill::kLiftedInstruction == lift_status;
+  }
+  
+  func->eraseFromParent();
+  return liftable;
 }
 
 void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,

@@ -4,7 +4,7 @@
 # See LICENSE file in the root directory for full license text.
 
 cmake_minimum_required(VERSION 3.20)
-project(AetherVM VERSION 0.1.0 LANGUAGES C CXX)
+project(AetherVM VERSION 0.2.0 LANGUAGES C CXX)
 
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
@@ -68,6 +68,7 @@ set(SOURCE_FILES
   src/Orchestrator.h
   src/Platform.cpp
   src/Utils.cpp
+  src/UtilsAArch64.cpp
   src/X86.cpp
   src/X86.h
 )
