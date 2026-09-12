@@ -37,7 +37,15 @@ public:
 
   virtual ~BinaryEngine();
 
-  // Execute raw machine opcodes.
+  // Emulate one single opcode of arm64 or x86_64 directly.
+  bool emulate(uint8_t opcode);
+  bool emulate(uint16_t opcode);
+  bool emulate(uint32_t opcode);
+  bool emulate(uint64_t opcode);
+  bool emulate(std::span<const uint8_t> opcode);
+
+  // Execute raw machine opcodes. This method will turn the raw opcodes into an
+  // internal binary instance before executing.
   bool execute(std::span<const uint8_t> raw);
 
   // Execute opcodes of target which belongs to the current attached binary, or

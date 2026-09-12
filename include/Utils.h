@@ -83,6 +83,44 @@ inline void log_print(LogType type, std::format_string<Args...> format,
   std::cout << msg << std::endl;
 }
 
+inline uint8_t fib_hash8(uint8_t x) { return x; }
+
+inline uint8_t fib_hash8(uint16_t x) {
+  constexpr uint16_t K16 = 40503U;
+  return static_cast<uint8_t>((x * K16) >> 8);
+}
+
+inline uint8_t fib_hash8(uint32_t x) {
+  constexpr uint32_t K32 = 2654435769U;
+  return static_cast<uint8_t>((x * K32) >> 24);
+}
+
+inline uint8_t fib_hash8(uint64_t x) {
+  constexpr uint64_t K64 = 11400714819323198485ULL;
+  return static_cast<uint8_t>((x * K64) >> 56);
+}
+
+struct uint128_var_t {
+  uint64_t low, high;
+
+  auto operator<=>(const uint128_var_t &right) const {
+    if (auto cmp = high <=> right.high; cmp != 0)
+      return cmp;
+    return low <=> right.low;
+  }
+
+  bool operator==(const uint128_var_t &right) const = default;
+};
+
+inline uint8_t fib_hash8(uint128_var_t x) {
+  constexpr uint64_t K64 = 11400714819323198485ULL;
+
+  // combine both 64-bit words via XOR and perform a single 64-bit
+  // multiplication
+  uint64_t combined = x.low ^ x.high;
+  return static_cast<uint8_t>((combined * K64) >> 56);
+}
+
 AETHER_VMAPI size_t hash_value(std::string_view str);
 AETHER_VMAPI size_t opcode_generator(std::string_view path);
 

@@ -10,6 +10,7 @@
 
 #include "BinaryEngine.h"
 #include "Handler.h"
+#include "OpcodeEngine.h"
 #include "Orchestrator.h"
 
 namespace aether {
@@ -41,6 +42,18 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
 }
 
 BinaryEngine::~BinaryEngine() {}
+
+bool BinaryEngine::emulate(uint8_t opcode) { return EMU.emulate(opcode); }
+
+bool BinaryEngine::emulate(uint16_t opcode) { return EMU.emulate(opcode); }
+
+bool BinaryEngine::emulate(uint32_t opcode) { return EMU.emulate(opcode); }
+
+bool BinaryEngine::emulate(uint64_t opcode) { return EMU.emulate(opcode); }
+
+bool BinaryEngine::emulate(std::span<const uint8_t> opcode) {
+  return EMU.emulate(opcode);
+}
 
 bool BinaryEngine::execute(std::span<const uint8_t> raw) {
   llvm::Module module("aethervm-object", engine->remillSemantic->getContext());
