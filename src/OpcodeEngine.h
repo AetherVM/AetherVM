@@ -50,12 +50,16 @@ template <typename T> struct OpcodeHandler {
 
   bool init();
   void init(remill::Instruction &inst);
-  bool execute() const;
+  bool interpret() const;
 
 private:
   void initRemill(remill::Instruction &inst);
   void initDynamic();
   void initPrebuilt();
+  bool interpRemill() const;
+  void execDynamic() const;
+  void execPrebuilt() const;
+  void execPrebuiltMapped() const;
 };
 
 template <typename T> struct OpcodeHandlers {
@@ -80,7 +84,7 @@ template <typename T> struct OpcodeHandlers {
     // lookup caches
     auto ptr = caches[id];
     if (ptr && ptr->opcode == opcode)
-      return ptr->execute();
+      return ptr->interpret();
 
     // lookup existing handlers
     auto tmpopc = OpcodeHandler<T>{.opcode = opcode};
@@ -97,7 +101,7 @@ template <typename T> struct OpcodeHandlers {
 
     // update caches
     caches[id] = &*found;
-    return found->execute();
+    return found->interpret();
   }
 };
 

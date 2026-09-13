@@ -44,6 +44,7 @@ BinaryEngine::BinaryEngine(const Binary *bin, EventConfig eventcfg)
 BinaryEngine::~BinaryEngine() {}
 
 size_t BinaryEngine::prefetch(std::span<const uint8_t> opcodes) {
+  CPU.initContext((addr_t)opcodes.data());
   return engine->opcodeEmu.prefetch(opcodes);
 }
 

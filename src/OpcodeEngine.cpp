@@ -7,6 +7,7 @@
 #include "BinaryEngine.h"
 #include "Handler.h"
 #include "Lifter.h"
+#include "Orchestrator.h"
 
 #include <Platform.h>
 
@@ -109,6 +110,7 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
   if (is_exact(found, base, handlers->size(), key)) {
     // set implementation
     impl = found->impl;
+    type = OHT_Remill;
   } else {
     inst.category = remill::Instruction::kCategoryInvalid;
     init(inst);
@@ -134,6 +136,7 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
   llvm::MCInst inst;
   auto oplen =
       engine->diser.disassemble((uint8_t *)&opcode, sizeof(opcode), inst);
+  type = OHT_Dynamic;
   if (!oplen) {
     impl = (void *)&abort;
     return;
@@ -180,12 +183,57 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
 
 template <typename T> void OpcodeHandler<T>::initPrebuilt() {
 #if AETHER_OS_DARWIN_IOS
+  type = OHT_Prebuit;
 #else
   abort();
 #endif
 }
 
-template <typename T> bool OpcodeHandler<T>::execute() const { return false; }
+template <typename T> bool OpcodeHandler<T>::interpRemill() const {
+  return true;
+}
+
+static void *vm_retaddr() {
+  // reused as a temporary return address
+  return &CPU.rvalue;
+}
+
+template <typename T> void OpcodeHandler<T>::execDynamic() const {
+  Instruction insns[2]{{(event_func_t)impl}, {finish_emulation}};
+  auto arch = engine->remillArch.get();
+  auto state = arch->arch_name == remill::kArchAArch64LittleEndian
+                   ? (void *)&CPU.aarch64
+                   : (void *)&CPU.x86;
+  auto entry = *CPU.pcptr;
+#if AETHER_ARCH_ARM64
+  aarch64::aether_vm_entry(state, entry, insns, &CPU.retaddr, vm_retaddr);
+#else
+  x86::aether_vm_entry(state, entry, insns, &CPU.retaddr, vm_retaddr);
+#endif
+}
+
+template <typename T> void OpcodeHandler<T>::execPrebuilt() const {}
+
+template <typename T> void OpcodeHandler<T>::execPrebuiltMapped() const {}
+
+template <typename T> bool OpcodeHandler<T>::interpret() const {
+  switch (type) {
+  case OHT_Remill:
+    return interpRemill();
+  case OHT_Dynamic:
+    execDynamic();
+    break;
+  case OHT_Prebuit:
+    execPrebuilt();
+    break;
+  case OHT_PrebuiltMapped:
+    execPrebuiltMapped();
+    break;
+  default:
+    return false;
+  }
+  return true;
+}
 
 template struct OpcodeHandler<uint8_t>;
 template struct OpcodeHandler<uint16_t>;
