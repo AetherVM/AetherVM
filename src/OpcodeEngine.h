@@ -7,14 +7,12 @@
 
 #include <Utils.h>
 
+#include <remill/Arch/Instruction.h>
+
 #include <map>
 #include <set>
 #include <span>
 #include <vector>
-
-namespace remill {
-class Instruction;
-}
 
 namespace aether {
 
@@ -29,11 +27,17 @@ template <typename T> struct OpcodeHandler {
 
   T opcode;
   Type type;
-  std::vector<uint64_t> args;
+  std::vector<const remill::Operand *> args; // operands
+  const void *impl;                          // implementation of this opcode
 
 #if AETHER_OS_DARWIN_IOS
   std::map<uint8_t, uint8_t> gpr, fpu;
 #endif
+
+  // shared operand caches
+  static std::vector<remill::Operand> operands;
+  // <id, ptr> of operand
+  static std::map<uint64_t, const remill::Operand *> operandmap;
 
   auto operator<=>(const OpcodeHandler &right) const {
     return opcode <=> right.opcode;
@@ -41,11 +45,11 @@ template <typename T> struct OpcodeHandler {
   bool operator==(const OpcodeHandler &right) const = default;
 
   bool init();
-  void init(remill::Instruction *inst);
+  void init(remill::Instruction &inst);
   bool execute() const;
 
 private:
-  void initRemill(remill::Instruction *inst);
+  void initRemill(remill::Instruction &inst);
   void initDynamic();
   void initPrebuilt();
 };
@@ -54,7 +58,7 @@ template <typename T> struct OpcodeHandlers {
   std::set<OpcodeHandler<T>> handlers;
   const OpcodeHandler<T> *caches[0xFF]{nullptr};
 
-  void prefetch(remill::Instruction *inst, T opcode) {
+  void prefetch(remill::Instruction &inst, T opcode) {
     auto tmpopc = OpcodeHandler<T>{.opcode = opcode};
     auto found = handlers.find(tmpopc);
     if (found == handlers.end()) {

@@ -5,6 +5,7 @@
 
 #include "OpcodeEngine.h"
 #include "BinaryEngine.h"
+#include "Handler.h"
 
 // shortcuts for engine implementation stub
 #define engine (CPU.runtime)
@@ -12,6 +13,53 @@
 namespace aether {
 
 thread_local OpcodeEngine EMU;
+
+template <typename T> std::vector<remill::Operand> OpcodeHandler<T>::operands;
+template <typename T>
+std::map<uint64_t, const remill::Operand *> OpcodeHandler<T>::operandmap;
+
+class Operand : public remill::Operand {
+public:
+  uint64_t ID() const {
+    using remill::Operand;
+    uint64_t id = 0;
+    switch (type) {
+    case kTypeInvalid:
+      break;
+    case kTypeRegister:
+      std::memcpy(&id, reg.name.data(), std::min((size_t)8, reg.name.size()));
+      break;
+    case kTypeShiftRegister:
+      std::memcpy(&id, shift_reg.reg.name.data(),
+                  std::min((size_t)8, shift_reg.reg.name.size()));
+      id |= ((uint64_t)hash_value(
+                 {(char *)&shift_reg.shift_size,
+                  (char *)shift_reg.extend_op + sizeof(shift_reg.extend_op)})
+             << 24);
+      break;
+    case kTypeImmediate:
+      id |= ((imm.val << 5) >> 5);
+      id |= ((uint64_t)imm.is_signed << 59);
+      break;
+    case kTypeAddress:
+      id |= hash_value(addr.segment_base_reg.name + addr.base_reg.name +
+                       addr.index_reg.name);
+      id ^= ((uint64_t)(uint32_t)hash_value(
+                 {(char *)&addr.scale, (char *)&addr.kind + sizeof(addr.kind)})
+             << 28);
+      break;
+    case kTypeExpression:
+    case kTypeRegisterExpression:
+    case kTypeImmediateExpression:
+    case kTypeAddressExpression:
+      id |= (uint64_t)expr;
+      break;
+    default:
+      abort();
+    }
+    return id | (((uint64_t)type) << 60);
+  }
+};
 
 template <typename T> bool OpcodeHandler<T>::init() {
   std::lock_guard<std::mutex> lock(engine->mutex);
@@ -24,12 +72,12 @@ template <typename T> bool OpcodeHandler<T>::init() {
   if (inst.bytes.size() == 0)
     return false;
 
-  init(inst.IsValid() ? &inst : nullptr);
+  init(inst);
   return true;
 }
 
-template <typename T> void OpcodeHandler<T>::init(remill::Instruction *inst) {
-  if (inst) {
+template <typename T> void OpcodeHandler<T>::init(remill::Instruction &inst) {
+  if (inst.IsValid()) {
     initRemill(inst);
   } else {
 #if AETHER_OS_DARWIN_IOS
@@ -41,7 +89,34 @@ template <typename T> void OpcodeHandler<T>::init(remill::Instruction *inst) {
 }
 
 template <typename T>
-void OpcodeHandler<T>::initRemill(remill::Instruction *inst) {}
+void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
+  auto arch = engine->remillArch.get();
+  auto handlers = arch->arch_name == remill::kArchAArch64LittleEndian
+                      ? &Handler::aarch64
+                      : &Handler::x86;
+  Handler key{hash_value(inst.function), nullptr};
+  auto base = handlers->data();
+  auto found = binary_search(base, handlers->size(), key);
+  if (is_exact(found, base, handlers->size(), key)) {
+    // set implementation
+    impl = found->impl;
+  } else {
+    inst.category = remill::Instruction::kCategoryInvalid;
+    init(inst);
+    return;
+  }
+  for (auto &o : inst.operands) {
+    auto optr = (Operand *)&o;
+    auto id = optr->ID();
+    auto found = operandmap.find(id);
+    if (found == operandmap.end()) {
+      operands.push_back(o);
+      found = operandmap.insert(std::make_pair(id, &*operands.rbegin())).first;
+    }
+    // set operands
+    args.push_back(found->second);
+  }
+}
 
 template <typename T> void OpcodeHandler<T>::initDynamic() {}
 
@@ -69,42 +144,41 @@ size_t OpcodeEngine::prefetch(std::span<const uint8_t> opcodes) {
       continue;
     }
 
-    auto instptr = inst.IsValid() ? &inst : nullptr;
     uint32_t tmp4{0};
     uint64_t tmp8{0};
     uint128_var_t tmp16{0, 0};
     switch (inst.bytes.size()) {
     case 1:
-      opc1.prefetch(instptr, *(uint8_t *)ptr);
+      opc1.prefetch(inst, *(uint8_t *)ptr);
       break;
     case 2:
-      opc2.prefetch(instptr, *(uint16_t *)ptr);
+      opc2.prefetch(inst, *(uint16_t *)ptr);
       break;
     case 3:
       std::memcpy(&tmp4, ptr, 3);
-      opc4.prefetch(instptr, tmp4);
+      opc4.prefetch(inst, tmp4);
       break;
     case 4:
-      opc4.prefetch(instptr, *(uint32_t *)ptr);
+      opc4.prefetch(inst, *(uint32_t *)ptr);
       break;
     case 5:
       std::memcpy(&tmp8, ptr, 5);
-      opc8.prefetch(instptr, tmp8);
+      opc8.prefetch(inst, tmp8);
       break;
     case 6:
       std::memcpy(&tmp8, ptr, 6);
-      opc8.prefetch(instptr, tmp8);
+      opc8.prefetch(inst, tmp8);
       break;
     case 7:
       std::memcpy(&tmp8, ptr, 7);
-      opc8.prefetch(instptr, tmp8);
+      opc8.prefetch(inst, tmp8);
       break;
     case 8:
-      opc8.prefetch(instptr, *(uint64_t *)ptr);
+      opc8.prefetch(inst, *(uint64_t *)ptr);
       break;
     default:
       std::memcpy(&tmp16, ptr, std::min((size_t)16, inst.bytes.size()));
-      opc16.prefetch(instptr, tmp16);
+      opc16.prefetch(inst, tmp16);
       break;
     }
     count++;
