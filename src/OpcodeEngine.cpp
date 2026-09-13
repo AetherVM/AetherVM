@@ -6,6 +6,9 @@
 #include "OpcodeEngine.h"
 #include "BinaryEngine.h"
 #include "Handler.h"
+#include "Lifter.h"
+
+#include <Platform.h>
 
 // shortcuts for engine implementation stub
 #define engine (CPU.runtime)
@@ -13,6 +16,12 @@
 namespace aether {
 
 thread_local OpcodeEngine EMU;
+
+#if !AETHER_OS_DARWIN_IOS
+template <typename T> std::vector<uint64_t> OpcodeHandler<T>::dynhandlers;
+template <typename T> uint8_t *OpcodeHandler<T>::pagestart = nullptr;
+template <typename T> uint8_t *OpcodeHandler<T>::pagecur = nullptr;
+#endif
 
 template <typename T> std::vector<remill::Operand> OpcodeHandler<T>::operands;
 template <typename T>
@@ -118,9 +127,63 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
   }
 }
 
-template <typename T> void OpcodeHandler<T>::initDynamic() {}
+template <typename T> void OpcodeHandler<T>::initDynamic() {
+#if AETHER_OS_DARWIN_IOS
+  abort();
+#else
+  llvm::MCInst inst;
+  auto oplen =
+      engine->diser.disassemble((uint8_t *)&opcode, sizeof(opcode), inst);
+  if (!oplen) {
+    impl = (void *)&abort;
+    return;
+  }
+  auto arch = engine->remillArch.get();
+  auto nativeHandler = arch->arch_name == remill::kArchAArch64LittleEndian
+                           ? Lifter::nativeHandlerAArch64
+                           : Lifter::nativeHandlerX64;
+  auto asmbody =
+      nativeHandler(inst, {(uint8_t *)&opcode, (uint8_t *)&opcode + oplen});
+  uint8_t newopc[20], asmbin[256];
+  intptr_t binsz = 0, pagesz = page_size();
+  for (auto &insn : string_view_split(asmbody, '\n')) {
+    if (insn.size() == 0)
+      continue;
+    // force to reset '\n' to '\0', we're reusing asmbody's buffer
+    const_cast<char *>(insn.data() + insn.size())[0] = 0;
 
-template <typename T> void OpcodeHandler<T>::initPrebuilt() {}
+    newopc[0] = 0;
+    engine->diser.assemble(insn.data(), newopc);
+    if (!newopc[0]) {
+      // should never happend
+      abort();
+    }
+    std::memcpy(&asmbin[binsz], &newopc[1], newopc[0]);
+    binsz += newopc[0];
+    assert(binsz < (intptr_t)sizeof(asmbin));
+  }
+
+  if (!pagestart || pagestart + pagesz - pagecur < binsz) {
+    dynhandlers.push_back(page_alloc(pagesz));
+    pagestart = (uint8_t *)*dynhandlers.rbegin();
+    pagecur = pagestart;
+  }
+  // rw-
+  page_commit(pagestart, pagesz, true, true, false);
+  impl = pagecur;
+  std::memcpy(pagecur, &asmbin[0], binsz);
+  pagecur += binsz;
+  // r-x
+  page_commit(pagestart, pagesz, true, false, true);
+#endif
+}
+
+template <typename T> void OpcodeHandler<T>::initPrebuilt() {
+#if AETHER_OS_DARWIN_IOS
+#else
+  abort();
+#endif
+}
 
 template <typename T> bool OpcodeHandler<T>::execute() const { return false; }
 

@@ -123,5 +123,7 @@ inline uint8_t fib_hash8(uint128_var_t x) {
 
 AETHER_VMAPI size_t hash_value(std::string_view str);
 AETHER_VMAPI size_t opcode_generator(std::string_view path);
+AETHER_VMAPI std::vector<std::string_view>
+string_view_split(std::string_view str, char delimiter);
 
 } // namespace aether

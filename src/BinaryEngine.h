@@ -12,6 +12,7 @@
 
 #include <AetherArch.h>
 #include <Debugger.h>
+#include <Disassembler.h>
 #include <Event.h>
 
 #include <mutex>
@@ -33,6 +34,7 @@ struct BinaryEngineImpl {
 
   AetherDbgContext dbgContext;
   OpcodeEngine opcodeEmu;
+  Disassembler diser;
 
   BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
                    BinaryEngine *engine);

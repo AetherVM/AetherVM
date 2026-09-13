@@ -749,7 +749,7 @@ void Lifter::transform(const llvm::MCInst &Inst,
 bool Lifter::canLift(std::span<const uint8_t> opcode) {
   remill::Instruction inst;
   auto func = arch->DeclareLiftedFunction(__FUNCTION__, module);
-  
+
   std::ignore = arch->DecodeInstruction(
       0, {(char *)opcode.data(), (char *)opcode.data() + opcode.size()}, inst,
       arch->CreateInitialContext());
@@ -763,13 +763,13 @@ bool Lifter::canLift(std::span<const uint8_t> opcode) {
     auto lift_status = lifter->LiftIntoBlock(inst, body, state_ptr);
     liftable = remill::kLiftedInstruction == lift_status;
   }
-  
+
   func->eraseFromParent();
   return liftable;
 }
 
-void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
-                         std::span<const uint8_t> opcode) {
+std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
+                                         std::span<const uint8_t> opcode) {
   // during the chained execution of the vm handlers:
   // x26 is "void *cpu"
   // x27 is 'const Instruction *insns'
@@ -863,12 +863,17 @@ void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
              "mov x2, x27\n" // argument instruction
              "" extract_handler_x16 ""
              "br x16";
+  return asmbody;
+}
 
+void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
+                         std::span<const uint8_t> opcode) {
+  auto asmbody = nativeHandlerAArch64(Inst, opcode);
   generate_naked_function(Func, asmbody);
 }
 
-void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
-                     std::span<const uint8_t> opcode) {
+std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
+                                     std::span<const uint8_t> opcode) {
   // during the chained execution of the vm handlers:
   // r12 is "void *cpu"
   // r13 is 'const Instruction *insns'
@@ -1033,7 +1038,12 @@ void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
   asmbody += std::format("mov %r13, %{}\n", kArgInsn); // argument: instruction
   asmbody += extract_handler_r10_llvmir;
   asmbody += "jmp *%r10\n";
+  return asmbody;
+}
 
+void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
+                     std::span<const uint8_t> opcode) {
+  auto asmbody = nativeHandlerX64(Inst, opcode);
   generate_naked_function(Func, asmbody);
 }
 

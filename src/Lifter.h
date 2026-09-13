@@ -66,10 +66,15 @@ struct Lifter {
   static void resetSemantic(llvm::Module &M);
   static std::unique_ptr<llvm::MemoryBuffer>
   createObject(llvm::Module &M, std::span<const uint8_t> text);
-  
+
   void transform(const llvm::MCInst &Inst, std::span<const uint8_t> opcode,
                  addr_t addr);
   bool canLift(std::span<const uint8_t> opcode);
+
+  static std::string nativeHandlerAArch64(const llvm::MCInst &Inst,
+                                          std::span<const uint8_t> opcode);
+  static std::string nativeHandlerX64(const llvm::MCInst &Inst,
+                                      std::span<const uint8_t> opcode);
 
 private:
   void emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,

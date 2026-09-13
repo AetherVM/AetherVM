@@ -229,21 +229,19 @@ void BinaryEngine::liftOpcodes(const Binary *bin, addr_t addr,
   if (bin->archType() == ARM64) {
     // arm64 has fixed 4 bytes instruction set
     constexpr size_t oplen = 4;
-    Disassembler diser{Binary::arch(ARM64)};
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;
          ptr += oplen) {
       event.addr = addr + ptr - opcodes.data();
-      if (diser.disassemble(ptr, 16, inst) == oplen)
+      if (engine->diser.disassemble(ptr, 16, inst) == oplen)
         lifter.transform(inst, {ptr, oplen}, event.addr);
       else
         engine->handleEvent(eventvar);
     }
   } else {
-    Disassembler diser{Binary::arch(X86_64)};
     MachineX86 mx86;
     // iterate each x86 instruction
     for (auto ptr = opcodes.data(), end = ptr + opcodes.size(); ptr < end;) {
-      size_t oplen = diser.disassemble(ptr, 16, inst);
+      size_t oplen = engine->diser.disassemble(ptr, 16, inst);
       event.addr = addr + ptr - opcodes.data();
       if (oplen) {
         lifter.transform(inst, {ptr, oplen}, event.addr);

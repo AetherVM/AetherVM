@@ -15,7 +15,7 @@ namespace aether {
 
 BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
                                    BinaryEngine *engine)
-    : eventConf(cfg), arch(type), osFile(os) {
+    : eventConf(cfg), arch(type), osFile(os), diser{Binary::arch(type)} {
   using enum remill::ArchName;
   using enum remill::OSName;
   if (cfg.debug) {

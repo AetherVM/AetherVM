@@ -32,6 +32,10 @@ template <typename T> struct OpcodeHandler {
 
 #if AETHER_OS_DARWIN_IOS
   std::map<uint8_t, uint8_t> gpr, fpu;
+#else
+  // dynamic handler executable page
+  static std::vector<uint64_t> dynhandlers;
+  static uint8_t *pagestart, *pagecur;
 #endif
 
   // shared operand caches
