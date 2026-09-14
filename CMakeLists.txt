@@ -74,6 +74,11 @@ set(SOURCE_FILES
   src/X86.cpp
   src/X86.h
 )
+if(AETHER_BUILD_IOS)
+  list(APPEND SOURCE_FILES
+    ios/OpcodeAArch64.cpp
+  )
+endif()
 
 if(MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
   set(SOURCE_FILES_EXTRA 
@@ -149,6 +154,15 @@ if(MSVC)
 else()
   set(DISABLE_RTTI -fno-rtti)
   set(AetherDbg_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+if(AETHER_BUILD_IOS)
+  target_compile_options(AetherVM PRIVATE
+    -DAETHER_OS_DARWIN_IOS=1
+  )
+  target_link_options(AetherVM PRIVATE 
+    -Wl,-order_file,${CMAKE_SOURCE_DIR}/ios/order.txt
+  )
 endif()
 
 target_compile_options(AetherVM PRIVATE

@@ -1,0 +1,5 @@
+# normal code first
+_main
+
+# arm64 opcode last
+_arm64_native_start

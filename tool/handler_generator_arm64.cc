@@ -7,11 +7,12 @@
 
 namespace aether {
 std::size_t opcode_generator(std::string_view path);
-}
+std::size_t opcret_generator(std::string_view path);
+} // namespace aether
 
 namespace {
 
-bool load_libraries(const fs::path &thisdir) {
+bool load_libraries(const fs::path &thisdir, bool force = true) {
   // std::string_view type{"build-Debug"};
   std::string_view type{"build-Release"};
 
@@ -20,15 +21,19 @@ bool load_libraries(const fs::path &thisdir) {
   auto binary_dir = vm_dir.parent_path() / "AetherBinary";
   auto libbinary = binary_dir / type / "libAetherBinary.dylib";
   if (!icpp::load_library(libbinary.string())) {
-    std::println("Failed to load {}", libbinary.string());
-    return false;
+    if (force) {
+      std::println("Failed to load {}", libbinary.string());
+      return false;
+    }
   }
 
   // load AetherVM
   auto libvm = vm_dir / type / "libAetherVM.dylib";
   if (!icpp::load_library(libvm.string())) {
-    std::println("Failed to load {}", libvm.string());
-    return false;
+    if (force) {
+      std::println("Failed to load {}", libvm.string());
+      return false;
+    }
   }
 
   return true;
@@ -43,8 +48,13 @@ int generate_opcode(const fs::path &thisdir, std::string_view path) {
   return 0;
 }
 
-int generate_sourcecode(const fs::path &thisdir, std::string_view path) {
-  return -1;
+int generate_opcode_ret(const fs::path &thisdir, std::string_view path) {
+  // the dependent symbol has been preloaded by ios/build.cc
+  // load_libraries(const fs::path &thisdir, false);
+
+  auto count = aether::opcret_generator(path);
+  std::println("Total generated {} native instructions.", count);
+  return 0;
 }
 
 } // namespace
@@ -61,8 +71,8 @@ int main(int argc, const char *argv[]) {
   if (path.ends_with(".opc"))
     return generate_opcode(thisdir, path);
 
-  if (path.ends_with(".cpp"))
-    return generate_sourcecode(thisdir, path);
+  if (path.ends_with(".opc.ret"))
+    return generate_opcode_ret(thisdir, path);
 
   std::println("Invalid file extension type: {}", path);
   return -1;

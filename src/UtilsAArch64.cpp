@@ -171,4 +171,22 @@ size_t opcode_generator(std::string_view path) {
   return opcodes.size();
 }
 
+size_t opcret_generator(std::string_view outpath) {
+  constexpr uint32_t insn_ret = 0xD65F03C0;
+  // remove .ret suffix
+  auto inpath = std::string{outpath.data(), outpath.size() - 4};
+  std::ifstream inf{inpath.data(), std::ios::binary};
+  std::ofstream outf{outpath.data(), std::ios::binary};
+  size_t i = 0;
+  while (!inf.eof()) {
+    // add a ret instruction for each opcode
+    uint32_t opc[2]{0, insn_ret};
+    inf.read((char *)&opc[0], 4);
+    outf.write((char *)&opc[0], 8);
+    i++;
+  }
+  log_print(Runtime, "Created {}.", outpath);
+  return i;
+}
+
 } // namespace aether
