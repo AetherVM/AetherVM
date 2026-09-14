@@ -16,6 +16,17 @@
 
 namespace aether {
 
+class RemillOperand : public remill::Operand {
+public:
+  uint64_t ID() const;
+};
+
+struct Operand {
+  const RemillOperand op; // operand meta
+  // the raw value of this operand, 0 for memory or expression operand
+  uintptr_t val;
+};
+
 template <typename T> struct OpcodeHandler {
   // opcode handler type
   enum Type {
@@ -27,21 +38,12 @@ template <typename T> struct OpcodeHandler {
 
   T opcode;
   Type type;
-  std::vector<const remill::Operand *> args; // operands
-  const void *impl;                          // implementation of this opcode
+  std::vector<const Operand *> args; // operands
+  const void *impl;                  // implementation of this opcode
 
 #if AETHER_OS_DARWIN_IOS
   std::map<uint8_t, uint8_t> gpr, fpu;
-#else
-  // dynamic handler executable page
-  static std::vector<uint64_t> dynhandlers;
-  static uint8_t *pagestart, *pagecur;
 #endif
-
-  // shared operand caches
-  static std::vector<remill::Operand> operands;
-  // <id, ptr> of operand
-  static std::map<uint64_t, const remill::Operand *> operandmap;
 
   auto operator<=>(const OpcodeHandler &right) const {
     return opcode <=> right.opcode;
@@ -120,6 +122,8 @@ struct OpcodeEngine {
   bool emulate(uint32_t opcode) { return opc4.emulate(opcode, readonly); }
   bool emulate(uint64_t opcode) { return opc8.emulate(opcode, readonly); }
   bool emulate(std::span<const uint8_t> opcode);
+
+  ~OpcodeEngine();
 };
 
 // emulation engine for each thread

@@ -29,6 +29,8 @@ event:
 
 #include "AArch64.h"
 
+#include <charconv>
+
 #if AETHER_ARCH_ARM64
 
 // during the chained execution of the vm handlers:
@@ -138,6 +140,107 @@ size_t offset_reg(Register reg) {
     return (size_t)&state->gpr.x0 + 0x10 * ((int)reg - (int)X0);
   if (Q0 <= reg && reg <= Q31)
     return (size_t)&state->simd.v[0] + 0x10 * ((int)reg - (int)Q0);
+  abort();
+}
+
+size_t offset_reg(std::string_view reg) {
+  State *state = nullptr;
+
+  // General Purpose 64-bit (x0 - x30)
+  if (reg.starts_with('x')) {
+    int num = 0;
+    auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
+    if (res.ec == std::errc{} && num >= 0 && num <= 30) {
+      return (size_t)&state->gpr.x0 + 0x10 * num;
+    }
+  }
+
+  // General Purpose 32-bit (w0 - w30) - alias to X registers
+  if (reg.starts_with('w')) {
+    int num = 0;
+    auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
+    if (res.ec == std::errc{} && num >= 0 && num <= 30) {
+      return (size_t)&state->gpr.x0 + 0x10 * num;
+    }
+  }
+
+  // SIMD / Vector 128-bit (q0 - q31 or v0 - v31)
+  if (reg.starts_with('q') || reg.starts_with('v')) {
+    int num = 0;
+    auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
+    if (res.ec == std::errc{} && num >= 0 && num <= 31) {
+      return (size_t)&state->simd.v[num];
+    }
+  }
+
+  // SIMD sub-registers (d0-d31, s0-s31, h0-h31, b0-b31) - alias to SIMD vectors
+  if (reg.starts_with('d') || reg.starts_with('s') || reg.starts_with('h') ||
+      reg.starts_with('b')) {
+    int num = 0;
+    auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
+    if (res.ec == std::errc{} && num >= 0 && num <= 31) {
+      return (size_t)&state->simd.v[num];
+    }
+  }
+
+  // Special GPRs & Control Registers
+  if (reg == "sp" || reg == "wsp")
+    return (size_t)&state->gpr.sp;
+  if (reg == "pc")
+    return (size_t)&state->gpr.pc;
+  if (reg == "xzr" || reg == "wzr")
+    return 0; // Zero register read-only offset
+
+  // System Registers (SR)
+  if (reg == "tpidr_el0")
+    return (size_t)&state->sr.tpidr_el0;
+  if (reg == "tpidrro_el0")
+    return (size_t)&state->sr.tpidrro_el0;
+
+  // Status & Floating-Point Control Registers
+  if (reg == "nzcv")
+    return (size_t)&state->nzcv;
+  if (reg == "fpcr")
+    return (size_t)&state->fpcr;
+  if (reg == "fpsr")
+    return (size_t)&state->fpsr;
+
+  // Individual Condition Flags in SR
+  if (reg == "n")
+    return (size_t)&state->sr.n;
+  if (reg == "z")
+    return (size_t)&state->sr.z;
+  if (reg == "c")
+    return (size_t)&state->sr.c;
+  if (reg == "v")
+    return (size_t)&state->sr.v;
+
+  // Individual Cumulative Exception Flags in SR
+  if (reg == "ixc")
+    return (size_t)&state->sr.ixc;
+  if (reg == "ofc")
+    return (size_t)&state->sr.ofc;
+  if (reg == "ufc")
+    return (size_t)&state->sr.ufc;
+  if (reg == "idc")
+    return (size_t)&state->sr.idc;
+  if (reg == "ioc")
+    return (size_t)&state->sr.ioc;
+  if (reg == "dzc")
+    return (size_t)&state->sr.dzc;
+
+  // Sleigh Flag State
+  if (reg == "ng")
+    return (size_t)&state->sleigh_flags.NG;
+  if (reg == "zr")
+    return (size_t)&state->sleigh_flags.ZR;
+  if (reg == "cy")
+    return (size_t)&state->sleigh_flags.CY;
+  if (reg == "ov")
+    return (size_t)&state->sleigh_flags.OV;
+  if (reg == "shift_carry")
+    return (size_t)&state->sleigh_flags.shift_carry;
+
   abort();
 }
 

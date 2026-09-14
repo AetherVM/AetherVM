@@ -22,6 +22,7 @@ namespace x86 {
 AETHER_VM_ENTRY();
 
 size_t offset_reg(Register reg);
+size_t offset_reg(std::string_view reg);
 
 } // namespace x86
 
