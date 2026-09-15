@@ -24,6 +24,23 @@ void aarch64_opcodes() {
     std::println("X0 = {}", engine.getRegister(aether::Register::X0)->u8);
   else
     std::println("Failed to execute: {}.", insn);
+
+  engine.emulate(assemble(&marm64, "fmov d0, #1.0"));
+#if AETHER_ARCH_ARM64
+  insn = "dup v0.2d, v0.d[0]";
+#else
+  insn = "fmov d1, d0"
+#endif
+  engine.emulate(assemble(&marm64, insn));
+#if AETHER_ARCH_ARM64
+  auto q0 = reinterpret_cast<const aether::RegisterValueSIMD *>(
+      engine.getRegister(aether::Register::Q0));
+  std::println("Q0.D[0] = {:.1f}, Q0.D[1] = {:.1f}", q0->low.d, q0->high.d);
+#else
+  auto q0 = engine.getRegister(aether::Register::Q0);
+  auto q1 = engine.getRegister(aether::Register::Q1);
+  std::println("Q0.D[0] = {:.1f}, Q1.D[0] = {:.1f}", q0->d, q1->d);
+#endif
 }
 
 void x64_opcodes() {
@@ -42,6 +59,13 @@ void x64_opcodes() {
     std::println("RAX = {}", engine.getRegister(aether::Register::RAX)->u8);
   else
     std::println("Failed to execute: {}.", insn);
+
+  engine.emulate(assemble(&mx64, "cvtsi2sd %eax, %xmm0"));
+  engine.emulate(assemble(&mx64, "unpcklpd %xmm0, %xmm0"));
+  auto xmm0 = reinterpret_cast<const aether::RegisterValueSIMD *>(
+      engine.getRegister(aether::Register::XMM0));
+  std::println("XMM0.D[0] = {:.1f}, XMM0.D[1] = {:.1f}", xmm0->low.d,
+               xmm0->high.d);
 }
 
 } // namespace

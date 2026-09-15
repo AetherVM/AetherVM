@@ -187,6 +187,8 @@ uint64_t LoadRegValueRaw(void *state_ptr, const RemillRegister &reg) {
   const auto addr =
       reinterpret_cast<const uint8_t *>(state_ptr) + GetOffset(reg.name);
   const size_t num_bytes = (static_cast<size_t>(reg.size) + 7u) / 8u;
+  if (num_bytes > 8)
+    return reinterpret_cast<uint64_t>(addr);
 
   uint64_t val = 0;
   std::memcpy(&val, addr, num_bytes);
@@ -525,7 +527,7 @@ uint64_t RemillOperand::ID() const {
     abort();
   }
   return id | (((uint64_t)type) << 60) |
-         (((uint64_t)(action == kActionWrite)) << 60);
+         (((uint64_t)(action == kActionWrite)) << 63);
 }
 
 template <typename T> bool OpcodeHandler<T>::init() {
@@ -633,10 +635,15 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
     const_cast<char *>(insn.data() + insn.size())[0] = 0;
 
     newopc[0] = 0;
-    engine->diser.assemble(insn.data(), newopc);
-    if (!newopc[0]) {
-      // should never happend
-      abort();
+    if (insn.starts_with(".byte")) {
+      newopc[0] = 1;
+      newopc[1] = std::stol(insn.data() + 6, nullptr, 16);
+    } else {
+      engine->diser.assemble(insn.data(), newopc);
+      if (!newopc[0]) {
+        // should never happend
+        abort();
+      }
     }
     std::memcpy(&asmbin[binsz], &newopc[1], newopc[0]);
     binsz += newopc[0];
