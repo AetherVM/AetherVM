@@ -146,8 +146,8 @@ size_t offset_reg(Register reg) {
 size_t offset_reg(std::string_view reg) {
   State *state = nullptr;
 
-  // General Purpose 64-bit (x0 - x30)
-  if (reg.starts_with('x')) {
+  // General Purpose 64-bit (X0 - X30)
+  if (reg.starts_with('X')) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 30) {
@@ -155,8 +155,8 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // General Purpose 32-bit (w0 - w30) - alias to X registers
-  if (reg.starts_with('w')) {
+  // General Purpose 32-bit (W0 - W30) - alias to X registers
+  if (reg.starts_with('W')) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 30) {
@@ -164,8 +164,8 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // SIMD / Vector 128-bit (q0 - q31 or v0 - v31)
-  if (reg.starts_with('q') || reg.starts_with('v')) {
+  // SIMD / Vector 128-bit (Q0 - Q31 or V0 - V31)
+  if (reg.starts_with('Q') || reg.starts_with('V')) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 31) {
@@ -173,10 +173,10 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // SIMD sub-registers (d0-d31, s0-s31, h0-h31, b0-b31) - alias to SIMD
+  // SIMD sub-registers (D0-D31, S0-S31, H0-H31, B0-B31) - alias to SIMD
   // vectors
-  if (reg.starts_with('d') || reg.starts_with('s') || reg.starts_with('h') ||
-      reg.starts_with('b')) {
+  if (reg.starts_with('D') || reg.starts_with('S') || reg.starts_with('H') ||
+      reg.starts_with('B')) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 31) {
@@ -185,61 +185,61 @@ size_t offset_reg(std::string_view reg) {
   }
 
   // Special GPRs & Control Registers
-  if (reg == "sp" || reg == "wsp")
+  if (reg == "SP" || reg == "WSP")
     return (size_t)&state->gpr.sp;
-  if (reg == "pc")
+  if (reg == "PC")
     return (size_t)&state->gpr.pc;
-  if (reg == "xzr" || reg == "wzr")
+  if (reg == "XZR" || reg == "WZR")
     return 0; // Zero register read-only offset
 
   // System Registers (SR)
-  if (reg == "tpidr_el0")
+  if (reg == "TPIDR_EL0")
     return (size_t)&state->sr.tpidr_el0;
-  if (reg == "tpidrro_el0")
+  if (reg == "TPIDRRO_EL0")
     return (size_t)&state->sr.tpidrro_el0;
 
   // Status & Floating-Point Control Registers
-  if (reg == "nzcv")
+  if (reg == "NZCV")
     return (size_t)&state->nzcv;
-  if (reg == "fpcr")
+  if (reg == "FPCR")
     return (size_t)&state->fpcr;
-  if (reg == "fpsr")
+  if (reg == "FPSR")
     return (size_t)&state->fpsr;
 
   // Individual Condition Flags in SR
-  if (reg == "n")
+  if (reg == "N")
     return (size_t)&state->sr.n;
-  if (reg == "z")
+  if (reg == "Z")
     return (size_t)&state->sr.z;
-  if (reg == "c")
+  if (reg == "C")
     return (size_t)&state->sr.c;
-  if (reg == "v")
+  if (reg == "V")
     return (size_t)&state->sr.v;
 
   // Individual Cumulative Exception Flags in SR
-  if (reg == "ixc")
+  if (reg == "IXC")
     return (size_t)&state->sr.ixc;
-  if (reg == "ofc")
+  if (reg == "OFC")
     return (size_t)&state->sr.ofc;
-  if (reg == "ufc")
+  if (reg == "UFC")
     return (size_t)&state->sr.ufc;
-  if (reg == "idc")
+  if (reg == "IDC")
     return (size_t)&state->sr.idc;
-  if (reg == "ioc")
+  if (reg == "IOC")
     return (size_t)&state->sr.ioc;
-  if (reg == "dzc")
+  if (reg == "DZC")
     return (size_t)&state->sr.dzc;
 
   // Sleigh Flag State
-  if (reg == "ng")
+  if (reg == "NG")
     return (size_t)&state->sleigh_flags.NG;
-  if (reg == "zr")
+  if (reg == "ZR")
     return (size_t)&state->sleigh_flags.ZR;
-  if (reg == "cy")
+  if (reg == "CY")
     return (size_t)&state->sleigh_flags.CY;
-  if (reg == "ov")
+  if (reg == "OV")
     return (size_t)&state->sleigh_flags.OV;
-  if (reg == "shift_carry")
+  if (reg == "SHIFT_CARRY")
     return (size_t)&state->sleigh_flags.shift_carry;
 
   abort();

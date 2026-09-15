@@ -31,74 +31,74 @@ uint8_t *pagestart = nullptr, *pagecur = nullptr;
 
 // Shared operand caches
 std::vector<Operand> operands;
-// <id, ptr> of operand
-std::map<uint64_t, const Operand *> operandmap;
+// <id, index> of operand
+std::map<uint64_t, uint32_t> operandmap;
 
 // Register offset within the cpu state
 std::map<std::string, size_t> regoffs;
 
 void load_regoffs_aarch64(std::map<std::string, size_t> &regoffs) {
-  // General Purpose Registers (x0 - x30) and 32-bit aliases (w0 - w30)
+  // General Purpose Registers (X0 - X30) and 32-bit aliases (W0 - W30)
   for (int i = 0; i <= 30; ++i) {
     std::string num = std::to_string(i);
-    regoffs["x" + num] = aarch64::offset_reg("x" + num);
-    regoffs["w" + num] = aarch64::offset_reg("w" + num);
+    regoffs["X" + num] = aarch64::offset_reg("X" + num);
+    regoffs["W" + num] = aarch64::offset_reg("W" + num);
   }
 
   // Stack Pointer and Program Counter
-  regoffs["sp"] = aarch64::offset_reg("sp");
-  regoffs["wsp"] = aarch64::offset_reg("wsp");
-  regoffs["pc"] = aarch64::offset_reg("pc");
+  regoffs["SP"] = aarch64::offset_reg("SP");
+  regoffs["WSP"] = aarch64::offset_reg("WSP");
+  regoffs["PC"] = aarch64::offset_reg("PC");
 
-  // SIMD / Vector Registers (v0-v31, q0-q31, d0-d31, s0-s31, h0-h31, b0-b31)
+  // SIMD / Vector Registers (V0-V31, Q0-Q31, D0-D31, S0-S31, H0-H31, B0-B31)
   for (int i = 0; i < 32; ++i) {
     std::string num = std::to_string(i);
-    regoffs["v" + num] = aarch64::offset_reg("v" + num);
-    regoffs["q" + num] = aarch64::offset_reg("q" + num);
-    regoffs["d" + num] = aarch64::offset_reg("d" + num);
-    regoffs["s" + num] = aarch64::offset_reg("s" + num);
-    regoffs["h" + num] = aarch64::offset_reg("h" + num);
-    regoffs["b" + num] = aarch64::offset_reg("b" + num);
+    regoffs["V" + num] = aarch64::offset_reg("V" + num);
+    regoffs["Q" + num] = aarch64::offset_reg("Q" + num);
+    regoffs["D" + num] = aarch64::offset_reg("D" + num);
+    regoffs["S" + num] = aarch64::offset_reg("S" + num);
+    regoffs["H" + num] = aarch64::offset_reg("H" + num);
+    regoffs["B" + num] = aarch64::offset_reg("B" + num);
   }
 
   // System Registers
-  regoffs["tpidr_el0"] = aarch64::offset_reg("tpidr_el0");
-  regoffs["tpidrro_el0"] = aarch64::offset_reg("tpidrro_el0");
+  regoffs["TPIDR_EL0"] = aarch64::offset_reg("TPIDR_EL0");
+  regoffs["TPIDRRO_EL0"] = aarch64::offset_reg("TPIDRRO_EL0");
 
   // Condition Flags & Status Registers
-  regoffs["nzcv"] = aarch64::offset_reg("nzcv");
-  regoffs["fpcr"] = aarch64::offset_reg("fpcr");
-  regoffs["fpsr"] = aarch64::offset_reg("fpsr");
+  regoffs["NZCV"] = aarch64::offset_reg("NZCV");
+  regoffs["FPCR"] = aarch64::offset_reg("FPCR");
+  regoffs["FPSR"] = aarch64::offset_reg("FPSR");
 
   // Individual Condition Flags in SR
-  regoffs["n"] = aarch64::offset_reg("n");
-  regoffs["z"] = aarch64::offset_reg("z");
-  regoffs["c"] = aarch64::offset_reg("c");
-  regoffs["v"] = aarch64::offset_reg("v");
+  regoffs["N"] = aarch64::offset_reg("N");
+  regoffs["Z"] = aarch64::offset_reg("Z");
+  regoffs["C"] = aarch64::offset_reg("C");
+  regoffs["V"] = aarch64::offset_reg("V");
 
   // Individual Cumulative Exception Flags in SR
-  regoffs["ixc"] = aarch64::offset_reg("ixc");
-  regoffs["ofc"] = aarch64::offset_reg("ofc");
-  regoffs["ufc"] = aarch64::offset_reg("ufc");
-  regoffs["idc"] = aarch64::offset_reg("idc");
-  regoffs["ioc"] = aarch64::offset_reg("ioc");
-  regoffs["dzc"] = aarch64::offset_reg("dzc");
+  regoffs["IXC"] = aarch64::offset_reg("IXC");
+  regoffs["OFC"] = aarch64::offset_reg("OFC");
+  regoffs["UFC"] = aarch64::offset_reg("UFC");
+  regoffs["IDC"] = aarch64::offset_reg("IDC");
+  regoffs["IOC"] = aarch64::offset_reg("IOC");
+  regoffs["DZC"] = aarch64::offset_reg("DZC");
 
   // Sleigh Flag State
-  regoffs["ng"] = aarch64::offset_reg("ng");
-  regoffs["zr"] = aarch64::offset_reg("zr");
-  regoffs["cy"] = aarch64::offset_reg("cy");
-  regoffs["ov"] = aarch64::offset_reg("ov");
-  regoffs["shift_carry"] = aarch64::offset_reg("shift_carry");
+  regoffs["NG"] = aarch64::offset_reg("NG");
+  regoffs["ZR"] = aarch64::offset_reg("ZR");
+  regoffs["CY"] = aarch64::offset_reg("CY");
+  regoffs["OV"] = aarch64::offset_reg("OV");
+  regoffs["SHIFT_CARRY"] = aarch64::offset_reg("SHIFT_CARRY");
 }
 
 void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
   // Standard Named GPRs and sub-register aliases
   static constexpr std::string_view gpr_names[] = {
-      "rax", "eax", "ax",  "al",  "ah",  "rbx", "ebx", "bx",  "bl",  "bh",
-      "rcx", "ecx", "cx",  "cl",  "ch",  "rdx", "edx", "dx",  "dl",  "dh",
-      "rsi", "esi", "si",  "sil", "rdi", "edi", "di",  "dil", "rsp", "esp",
-      "sp",  "spl", "rbp", "ebp", "bp",  "bpl", "rip", "eip", "ip"};
+      "RAX", "EAX", "AX",  "AL",  "AH",  "RBX", "EBX", "BX",  "BL",  "BH",
+      "RCX", "ECX", "CX",  "CL",  "CH",  "RDX", "EDX", "DX",  "DL",  "DH",
+      "RSI", "ESI", "SI",  "SIL", "RDI", "EDI", "DI",  "DIL", "RSP", "ESP",
+      "SP",  "SPL", "RBP", "EBP", "BP",  "BPL", "RIP", "EIP", "IP"};
 
   for (std::string_view name : gpr_names) {
     regoffs[std::string(name)] = x86::offset_reg(name);
@@ -107,41 +107,41 @@ void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
   // Numbered GPRs (r8 - r15 and sub-register variants)
   for (int i = 8; i <= 15; ++i) {
     std::string num = std::to_string(i);
-    regoffs["r" + num] = x86::offset_reg("r" + num);
-    regoffs["r" + num + "d"] = x86::offset_reg("r" + num + "d");
-    regoffs["r" + num + "w"] = x86::offset_reg("r" + num + "w");
-    regoffs["r" + num + "b"] = x86::offset_reg("r" + num + "b");
+    regoffs["R" + num] = x86::offset_reg("R" + num);
+    regoffs["R" + num + "D"] = x86::offset_reg("R" + num + "D");
+    regoffs["R" + num + "W"] = x86::offset_reg("R" + num + "W");
+    regoffs["R" + num + "B"] = x86::offset_reg("R" + num + "B");
   }
 
   // Vectors (zmm, ymm, xmm)
   for (int i = 0; i < 32; ++i) {
     std::string num = std::to_string(i);
-    regoffs["zmm" + num] = x86::offset_reg("zmm" + num);
-    regoffs["ymm" + num] = x86::offset_reg("ymm" + num);
-    regoffs["xmm" + num] = x86::offset_reg("xmm" + num);
+    regoffs["ZMM" + num] = x86::offset_reg("ZMM" + num);
+    regoffs["YMM" + num] = x86::offset_reg("YMM" + num);
+    regoffs["XMM" + num] = x86::offset_reg("XMM" + num);
   }
 
   // AVX-512 Mask / K Registers
   for (int i = 0; i < 8; ++i) {
-    std::string reg_name = "k" + std::to_string(i);
+    std::string reg_name = "K" + std::to_string(i);
     regoffs[reg_name] = x86::offset_reg(reg_name);
   }
 
   // MMX & x87 Stack Registers
   for (int i = 0; i < 8; ++i) {
     std::string num = std::to_string(i);
-    regoffs["mm" + num] = x86::offset_reg("mm" + num);
-    regoffs["st" + num] = x86::offset_reg("st" + num);
+    regoffs["MM" + num] = x86::offset_reg("MM" + num);
+    regoffs["ST" + num] = x86::offset_reg("ST" + num);
   }
 
   // Flags & Segment Registers
   static constexpr std::string_view misc_names[] = {
-      "cf",      "pf",      "af",      "zf",      "sf",      "df",
-      "of",      "rflags",  "eflags",  "flags",   "ss",      "es",
-      "gs",      "fs",      "ds",      "cs",      "ss_base", "es_base",
-      "gs_base", "fs_base", "ds_base", "cs_base", "fpu_c0",  "fpu_c1",
-      "fpu_c2",  "fpu_c3",  "fpu_pe",  "fpu_ue",  "fpu_oe",  "fpu_ze",
-      "fpu_de",  "fpu_ie",  "fpu_sf"};
+      "CF",      "PF",      "AF",      "ZF",      "SF",      "DF",
+      "OF",      "RFLAGS",  "EFLAGS",  "FLAGS",   "SS",      "ES",
+      "GS",      "FS",      "DS",      "CS",      "SS_BASE", "ES_BASE",
+      "GS_BASE", "FS_BASE", "DS_BASE", "CS_BASE", "FPU_C0",  "FPU_C1",
+      "FPU_C2",  "FPU_C3",  "FPU_PE",  "FPU_UE",  "FPU_OE",  "FPU_ZE",
+      "FPU_DE",  "FPU_IE",  "FPU_SF"};
 
   for (std::string_view name : misc_names) {
     regoffs[std::string(name)] = x86::offset_reg(name);
@@ -597,7 +597,9 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
         break;
       }
       operands.push_back({*optr, val});
-      found = operandmap.insert(std::make_pair(id, &*operands.rbegin())).first;
+      found =
+          operandmap.insert(std::make_pair(id, (uint32_t)operands.size() - 1))
+              .first;
     }
     // set operands
     args.push_back(found->second);
@@ -656,10 +658,12 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
 #endif
 }
 
+#if AETHER_OS_DARWIN_IOS
 template <> void OpcodeHandler<uint8_t>::initPrebuilt() { abort(); }
 template <> void OpcodeHandler<uint16_t>::initPrebuilt() { abort(); }
 template <> void OpcodeHandler<uint64_t>::initPrebuilt() { abort(); }
 template <> void OpcodeHandler<uint128_var_t>::initPrebuilt() { abort(); }
+#endif
 
 template <typename T> bool OpcodeHandler<T>::interpRemill() const {
   uint64_t params[16];
@@ -667,7 +671,8 @@ template <typename T> bool OpcodeHandler<T>::interpRemill() const {
   params[0] = 0;               // memory
   params[1] = (uint64_t)state; // cpu state
   auto i = 2;
-  for (auto &opv : args) {
+  for (auto &opi : args) {
+    auto opv = &operands[opi];
     if (opv->val) {
       params[i++] = opv->val;
       continue;

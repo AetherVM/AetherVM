@@ -240,26 +240,26 @@ size_t offset_reg(std::string_view reg) {
   // GPR layout: volatile uint64_t _N followed by Reg field (stride of 0x10
   // bytes)
   static const std::pair<std::string_view, size_t> gpr_map[] = {
-      {"rax", (size_t)&state->gpr.rax}, {"eax", (size_t)&state->gpr.rax},
-      {"ax", (size_t)&state->gpr.rax},  {"al", (size_t)&state->gpr.rax},
-      {"ah", (size_t)&state->gpr.rax},  {"rbx", (size_t)&state->gpr.rbx},
-      {"ebx", (size_t)&state->gpr.rbx}, {"bx", (size_t)&state->gpr.rbx},
-      {"bl", (size_t)&state->gpr.rbx},  {"bh", (size_t)&state->gpr.rbx},
-      {"rcx", (size_t)&state->gpr.rcx}, {"ecx", (size_t)&state->gpr.rcx},
-      {"cx", (size_t)&state->gpr.rcx},  {"cl", (size_t)&state->gpr.rcx},
-      {"ch", (size_t)&state->gpr.rcx},  {"rdx", (size_t)&state->gpr.rdx},
-      {"edx", (size_t)&state->gpr.rdx}, {"dx", (size_t)&state->gpr.rdx},
-      {"dl", (size_t)&state->gpr.rdx},  {"dh", (size_t)&state->gpr.rdx},
-      {"rsi", (size_t)&state->gpr.rsi}, {"esi", (size_t)&state->gpr.rsi},
-      {"si", (size_t)&state->gpr.rsi},  {"sil", (size_t)&state->gpr.rsi},
-      {"rdi", (size_t)&state->gpr.rdi}, {"edi", (size_t)&state->gpr.rdi},
-      {"di", (size_t)&state->gpr.rdi},  {"dil", (size_t)&state->gpr.rdi},
-      {"rsp", (size_t)&state->gpr.rsp}, {"esp", (size_t)&state->gpr.rsp},
-      {"sp", (size_t)&state->gpr.rsp},  {"spl", (size_t)&state->gpr.rsp},
-      {"rbp", (size_t)&state->gpr.rbp}, {"ebp", (size_t)&state->gpr.rbp},
-      {"bp", (size_t)&state->gpr.rbp},  {"bpl", (size_t)&state->gpr.rbp},
-      {"rip", (size_t)&state->gpr.rip}, {"eip", (size_t)&state->gpr.rip},
-      {"ip", (size_t)&state->gpr.rip},
+      {"RAX", (size_t)&state->gpr.rax}, {"EAX", (size_t)&state->gpr.rax},
+      {"AX", (size_t)&state->gpr.rax},  {"AL", (size_t)&state->gpr.rax},
+      {"AH", (size_t)&state->gpr.rax},  {"RBX", (size_t)&state->gpr.rbx},
+      {"EBX", (size_t)&state->gpr.rbx}, {"BX", (size_t)&state->gpr.rbx},
+      {"BL", (size_t)&state->gpr.rbx},  {"BH", (size_t)&state->gpr.rbx},
+      {"RCX", (size_t)&state->gpr.rcx}, {"ECX", (size_t)&state->gpr.rcx},
+      {"CX", (size_t)&state->gpr.rcx},  {"CL", (size_t)&state->gpr.rcx},
+      {"CH", (size_t)&state->gpr.rcx},  {"RDX", (size_t)&state->gpr.rdx},
+      {"EDX", (size_t)&state->gpr.rdx}, {"DX", (size_t)&state->gpr.rdx},
+      {"DL", (size_t)&state->gpr.rdx},  {"DH", (size_t)&state->gpr.rdx},
+      {"RSI", (size_t)&state->gpr.rsi}, {"ESI", (size_t)&state->gpr.rsi},
+      {"SI", (size_t)&state->gpr.rsi},  {"SIL", (size_t)&state->gpr.rsi},
+      {"RDI", (size_t)&state->gpr.rdi}, {"EDI", (size_t)&state->gpr.rdi},
+      {"DI", (size_t)&state->gpr.rdi},  {"DIL", (size_t)&state->gpr.rdi},
+      {"RSP", (size_t)&state->gpr.rsp}, {"ESP", (size_t)&state->gpr.rsp},
+      {"SP", (size_t)&state->gpr.rsp},  {"SPL", (size_t)&state->gpr.rsp},
+      {"RBP", (size_t)&state->gpr.rbp}, {"EBP", (size_t)&state->gpr.rbp},
+      {"BP", (size_t)&state->gpr.rbp},  {"BPL", (size_t)&state->gpr.rbp},
+      {"RIP", (size_t)&state->gpr.rip}, {"EIP", (size_t)&state->gpr.rip},
+      {"IP", (size_t)&state->gpr.rip},
   };
 
   for (const auto &[name, off] : gpr_map) {
@@ -267,12 +267,12 @@ size_t offset_reg(std::string_view reg) {
       return off;
   }
 
-  // Numbered GPRs (r8 - r15 and sub-register variants)
-  if (reg.starts_with('r')) {
+  // Numbered GPRs (R8 - R15 and sub-register variants)
+  if (reg.starts_with('R')) {
     int num = 0;
     std::string_view num_sv = reg.substr(1);
-    if (num_sv.ends_with('d') || num_sv.ends_with('w') ||
-        num_sv.ends_with('b')) {
+    if (num_sv.ends_with('D') || num_sv.ends_with('W') ||
+        num_sv.ends_with('B')) {
       num_sv.remove_suffix(1);
     }
     auto res =
@@ -282,9 +282,9 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // 2. Vector Registers (zmm0-31, ymm0-31, xmm0-31)
-  if (reg.starts_with("zmm") || reg.starts_with("ymm") ||
-      reg.starts_with("xmm")) {
+  // 2. Vector Registers (ZMM0-31, YMM0-31, XMM0-31)
+  if (reg.starts_with("ZMM") || reg.starts_with("YMM") ||
+      reg.starts_with("XMM")) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 3, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num < (int)kNumVecRegisters) {
@@ -292,8 +292,8 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // 3. Opmask / Mask Registers (k0 - k7)
-  if (reg.starts_with('k')) {
+  // 3. Opmask / Mask Registers (K0 - K7)
+  if (reg.starts_with('K')) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 1, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 7) {
@@ -301,8 +301,8 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // 4. MMX Registers (mm0 - mm7)
-  if (reg.starts_with("mm")) {
+  // 4. MMX Registers (MM0 - MM7)
+  if (reg.starts_with("MM")) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 2, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 7) {
@@ -310,8 +310,8 @@ size_t offset_reg(std::string_view reg) {
     }
   }
 
-  // 5. x87 FPU Stack Registers (st0 - st7)
-  if (reg.starts_with("st")) {
+  // 5. x87 FPU Stack Registers (ST0 - ST7)
+  if (reg.starts_with("ST")) {
     int num = 0;
     auto res = std::from_chars(reg.data() + 2, reg.data() + reg.size(), num);
     if (res.ec == std::errc{} && num >= 0 && num <= 7) {
@@ -320,75 +320,75 @@ size_t offset_reg(std::string_view reg) {
   }
 
   // 6. Arithmetic Flags
-  if (reg == "cf")
+  if (reg == "CF")
     return (size_t)&state->aflag.cf;
-  if (reg == "pf")
+  if (reg == "PF")
     return (size_t)&state->aflag.pf;
-  if (reg == "af")
+  if (reg == "AF")
     return (size_t)&state->aflag.af;
-  if (reg == "zf")
+  if (reg == "ZF")
     return (size_t)&state->aflag.zf;
-  if (reg == "sf")
+  if (reg == "SF")
     return (size_t)&state->aflag.sf;
-  if (reg == "df")
+  if (reg == "DF")
     return (size_t)&state->aflag.df;
-  if (reg == "of")
+  if (reg == "OF")
     return (size_t)&state->aflag.of;
 
   // 7. Full RFlags / EFlags
-  if (reg == "rflags" || reg == "eflags" || reg == "flags") {
+  if (reg == "RFLAGS" || reg == "EFLAGS" || reg == "FLAGS") {
     return (size_t)&state->rflag;
   }
 
   // 8. Segment Selectors & Segment Base Addresses
-  if (reg == "ss")
+  if (reg == "SS")
     return (size_t)&state->seg.ss;
-  if (reg == "es")
+  if (reg == "ES")
     return (size_t)&state->seg.es;
-  if (reg == "gs")
+  if (reg == "GS")
     return (size_t)&state->seg.gs;
-  if (reg == "fs")
+  if (reg == "FS")
     return (size_t)&state->seg.fs;
-  if (reg == "ds")
+  if (reg == "DS")
     return (size_t)&state->seg.ds;
-  if (reg == "cs")
+  if (reg == "CS")
     return (size_t)&state->seg.cs;
 
-  if (reg == "ss_base")
+  if (reg == "SS_BASE")
     return (size_t)&state->addr.ss_base;
-  if (reg == "es_base")
+  if (reg == "ES_BASE")
     return (size_t)&state->addr.es_base;
-  if (reg == "gs_base")
+  if (reg == "GS_BASE")
     return (size_t)&state->addr.gs_base;
-  if (reg == "fs_base")
+  if (reg == "FS_BASE")
     return (size_t)&state->addr.fs_base;
-  if (reg == "ds_base")
+  if (reg == "DS_BASE")
     return (size_t)&state->addr.ds_base;
-  if (reg == "cs_base")
+  if (reg == "CS_BASE")
     return (size_t)&state->addr.cs_base;
 
   // 9. FPU Status Word Flags
-  if (reg == "fpu_c0")
+  if (reg == "FPU_C0")
     return (size_t)&state->sw.c0;
-  if (reg == "fpu_c1")
+  if (reg == "FPU_C1")
     return (size_t)&state->sw.c1;
-  if (reg == "fpu_c2")
+  if (reg == "FPU_C2")
     return (size_t)&state->sw.c2;
-  if (reg == "fpu_c3")
+  if (reg == "FPU_C3")
     return (size_t)&state->sw.c3;
-  if (reg == "fpu_pe")
+  if (reg == "FPU_PE")
     return (size_t)&state->sw.pe;
-  if (reg == "fpu_ue")
+  if (reg == "FPU_UE")
     return (size_t)&state->sw.ue;
-  if (reg == "fpu_oe")
+  if (reg == "FPU_OE")
     return (size_t)&state->sw.oe;
-  if (reg == "fpu_ze")
+  if (reg == "FPU_ZE")
     return (size_t)&state->sw.ze;
-  if (reg == "fpu_de")
+  if (reg == "FPU_DE")
     return (size_t)&state->sw.de;
-  if (reg == "fpu_ie")
+  if (reg == "FPU_IE")
     return (size_t)&state->sw.ie;
-  if (reg == "fpu_sf")
+  if (reg == "FPU_SF")
     return (size_t)&state->sw.sf;
 
   abort();

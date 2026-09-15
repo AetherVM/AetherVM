@@ -39,8 +39,8 @@ template <typename T> struct OpcodeHandler {
 
   T opcode;
   Type type;
-  std::vector<const Operand *> args; // operands
-  const void *impl;                  // implementation of this opcode
+  std::vector<uint32_t> args; // operands
+  const void *impl;           // implementation of this opcode
 
 #if AETHER_OS_DARWIN_IOS
   std::vector<std::pair<Register, Register>> gpr, fpu;
