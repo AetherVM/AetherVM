@@ -71,12 +71,14 @@ set(SOURCE_FILES
   src/Platform.cpp
   src/Utils.cpp
   src/UtilsAArch64.cpp
+  src/UtilsAArch64.h
   src/X86.cpp
   src/X86.h
 )
 if(AETHER_BUILD_IOS)
   list(APPEND SOURCE_FILES
     ios/OpcodeAArch64.cpp
+    ios/OpcodeEngine.cpp
   )
 endif()
 
@@ -157,6 +159,7 @@ else()
 endif()
 
 if(AETHER_BUILD_IOS)
+  target_include_directories(AetherVM PRIVATE src)
   target_compile_options(AetherVM PRIVATE
     -DAETHER_OS_DARWIN_IOS=1
   )
