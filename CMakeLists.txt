@@ -77,6 +77,7 @@ set(SOURCE_FILES
 )
 if(AETHER_BUILD_IOS)
   list(APPEND SOURCE_FILES
+    ios/build-opcode/ContextSwitch.cpp
     ios/OpcodeAArch64.cpp
     ios/OpcodeEngine.cpp
   )

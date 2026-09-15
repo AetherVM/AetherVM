@@ -734,7 +734,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
       asmbody +=
           std::format("ldr x{}, [x{}, #{:#x}]\n", (int)r - (int)Register::X0,
                       regcpu, aarch64::offset_reg(r));
-    else if (Register::Q0 <= r && r <= Register::Q30)
+    else if (Register::Q0 <= r && r <= Register::Q31)
       asmbody +=
           std::format("ldr q{}, [x{}, #{:#x}]\n", (int)r - (int)Register::Q0,
                       regcpu, aarch64::offset_reg(r));
@@ -748,7 +748,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
       asmbody +=
           std::format("str x{}, [x{}, #{:#x}]\n", (int)r - (int)Register::X0,
                       regcpu, aarch64::offset_reg(r));
-    else if (Register::Q0 <= r && r <= Register::Q30)
+    else if (Register::Q0 <= r && r <= Register::Q31)
       asmbody +=
           std::format("str q{}, [x{}, #{:#x}]\n", (int)r - (int)Register::Q0,
                       regcpu, aarch64::offset_reg(r));

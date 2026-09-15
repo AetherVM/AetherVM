@@ -271,6 +271,111 @@ size_t opcret_generator(std::string_view outpath) {
     i++;
   }
   log_print(Runtime, "Created {}.", outpath);
+
+  auto outdir = fs::path(outpath).parent_path();
+  auto ctxswitchsrc = outdir / "ContextSwitch.cpp";
+  std::ofstream outsrc{ctxswitchsrc};
+  outsrc << R"(// AetherVM - Lift. Instrument. Emulate. Recover.
+// Copyright (c) 2026 Jesse Liu <neoliu2011@gmail.com>
+// SPDX-License-Identifier: Apache License, Version 2.0
+// See LICENSE file in the root directory for full license text.
+
+#include <Orchestrator.h>
+
+)";
+  constexpr int max_gpr = 30, max_fpu = 32;
+  std::array<int, 7> cpu_regs{0, 1, 2, 3, 4, 5, 26};
+  for (int x = 0; x < max_gpr; x++) {
+    for (auto c : cpu_regs) {
+      outsrc << std::format(
+          R"(AETHER_NAKED void vm_opcode_chain_v2h_gpr{0}_cpu{1}(void) {{
+  AETHER_ASM("ldr x{0}, [x{1}, #{2:#x}]\n"
+    "" extract_handler_x16 ""
+    "br x16"
+  );
+}}
+
+AETHER_NAKED void vm_opcode_chain_h2v_gpr{0}_cpu{1}(void) {{
+  AETHER_ASM("str x{0}, [x{1}, #{2:#x}]\n"
+    "" extract_handler_x16 ""
+    "br x16"
+  );
+}}
+  
+)",
+          x, c, aarch64::offset_reg((Register)((int)Register::X0 + c)));
+    }
+  }
+  for (int q = 0; q < max_fpu; q++) {
+    for (auto c : cpu_regs) {
+      outsrc << std::format(
+          R"(AETHER_NAKED void vm_opcode_chain_v2h_fpu{0}_cpu{1}(void) {{
+  AETHER_ASM("ldr q{0}, [x{1}, #{2:#x}]\n"
+    "" extract_handler_x16 ""
+    "br x16"
+  );
+}}
+
+AETHER_NAKED void vm_opcode_chain_h2v_fpu{0}_cpu{1}(void) {{
+  AETHER_ASM("str q{0}, [x{1}, #{2:#x}]\n"
+    "" extract_handler_x16 ""
+    "br x16"
+  );
+}}
+  
+)",
+          q, c, aarch64::offset_reg((Register)((int)Register::X0 + c)));
+    }
+  }
+  for (int x = 0; x < max_gpr; x++) {
+    outsrc << std::format("const void *vm_opcode_chain_v2h_gpr{}[] = {{\n", x);
+    for (auto c : cpu_regs)
+      outsrc << std::format("\t(void *)&vm_opcode_chain_v2h_gpr{}_cpu{},\n", x,
+                            c);
+    outsrc << "};\n\n";
+  }
+  for (int x = 0; x < max_gpr; x++) {
+    outsrc << std::format("const void *vm_opcode_chain_h2v_gpr{}[] = {{\n", x);
+    for (auto c : cpu_regs)
+      outsrc << std::format("\t(void *)&vm_opcode_chain_h2v_gpr{}_cpu{},\n", x,
+                            c);
+    outsrc << "};\n\n";
+  }
+  outsrc << std::format("const void *vm_opcode_chain_v2h_xs[] = {{\n");
+  for (int x = 0; x < max_gpr; x++) {
+    outsrc << std::format("\t&vm_opcode_chain_v2h_gpr{}[0],\n", x);
+  }
+  outsrc << "};\n\n";
+  outsrc << std::format("const void *vm_opcode_chain_h2v_xs[] = {{\n");
+  for (int x = 0; x < max_gpr; x++) {
+    outsrc << std::format("\t&vm_opcode_chain_h2v_gpr{}[0],\n", x);
+  }
+  outsrc << "};\n\n";
+  for (int x = 0; x < max_fpu; x++) {
+    outsrc << std::format("const void *vm_opcode_chain_v2h_fpu{}[] = {{\n", x);
+    for (auto c : cpu_regs)
+      outsrc << std::format("\t(void *)&vm_opcode_chain_v2h_fpu{}_cpu{},\n", x,
+                            c);
+    outsrc << "};\n\n";
+  }
+  for (int x = 0; x < max_fpu; x++) {
+    outsrc << std::format("const void *vm_opcode_chain_h2v_fpu{}[] = {{\n", x);
+    for (auto c : cpu_regs)
+      outsrc << std::format("\t(void *)&vm_opcode_chain_h2v_fpu{}_cpu{},\n", x,
+                            c);
+    outsrc << "};\n\n";
+  }
+  outsrc << std::format("const void *vm_opcode_chain_v2h_qs[] = {{\n");
+  for (int x = 0; x < max_fpu; x++) {
+    outsrc << std::format("\t&vm_opcode_chain_v2h_fpu{}[0],\n", x);
+  }
+  outsrc << "};\n\n";
+  outsrc << std::format("const void *vm_opcode_chain_h2v_qs[] = {{\n");
+  for (int x = 0; x < max_fpu; x++) {
+    outsrc << std::format("\t&vm_opcode_chain_h2v_fpu{}[0],\n", x);
+  }
+  outsrc << "};\n\n";
+
   return i;
 }
 

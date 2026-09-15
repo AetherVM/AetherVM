@@ -18,8 +18,16 @@
 
 using RemillRegister = remill::Operand::Register;
 
+// prebuilt callable opcode
 extern const uint8_t arm64_native_start[];
 extern const uint8_t arm64_native_end[];
+
+// host to vm
+extern const void **vm_opcode_chain_h2v_xs[];
+extern const void **vm_opcode_chain_h2v_qs[];
+// vm to host
+extern const void **vm_opcode_chain_v2h_xs[];
+extern const void **vm_opcode_chain_v2h_qs[];
 
 namespace aether {
 
@@ -119,13 +127,6 @@ const void *vm_opcode_chain_save_x26[] = {
     IMPL_OPCODE_CHAIN_SAVE_X26(x4), IMPL_OPCODE_CHAIN_SAVE_X26(x5),
 };
 
-// host to vm
-extern const void **vm_opcode_chain_h2v_xs[];
-extern const void **vm_opcode_chain_h2v_qs[];
-// vm to host
-extern const void **vm_opcode_chain_v2h_xs[];
-extern const void **vm_opcode_chain_v2h_qs[];
-
 static AETHER_NAKED void execute_prebuilt(void) {
   AETHER_ASM("add x27, x27, #8\n"
              "" extract_handler_x16 ""
@@ -200,13 +201,16 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
   regcpu -= (int)Register::X0;
   if (regcpu != 26)
     chains.push_back(vm_opcode_chain_save_x26[regcpu]);
+  else
+    regcpu = 6; // index 6 is for X26
+  assert(regcpu <= 6);
 
   // load guest context
   for (auto r : regused) {
     if (Register::X0 <= r && r < Register::X30)
       chains.push_back(
           vm_opcode_chain_v2h_xs[(int)r - (int)Register::X0][regcpu]);
-    else if (Register::Q0 <= r && r <= Register::Q30)
+    else if (Register::Q0 <= r && r <= Register::Q31)
       chains.push_back(
           vm_opcode_chain_v2h_qs[(int)r - (int)Register::Q0][regcpu]);
   }
@@ -219,7 +223,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
     if (Register::X0 <= r && r < Register::X30)
       chains.push_back(
           vm_opcode_chain_h2v_xs[(int)r - (int)Register::X0][regcpu]);
-    else if (Register::Q0 <= r && r <= Register::Q30)
+    else if (Register::Q0 <= r && r <= Register::Q31)
       chains.push_back(
           vm_opcode_chain_h2v_qs[(int)r - (int)Register::Q0][regcpu]);
   }
