@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <Register.h>
 #include <Utils.h>
 
 #include <remill/Arch/Instruction.h>
@@ -42,7 +43,8 @@ template <typename T> struct OpcodeHandler {
   const void *impl;                  // implementation of this opcode
 
 #if AETHER_OS_DARWIN_IOS
-  std::map<uint8_t, uint8_t> gpr, fpu;
+  std::vector<std::pair<Register, Register>> gpr, fpu;
+  std::vector<const void *> chains;
 #endif
 
   auto operator<=>(const OpcodeHandler &right) const {

@@ -6,6 +6,7 @@
 #include "Lifter.h"
 #include "BinaryEngine.h"
 #include "Orchestrator.h"
+#include "UtilsAArch64.h"
 
 #include <Platform.h>
 #include <Register.h>
@@ -49,92 +50,6 @@ namespace aether {
 namespace aarch64 {
 
 size_t offset_reg(Register reg);
-
-std::set<aether::Register> parse_regused(const llvm::MCInst &inst) {
-  using namespace llvm;
-  std::set<uint8_t> xregs, qregs;
-  for (unsigned i = 0; i < inst.getNumOperands(); i++) {
-    auto opr = inst.getOperand(i);
-    if (!opr.isReg())
-      continue;
-    auto reg = opr.getReg();
-    if (reg == AArch64::WZR || reg == AArch64::XZR)
-      continue;
-    if (reg >= AArch64::W0 && reg <= AArch64::W30) {
-      xregs.insert(reg - AArch64::W0);
-    } else if (reg == AArch64::WSP) {
-      xregs.insert(31);
-    } else if (reg >= AArch64::W0_W1 && reg <= AArch64::W28_W29) {
-      xregs.insert(reg - AArch64::W0_W1 + 0);
-      xregs.insert(reg - AArch64::W0_W1 + 1);
-    } else if (reg >= AArch64::X0 && reg <= AArch64::X28) {
-      xregs.insert(reg - AArch64::X0);
-    } else if (reg >= AArch64::X0_X1 && reg <= AArch64::X26_X27) {
-      xregs.insert(reg - AArch64::X0_X1 + 0);
-      xregs.insert(reg - AArch64::X0_X1 + 1);
-    } else if (reg == AArch64::FP) {
-      xregs.insert(29);
-    } else if (reg == AArch64::LR) {
-      xregs.insert(30);
-    } else if (reg == AArch64::SP) {
-      xregs.insert(31);
-    } else if (reg >= AArch64::B0 && reg <= AArch64::B31) {
-      qregs.insert(reg - AArch64::B0);
-    } else if (reg >= AArch64::H0 && reg <= AArch64::H31) {
-      qregs.insert(reg - AArch64::H0);
-    } else if (reg >= AArch64::S0 && reg <= AArch64::S31) {
-      qregs.insert(reg - AArch64::S0);
-    } else if (reg >= AArch64::D0 && reg <= AArch64::D31) {
-      qregs.insert(reg - AArch64::D0);
-    } else if (reg >= AArch64::D0_D1 && reg <= AArch64::D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1 + 0);
-      qregs.insert(reg - AArch64::D0_D1 + 1);
-    } else if (reg >= AArch64::D0_D1_D2 && reg <= AArch64::D29_D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1_D2 + 0);
-      qregs.insert(reg - AArch64::D0_D1_D2 + 1);
-      qregs.insert(reg - AArch64::D0_D1_D2 + 2);
-    } else if (reg >= AArch64::D0_D1_D2_D3 && reg <= AArch64::D28_D29_D30_D31) {
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 0);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 1);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 2);
-      qregs.insert(reg - AArch64::D0_D1_D2_D3 + 3);
-    } else if (reg >= AArch64::Q0 && reg <= AArch64::Q31) {
-      qregs.insert(reg - AArch64::Q0);
-    } else if (reg >= AArch64::Q0_Q1 && reg <= AArch64::Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1 + 1);
-    } else if (reg >= AArch64::Q0_Q1_Q2 && reg <= AArch64::Q29_Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 1);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2 + 2);
-    } else if (reg >= AArch64::Q0_Q1_Q2_Q3 && reg <= AArch64::Q28_Q29_Q30_Q31) {
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 0);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 1);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 2);
-      qregs.insert(reg - AArch64::Q0_Q1_Q2_Q3 + 3);
-    } else if (reg >= AArch64::Z0 && reg <= AArch64::Z31) {
-      qregs.insert(reg - AArch64::Z0);
-    } else if (reg >= AArch64::Z0_Z1 && reg <= AArch64::Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1 + 1);
-    } else if (reg >= AArch64::Z0_Z1_Z2 && reg <= AArch64::Z29_Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 1);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2 + 2);
-    } else if (reg >= AArch64::Z0_Z1_Z2_Z3 && reg <= AArch64::Z28_Z29_Z30_Z31) {
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 0);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 1);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 2);
-      qregs.insert(reg - AArch64::Z0_Z1_Z2_Z3 + 3);
-    }
-  }
-  std::set<aether::Register> regused;
-  for (auto x : xregs)
-    regused.insert((aether::Register)((uint8_t)Register::X0 + x));
-  for (auto q : qregs)
-    regused.insert((aether::Register)((uint8_t)Register::Q0 + q));
-  return regused;
-}
 
 } // namespace aarch64
 
@@ -798,7 +713,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
     if (Register::X19 <= r && r < Register::X30)
       asmbody += std::format("str x{}, [sp, #-0x8]!\n",
                              19 + (int)r - (int)Register::X19);
-    else if (Register::Q8 <= r && r < Register::Q15)
+    else if (Register::Q8 <= r && r <= Register::Q15)
       asmbody += std::format("str d{}, [sp, #-0x8]!\n",
                              8 + (int)r - (int)Register::Q8);
   }
@@ -845,7 +760,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
     if (Register::X19 <= r && r < Register::X29)
       asmbody += std::format("ldr x{}, [sp], #0x8\n",
                              19 + (int)r - (int)Register::X19);
-    else if (Register::Q8 <= r && r < Register::Q15)
+    else if (Register::Q8 <= r && r <= Register::Q15)
       asmbody +=
           std::format("ldr d{}, [sp], #0x8\n", 8 + (int)r - (int)Register::Q8);
   }
