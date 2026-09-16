@@ -61,6 +61,12 @@ void load_regoffs_aarch64(std::map<std::string, size_t> &regoffs) {
     regoffs["B" + num] = aarch64::offset_reg("B" + num);
   }
 
+  // Special reused fields within AArch64 state
+  regoffs["XZR"] = aarch64::offset_reg("XZR");
+  regoffs["WZR"] = aarch64::offset_reg("WZR");
+  regoffs["BRANCH_TAKEN"] = aarch64::offset_reg("BRANCH_TAKEN");
+  regoffs["NEXT_PC"] = aarch64::offset_reg("NEXT_PC");
+
   // System Registers
   regoffs["TPIDR_EL0"] = aarch64::offset_reg("TPIDR_EL0");
   regoffs["TPIDRRO_EL0"] = aarch64::offset_reg("TPIDRRO_EL0");
@@ -146,6 +152,10 @@ void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
   for (std::string_view name : misc_names) {
     regoffs[std::string(name)] = x86::offset_reg(name);
   }
+
+  // Special reused fields within X86 state
+  regoffs["BRANCH_TAKEN"] = x86::offset_reg("BRANCH_TAKEN");
+  regoffs["NEXT_PC"] = x86::offset_reg("NEXT_PC");
 }
 
 // Mask off everything above the low `bits` bits of `val` (bits in [0, 64]).
@@ -503,7 +513,7 @@ uint64_t RemillOperand::ID() const {
                 std::min((size_t)8, shift_reg.reg.name.size()));
     id |= ((uint64_t)hash_value(
                {(char *)&shift_reg.shift_size,
-                (char *)shift_reg.extend_op + sizeof(shift_reg.extend_op)})
+                (char *)&shift_reg.extend_op + sizeof(shift_reg.extend_op)})
            << 24);
     break;
   case kTypeImmediate:
@@ -806,6 +816,8 @@ template <typename T> void OpcodeHandler<T>::execPrebuiltMapped() const {
 }
 
 template <typename T> bool OpcodeHandler<T>::interpret() const {
+  if (engine->eventConf.debug)
+    engine->dbgContext.insn_handler(&CPU.aarch64, CPU.pcptr[0], nullptr);
   switch (type) {
   case OHT_Remill:
     return interpRemill();
@@ -836,9 +848,10 @@ size_t OpcodeEngine::prefetch(std::span<const uint8_t> opcodes) {
   auto endptr = ptr + opcodes.size();
   auto arch = engine->remillArch.get();
   auto arm64 = arch->arch_name == remill::kArchAArch64LittleEndian;
+  auto insnsize = arm64 ? 4 : 16;
   remill::Instruction inst;
   while (ptr < endptr) {
-    std::ignore = arch->DecodeInstruction(0, {ptr, endptr}, inst,
+    std::ignore = arch->DecodeInstruction(0, {ptr, ptr + insnsize}, inst,
                                           arch->CreateInitialContext());
     if (inst.bytes.size() == 0) {
       ptr += arm64 ? 4 : 1;

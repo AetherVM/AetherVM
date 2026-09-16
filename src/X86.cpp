@@ -391,6 +391,12 @@ size_t offset_reg(std::string_view reg) {
   if (reg == "FPU_SF")
     return (size_t)&state->sw.sf;
 
+  // 10.Special reused fields within X86 state
+  if (reg == "BRANCH_TAKEN")
+    return (size_t)&state->gpr._0;
+  if (reg == "NEXT_PC")
+    return (size_t)&state->gpr._1;
+
   abort();
 }
 

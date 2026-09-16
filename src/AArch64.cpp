@@ -189,8 +189,14 @@ size_t offset_reg(std::string_view reg) {
     return (size_t)&state->gpr.sp;
   if (reg == "PC")
     return (size_t)&state->gpr.pc;
+
+  // Special reused fields within AArch64 state
   if (reg == "XZR" || reg == "WZR")
-    return 0; // Zero register read-only offset
+    return (size_t)&state->padding[0];
+  if (reg == "BRANCH_TAKEN")
+    return (size_t)&state->_0;
+  if (reg == "NEXT_PC")
+    return (size_t)&state->_1;
 
   // System Registers (SR)
   if (reg == "TPIDR_EL0")

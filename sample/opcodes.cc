@@ -68,6 +68,51 @@ void x64_opcodes() {
                xmm0->high.d);
 }
 
+void log_hash_elf(std::string_view arch, uint32_t hash) {
+  std::cout << std::setfill(' ') << std::setw(8) << arch << ": elf_hash = 0x"
+            << std::hex << hash << std::endl;
+}
+
+void execute_hash_elf(std::string_view script, std::string_view arch,
+                      std::string_view name, bool debug) {
+  // emulate the call to 'elf_hash(name.c_str())' in the obj file
+  auto dir = fs::absolute(script).parent_path();
+  auto obj = (dir / std::format("elf_hash.{}.obj", arch)).string();
+  auto bin = aether::New(obj.c_str());
+  auto &func = bin->functions().begin()->second;
+  bool arm64 = bin->archType() == aether::ARM64;
+
+  // the object file is compiled with MSVC ABI: clang -c elf_hash.c -target
+  // x86_64-msvc-windows -o elf_hash.x86_64.obj -O2
+  // so the first argument is passed in RCX register
+  auto argreg = arm64 ? aether::Register::X0 : aether::Register::RCX;
+  auto retreg = arm64 ? aether::Register::X0 : aether::Register::RAX;
+
+  aether::EventConfig eventcfg;
+  eventcfg.debug = debug;
+  aether::BinaryEngine engine{bin, eventcfg};
+  // initialize the first argument
+  engine.setRegister(argreg, {.str = name.data()});
+  // call elf_hash function using opcode emulation
+  auto opcstart = (const uint8_t *)bin->addrBuff(func.start);
+  auto opcend = opcstart + func.end - func.start;
+  // set the current pc=opcstart
+  engine.prefetch({opcstart, opcend});
+  constexpr uint32_t arm64_ret = 0xD65F03C0;
+  constexpr uint8_t x64_ret = 0xC3;
+  std::span<const uint8_t> insn_ret{arm64 ? (uint8_t *)&arm64_ret : &x64_ret,
+                                    arm64 ? sizeof(arm64_ret)
+                                          : sizeof(x64_ret)};
+  while (true) {
+    auto opc = engine.getRegister(aether::Register::PC)->u1p;
+    if (std::memcmp(insn_ret.data(), opc, insn_ret.size()) == 0)
+      break;
+    engine.emulate({opc, 16});
+  }
+  log_hash_elf(arch, engine.getRegister(retreg)->u4);
+  aether::Delete(bin);
+}
+
 } // namespace
 
 int main(int argc, const char *argv[]) {
@@ -76,5 +121,14 @@ int main(int argc, const char *argv[]) {
 
   aarch64_opcodes();
   x64_opcodes();
+
+  std::string_view symbol = "AetherVM";
+  log_hash_elf(
+      "host", elf_hash(reinterpret_cast<const unsigned char *>(symbol.data())));
+
+  bool debug = argc > 1 && strcmp(argv[1], "debug") == 0;
+  for (auto arch : {"arm64", "x86_64"})
+    execute_hash_elf(argv[0], arch, symbol, debug);
+
   return 0;
 }
