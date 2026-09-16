@@ -43,7 +43,8 @@ public:
   // before executing any emulation.
   size_t prefetch(std::span<const uint8_t> opcodes = {});
 
-  // Emulate one single opcode of arm64 or x86_64 directly.
+  // Emulate one single opcode of arm64 or x86_64 directly, it'll return false
+  // if m_machine is nullptr.
   bool emulate(uint8_t opcode);
   bool emulate(uint16_t opcode);
   bool emulate(uint32_t opcode);

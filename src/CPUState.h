@@ -40,7 +40,7 @@ struct CPUState {
   char *stack = nullptr;
   size_t stacksize = 0;
 
-  CPUState() {}
+  CPUState();
   ~CPUState() {}
 
   bool initContext(addr_t entry);

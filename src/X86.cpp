@@ -259,7 +259,7 @@ size_t offset_reg(std::string_view reg) {
       {"RBP", (size_t)&state->gpr.rbp}, {"EBP", (size_t)&state->gpr.rbp},
       {"BP", (size_t)&state->gpr.rbp},  {"BPL", (size_t)&state->gpr.rbp},
       {"RIP", (size_t)&state->gpr.rip}, {"EIP", (size_t)&state->gpr.rip},
-      {"IP", (size_t)&state->gpr.rip},
+      {"IP", (size_t)&state->gpr.rip},  {"PC", (size_t)&state->gpr.rip},
   };
 
   for (const auto &[name, off] : gpr_map) {

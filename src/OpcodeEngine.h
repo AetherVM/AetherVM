@@ -22,12 +22,6 @@ public:
   uint64_t ID() const;
 };
 
-struct Operand {
-  const RemillOperand op; // operand meta
-  // the raw value of this operand, 0 for memory or expression operand
-  uintptr_t val;
-};
-
 template <typename T> struct OpcodeHandler {
   // opcode handler type
   enum Type {
@@ -38,6 +32,7 @@ template <typename T> struct OpcodeHandler {
   };
 
   T opcode;
+  uint8_t oplen;
   Type type;
   std::vector<uint32_t> args; // operands
   const void *impl;           // implementation of this opcode

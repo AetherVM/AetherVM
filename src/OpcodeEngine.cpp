@@ -30,7 +30,7 @@ std::vector<uint64_t> dynhandlers;
 uint8_t *pagestart = nullptr, *pagecur = nullptr;
 
 // Shared operand caches
-std::vector<Operand> operands;
+std::vector<RemillOperand> operands;
 // <id, index> of operand
 std::map<uint64_t, uint32_t> operandmap;
 
@@ -228,7 +228,7 @@ uint64_t LiftShiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
 
   auto reg = LoadRegValueRaw(state_ptr, arch_reg);
   auto reg_size = static_cast<unsigned>(arch_reg.size);
-  const auto word_size = sizeof(uintptr_t);
+  const auto word_size = sizeof(uintptr_t) * 8;
 
   const uint64_t zero = 0;
   const uint64_t one = 1;
@@ -368,7 +368,7 @@ uint64_t LiftImmediateOperandRaw(const RemillOperand &arch_op) {
 // Compute a memory operand's effective address as a raw value.
 uint64_t LiftAddressOperandRaw(void *state_ptr, const RemillOperand &op) {
   auto &arch_addr = op.addr;
-  const auto word_size = sizeof(uintptr_t);
+  const auto word_size = sizeof(uintptr_t) * 8;
 
   auto addr = LoadWordRegValOrZeroRaw(state_ptr, arch_addr.base_reg, word_size);
   auto index =
@@ -497,6 +497,18 @@ inline void *GetState() {
   return IsARM64() ? (void *)&CPU.aarch64 : (void *)&CPU.x86;
 }
 
+inline void SetNextPC(uint8_t oplen) {
+  auto nextpc = CPU.pcptr[0] + oplen;
+  if (IsARM64())
+    CPU.aarch64._1 = nextpc;
+  else
+    CPU.x86.gpr._1 = nextpc;
+}
+
+inline void UpdatePC() {
+  CPU.pcptr[0] = IsARM64() ? CPU.aarch64._1 : CPU.x86.gpr._1;
+}
+
 } // namespace
 
 uint64_t RemillOperand::ID() const {
@@ -582,6 +594,7 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
   Handler key{hash_value(inst.function), nullptr};
   auto base = handlers->data();
   auto found = binary_search(base, handlers->size(), key);
+  oplen = (uint8_t)inst.bytes.size();
   if (is_exact(found, base, handlers->size(), key)) {
     // set implementation
     impl = found->impl;
@@ -591,24 +604,12 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
     init(inst);
     return;
   }
-  auto state = GetState();
   for (auto &op : inst.operands) {
     auto optr = (RemillOperand *)&op;
     auto id = optr->ID();
     auto found = operandmap.find(id);
     if (found == operandmap.end()) {
-      uintptr_t val = 0;
-      switch (op.type) {
-      case RemillOperand::kTypeRegister:
-        val = LiftRegisterOperandRaw(state, *optr);
-        break;
-      case RemillOperand::kTypeImmediate:
-        val = LiftImmediateOperandRaw(*optr);
-        break;
-      default:
-        break;
-      }
-      operands.push_back({*optr, val});
+      operands.push_back(*optr);
       found =
           operandmap.insert(std::make_pair(id, (uint32_t)operands.size() - 1))
               .first;
@@ -683,32 +684,36 @@ template <> void OpcodeHandler<uint128_var_t>::initPrebuilt() { abort(); }
 #endif
 
 template <typename T> bool OpcodeHandler<T>::interpRemill() const {
+  SetNextPC(oplen);
+
   uint64_t params[16];
   auto state = GetState();
   params[0] = 0;               // memory
   params[1] = (uint64_t)state; // cpu state
   auto i = 2;
   for (auto &opi : args) {
-    auto opv = &operands[opi];
-    if (opv->val) {
-      params[i++] = opv->val;
-      continue;
-    }
-    switch (opv->op.type) {
+    auto optr = &operands[opi];
+    switch (optr->type) {
+    case RemillOperand::kTypeRegister:
+      params[i++] = LiftRegisterOperandRaw(state, *optr);
+      break;
     case RemillOperand::kTypeShiftRegister:
-      params[i++] = LiftShiftRegisterOperandRaw(state, opv->op);
+      params[i++] = LiftShiftRegisterOperandRaw(state, *optr);
+      break;
+    case RemillOperand::kTypeImmediate:
+      params[i++] = LiftImmediateOperandRaw(*optr);
       break;
     case RemillOperand::kTypeAddress:
-      params[i++] = LiftAddressOperandRaw(state, opv->op);
+      params[i++] = LiftAddressOperandRaw(state, *optr);
       break;
     case RemillOperand::kTypeExpression:
     case RemillOperand::kTypeRegisterExpression:
     case RemillOperand::kTypeImmediateExpression:
     case RemillOperand::kTypeAddressExpression:
-      params[i++] = LiftExpressionOperandRaw(state, opv->op);
+      params[i++] = LiftExpressionOperandRaw(state, *optr);
       break;
     default:
-      return false;
+      abort();
     }
   }
 
@@ -754,6 +759,8 @@ template <typename T> bool OpcodeHandler<T>::interpRemill() const {
   default:
     return false;
   }
+
+  UpdatePC();
   return true;
 }
 
@@ -849,8 +856,8 @@ size_t OpcodeEngine::prefetch(std::span<const uint8_t> opcodes) {
   auto arch = engine->remillArch.get();
   auto arm64 = arch->arch_name == remill::kArchAArch64LittleEndian;
   auto insnsize = arm64 ? 4 : 16;
-  remill::Instruction inst;
   while (ptr < endptr) {
+    remill::Instruction inst;
     std::ignore = arch->DecodeInstruction(0, {ptr, ptr + insnsize}, inst,
                                           arch->CreateInitialContext());
     if (inst.bytes.size() == 0) {
@@ -902,9 +909,21 @@ size_t OpcodeEngine::prefetch(std::span<const uint8_t> opcodes) {
 }
 
 bool OpcodeEngine::emulate(std::span<const uint8_t> opcode) {
+  auto opsz = opcode.size();
+  if (IsARM64()) {
+    if (opsz < 4)
+      return false;
+    opsz = 4;
+  } else {
+    llvm::MCInst inst;
+    opsz = engine->diser.disassemble(opcode.data(), opsz, inst);
+    if (opsz == 0)
+      return false;
+  }
+
   uint32_t tmp4{0};
   uint64_t tmp8{0};
-  switch (opcode.size()) {
+  switch (opsz) {
   case 1:
     return emulate(*(uint8_t *)opcode.data());
   case 2:
@@ -929,7 +948,7 @@ bool OpcodeEngine::emulate(std::span<const uint8_t> opcode) {
     break;
   }
   uint128_var_t tmp16{0, 0};
-  std::memcpy(&tmp16, opcode.data(), std::min((size_t)16, opcode.size()));
+  std::memcpy(&tmp16, opcode.data(), opsz);
   return opc16.emulate(tmp16, readonly);
 }
 
