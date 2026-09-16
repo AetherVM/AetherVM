@@ -170,9 +170,6 @@ uintptr_t BinaryEngine::mappedAddress(addr_t addr, size_t size) {
 
 std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
   std::vector<uint8_t> buff;
-  if (!m_binary)
-    return buff;
-
   buff.resize(size);
   if (auto rtaddr = mappedAddress(addr, size)) {
     // read guest memory directly
@@ -187,9 +184,6 @@ std::vector<uint8_t> BinaryEngine::readMemory(addr_t addr, size_t size) {
 
 uint64_t BinaryEngine::readUInt64(addr_t addr) {
   uint64_t result = 0;
-  if (!m_binary)
-    return false;
-
   if (auto rtaddr = mappedAddress(addr, sizeof(result))) {
     // read guest memory directly
     std::memcpy(&result, reinterpret_cast<void *>(rtaddr), sizeof(result));
@@ -202,9 +196,6 @@ uint64_t BinaryEngine::readUInt64(addr_t addr) {
 }
 
 bool BinaryEngine::writeMemory(addr_t addr, std::span<const uint8_t> buff) {
-  if (!m_binary)
-    return false;
-
   if (auto rtaddr = mappedAddress(addr, buff.size())) {
     // write guest memory directly
     std::memcpy(reinterpret_cast<void *>(rtaddr), buff.data(), buff.size());

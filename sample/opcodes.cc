@@ -88,11 +88,17 @@ void execute_hash_elf(std::string_view script, std::string_view arch,
   auto argreg = arm64 ? aether::Register::X0 : aether::Register::RCX;
   auto retreg = arm64 ? aether::Register::X0 : aether::Register::RAX;
 
+  aether::MachineARM64 marm64;
+  aether::MachineX86 mx64;
+  auto mach = arm64 ? (aether::Machine *)&marm64 : (aether::Machine *)&mx64;
+
   aether::EventConfig eventcfg;
   eventcfg.debug = debug;
-  aether::BinaryEngine engine{bin, eventcfg};
+
+  aether::BinaryEngine engine{mach, eventcfg};
   // initialize the first argument
   engine.setRegister(argreg, {.str = name.data()});
+
   // call elf_hash function using opcode emulation
   auto opcstart = (const uint8_t *)bin->addrBuff(func.start);
   auto opcend = opcstart + func.end - func.start;
