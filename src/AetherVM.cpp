@@ -159,9 +159,6 @@ bool BinaryEngine::setRegister(void *rawcpu, Register reg, RegisterValue val) {
   // automatically set and managed by each thread cpu state
   if (reg == Register::SP)
     return false;
-  // don't support set pc value
-  if (reg == Register::PC)
-    return false;
 
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
   return engine->arch == ARM64 ? cpu->setRegisterAArch64(reg, val)

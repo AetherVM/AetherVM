@@ -396,6 +396,12 @@ size_t offset_reg(std::string_view reg) {
     return (size_t)&state->gpr._0;
   if (reg == "NEXT_PC")
     return (size_t)&state->gpr._1;
+  if (reg == "RETURN_PC")
+    return (size_t)&state->gpr._2;
+  if (reg == "SUPPRESS_WRITEBACK")
+    return (size_t)&state->gpr._3;
+  if (reg == "MONITOR")
+    return (size_t)&state->gpr._4;
 
   abort();
 }

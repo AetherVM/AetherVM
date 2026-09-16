@@ -66,6 +66,11 @@ void load_regoffs_aarch64(std::map<std::string, size_t> &regoffs) {
   regoffs["WZR"] = aarch64::offset_reg("WZR");
   regoffs["BRANCH_TAKEN"] = aarch64::offset_reg("BRANCH_TAKEN");
   regoffs["NEXT_PC"] = aarch64::offset_reg("NEXT_PC");
+  regoffs["RETURN_PC"] = aarch64::offset_reg("RETURN_PC");
+  regoffs["IGNORE_WRITE_TO_WZR"] = aarch64::offset_reg("IGNORE_WRITE_TO_WZR");
+  regoffs["IGNORE_WRITE_TO_XZR"] = aarch64::offset_reg("IGNORE_WRITE_TO_XZR");
+  regoffs["SUPPRESS_WRITEBACK"] = aarch64::offset_reg("SUPPRESS_WRITEBACK");
+  regoffs["MONITOR"] = aarch64::offset_reg("MONITOR");
 
   // System Registers
   regoffs["TPIDR_EL0"] = aarch64::offset_reg("TPIDR_EL0");
@@ -156,6 +161,9 @@ void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
   // Special reused fields within X86 state
   regoffs["BRANCH_TAKEN"] = x86::offset_reg("BRANCH_TAKEN");
   regoffs["NEXT_PC"] = x86::offset_reg("NEXT_PC");
+  regoffs["RETURN_PC"] = x86::offset_reg("RETURN_PC");
+  regoffs["SUPPRESS_WRITEBACK"] = x86::offset_reg("SUPPRESS_WRITEBACK");
+  regoffs["MONITOR"] = x86::offset_reg("MONITOR");
 }
 
 // Mask off everything above the low `bits` bits of `val` (bits in [0, 64]).
@@ -500,13 +508,13 @@ inline void *GetState() {
 inline void SetNextPC(uint8_t oplen) {
   auto nextpc = CPU.pcptr[0] + oplen;
   if (IsARM64())
-    CPU.aarch64._1 = nextpc;
+    CPU.aarch64.gpr._1 = nextpc;
   else
     CPU.x86.gpr._1 = nextpc;
 }
 
 inline void UpdatePC() {
-  CPU.pcptr[0] = IsARM64() ? CPU.aarch64._1 : CPU.x86.gpr._1;
+  CPU.pcptr[0] = IsARM64() ? CPU.aarch64.gpr._1 : CPU.x86.gpr._1;
 }
 
 } // namespace

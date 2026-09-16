@@ -194,9 +194,19 @@ size_t offset_reg(std::string_view reg) {
   if (reg == "XZR" || reg == "WZR")
     return (size_t)&state->padding[0];
   if (reg == "BRANCH_TAKEN")
-    return (size_t)&state->_0;
+    return (size_t)&state->gpr._0;
   if (reg == "NEXT_PC")
-    return (size_t)&state->_1;
+    return (size_t)&state->gpr._1;
+  if (reg == "RETURN_PC")
+    return (size_t)&state->gpr._2;
+  if (reg == "IGNORE_WRITE_TO_WZR")
+    return (size_t)&state->gpr._3;
+  if (reg == "IGNORE_WRITE_TO_XZR")
+    return (size_t)&state->gpr._4;
+  if (reg == "SUPPRESS_WRITEBACK")
+    return (size_t)&state->gpr._5;
+  if (reg == "MONITOR")
+    return (size_t)&state->gpr._6;
 
   // System Registers (SR)
   if (reg == "TPIDR_EL0")
