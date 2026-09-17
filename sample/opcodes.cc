@@ -162,30 +162,28 @@ void execute_endec(std::string_view script, std::string_view arch,
   aether::EventConfig eventcfg;
   eventcfg.debug = debug;
   aether::BinaryEngine engine{mach, eventcfg};
+  engine.setOpcodeBinary(bin);
   // initialize the arguments
   char result[64];
   engine.setRegister(argregs[0], {.str = text.data()});
   engine.setRegister(argregs[1], {.u8 = text.size()});
   engine.setRegister(argregs[2], {.str = &result[0]});
 
-  // prefect all the opcode in text section
+  auto ret_opcsz = arm64 ? sizeof(arm64_ret) : sizeof(x64_ret);
   auto sect = bin->addrSect(func->start);
   auto sectstart = (const uint8_t *)bin->addrBuff(sect->addr);
   auto sectend = sectstart + sect->size;
+  // prefect all the opcode in text section
   engine.prefetch({sectstart, sectend});
-  std::span<const uint8_t> insn_ret{arm64 ? (uint8_t *)&arm64_ret : &x64_ret,
-                                    arm64 ? sizeof(arm64_ret)
-                                          : sizeof(x64_ret)};
+
   // call elf_hash function
   auto fnstart = (const uint8_t *)bin->addrBuff(func->start);
-  auto fnend = fnstart + func->end - func->start;
   engine.setRegister(aether::Register::PC, {.u8 = (uint64_t)fnstart});
   while (true) {
-    auto opc = engine.getRegister(aether::Register::PC)->u1p;
-    if (fnstart <= opc && opc < fnend &&
-        std::memcmp(insn_ret.data(), opc, insn_ret.size()) == 0)
+    auto pc = engine.getRegister(aether::Register::PC);
+    if (pc->u8 + ret_opcsz == func->end)
       break;
-    engine.emulate({opc, 16});
+    engine.emulate({pc->u1p, 16});
   }
   log_result(arch, engine.getRegister(retreg)->str);
   aether::Delete(bin);

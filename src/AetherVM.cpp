@@ -47,8 +47,9 @@ size_t BinaryEngine::prefetch(std::span<const uint8_t> opcodes) {
   if (!m_machine)
     return 0;
 
+  auto count = engine->opcodeEmu.prefetch(opcodes);
   CPU.initContext((addr_t)opcodes.data());
-  return engine->opcodeEmu.prefetch(opcodes);
+  return count;
 }
 
 bool BinaryEngine::emulate(uint8_t opcode) {
@@ -82,7 +83,11 @@ bool BinaryEngine::emulate(uint64_t opcode) {
 bool BinaryEngine::emulate(std::span<const uint8_t> opcode) {
   if (!m_machine)
     return false;
-
+  if (m_binary_opcode && m_binary_opcode->isCode((addr_t)opcode.data())) {
+    auto fbuf = m_binary_opcode->addrBuff((addr_t)opcode.data());
+    if (fbuf)
+      opcode = {(uint8_t *)fbuf, opcode.size()};
+  }
   return engine->emulate(opcode) || EMU.emulate(opcode);
 }
 
@@ -151,6 +156,21 @@ const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
     cpu->pc.u8 = m_binary->imageBase() + cpu->pcptr[0] - memory.basePointer;
     return &cpu->pc;
   }
+  if (m_binary_opcode && reg == Register::PC) {
+    size_t filesz;
+    auto filebuf = (uint64_t)m_binary_opcode->fileBuffer(filesz);
+    for (auto &[addr, sect] : m_binary_opcode->sections()) {
+      auto sectbuf = filebuf + sect.foff;
+      auto sectend = sectbuf + sect.size;
+      if (sectbuf <= cpu->pcptr[0] && cpu->pcptr[0] < sectend) {
+        // opcode pointer to static virtual address
+        cpu->pc.u8 = addr + cpu->pcptr[0] - sectbuf;
+        return &cpu->pc;
+      }
+      if (sect.type != TEXT)
+        break;
+    }
+  }
   return engine->arch == ARM64 ? cpu->getRegisterAArch64(reg)
                                : cpu->getRegisterX86(reg);
 }
@@ -172,6 +192,8 @@ bool BinaryEngine::setRegister(void *rawcpu, Register reg,
                                : cpu->setRegisterSSE(reg, val);
 }
 
+void BinaryEngine::setOpcodeBinary(const Binary *bin) { m_binary_opcode = bin; }
+
 addr_t BinaryEngine::mapMemory(size_t size) {
   auto vmaddr = memory.guestAvailable();
   size = align_up(size, page_size());
@@ -179,6 +201,14 @@ addr_t BinaryEngine::mapMemory(size_t size) {
 }
 
 uintptr_t BinaryEngine::mappedAddress(addr_t addr, size_t size) {
+  if (m_binary_opcode) {
+    auto &lastsect = m_binary_opcode->sections().rbegin()->second;
+    if (m_binary_opcode->imageBase() <= addr &&
+        addr < lastsect.addr + lastsect.size) {
+      return (uintptr_t)m_binary_opcode->addrBuff(addr);
+    }
+  }
+
   auto rtaddr = memory.basePointer + addr;
   return memory.valid(rtaddr, size) ? rtaddr : 0;
 }

@@ -194,6 +194,10 @@ inline size_t GetOffset(const std::string &reg) {
   return found->second;
 }
 
+inline bool IsARM64() {
+  return engine->remillArch->arch_name == remill::kArchAArch64LittleEndian;
+}
+
 // Compute the address of a register within `State`, as a raw integer.
 inline uint64_t LoadRegAddressRaw(void *state_ptr, const RemillRegister &reg) {
   return reinterpret_cast<uint64_t>(reinterpret_cast<uint8_t *>(state_ptr) +
@@ -346,20 +350,26 @@ uint64_t LiftShiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
 // directly. For read operands, it returns the register's *value*.
 uint64_t LiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
   auto &arch_reg = op.reg;
+  bool ptr = RemillOperand::kActionWrite == op.action || op.size > 64;
 
-  if (RemillOperand::kActionWrite == op.action) {
-    return LoadRegAddressRaw(state_ptr, arch_reg);
+  if (!ptr && IsARM64()) {
+    switch (arch_reg.name[0]) {
+    // neon subregister type
+    case 'D':
+    case 'H':
+    case 'B':
+      ptr = true;
+      break;
+    case 'S':
+      ptr = arch_reg.name[1] != 'P'; // S0-S31 not SP
+      break;
+    default:
+      break;
+    }
   }
 
-  // NOTE: the original IR-based `LiftRegisterOperand` additionally handled
-  // vector-/array-typed registers (e.g. XMM/YMM/ZMM, x87 stack slots) with
-  // bitcasts through LLVM's type system, and adjusted width via the
-  // semantics function's declared LLVM argument type. In the raw calling
-  // convention there is no declared LLVM argument type to consult, so
-  // callers are expected to interpret the returned bits according to the
-  // operand's own `size`/register type; only up to 64-bit scalar registers
-  // are supported directly here (see `LoadRegValueRaw`).
-  return LoadRegValueRaw(state_ptr, arch_reg);
+  return ptr ? LoadRegAddressRaw(state_ptr, arch_reg)
+             : LoadRegValueRaw(state_ptr, arch_reg);
 }
 
 // Lift an immediate operand to a raw, correctly sign/zero-extended value.
@@ -497,20 +507,13 @@ uint64_t LiftExpressionOperandRaw(void *state_ptr, const RemillOperand &op) {
   return LiftExpressionOperandRecRaw(state_ptr, op.expr);
 }
 
-inline bool IsARM64() {
-  return engine->remillArch->arch_name == remill::kArchAArch64LittleEndian;
-}
-
 inline void *GetState() {
   return IsARM64() ? (void *)&CPU.aarch64 : (void *)&CPU.x86;
 }
 
 inline void SetNextPC(uint8_t oplen) {
-  auto nextpc = CPU.pcptr[0] + oplen;
-  if (IsARM64())
-    CPU.aarch64.gpr._1 = nextpc;
-  else
-    CPU.x86.gpr._1 = nextpc;
+  auto ptr = IsARM64() ? &CPU.aarch64.gpr._1 : &CPU.x86.gpr._1;
+  ptr[0] = CPU.pcptr[0] + oplen;
 }
 
 inline void UpdatePC() {

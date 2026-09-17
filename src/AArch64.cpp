@@ -192,7 +192,7 @@ size_t offset_reg(std::string_view reg) {
 
   // Special reused fields within AArch64 state
   if (reg == "XZR" || reg == "WZR")
-    return (size_t)&state->padding[0];
+    return (size_t)&state->_0;
   if (reg == "BRANCH_TAKEN")
     return (size_t)&state->gpr._0;
   if (reg == "NEXT_PC")

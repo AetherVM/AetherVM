@@ -113,6 +113,10 @@ public:
   bool setRegister(void *cpu, Register reg, RegisterValue val);
   bool setRegister(void *cpu, Register reg, RegisterValueSIMD val);
 
+  // Engine can use this instance to convert opcode pointer to static virtual
+  // address to help debugger processing PC value.
+  void setOpcodeBinary(const Binary *bin);
+
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement....
   virtual bool recursiveLoad() { return false; }
@@ -125,11 +129,14 @@ protected:
   void orchBinary(const Binary *bin, addr_t addend);
 
 protected:
-  // Make it directly visible for subclasses.
+  // The current emulating machine type.
   const Machine *m_machine = nullptr;
-  const Binary *m_binary = nullptr;
 
 private:
+  // For orchestrated mode.
+  const Binary *m_binary = nullptr;
+  // For opcode mode, it can be null.
+  const Binary *m_binary_opcode = nullptr;
   // Internal engine implementation.
   std::unique_ptr<BinaryEngineImpl> m_impl;
 };

@@ -11,13 +11,17 @@ namespace aether {
 thread_local CPUState CPU;
 
 CPUState::CPUState() {
-  stacksize = stack_size();
-  stack = new char[stacksize];
-
   std::memset(&aarch64, 0, std::max(sizeof(aarch64), sizeof(x86)));
 }
 
 bool CPUState::initContext(addr_t entry) {
+  if (!stack) {
+    stacksize = stack_size();
+    stack = new char[stacksize];
+    if (!stack)
+      return false;
+  }
+
   auto setRegister = [this](Register reg, RegisterValue val) {
     runtime->arch == ARM64 ? setRegisterAArch64(reg, val)
                            : setRegisterX86(reg, val);
