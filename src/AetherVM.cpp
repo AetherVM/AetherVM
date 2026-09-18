@@ -176,10 +176,6 @@ const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
 }
 
 bool BinaryEngine::setRegister(void *rawcpu, Register reg, RegisterValue val) {
-  // automatically set and managed by each thread cpu state
-  if (reg == Register::SP)
-    return false;
-
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
   return engine->arch == ARM64 ? cpu->setRegisterAArch64(reg, val)
                                : cpu->setRegisterX86(reg, val);
@@ -193,6 +189,12 @@ bool BinaryEngine::setRegister(void *rawcpu, Register reg,
 }
 
 void BinaryEngine::setOpcodeBinary(const Binary *bin) { m_binary_opcode = bin; }
+
+void BinaryEngine::watchDog(RegisterValue pc) {
+  // if user call this explicitly, then disable the internal watch dog call
+  engine->eventConf.debug = false;
+  engine->dbgContext.insn_handler(&CPU.aarch64, pc.u8, nullptr);
+}
 
 addr_t BinaryEngine::mapMemory(size_t size) {
   auto vmaddr = memory.guestAvailable();

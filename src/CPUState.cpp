@@ -59,6 +59,9 @@ const RegisterValue *CPUState::getRegisterAArch64(Register reg) {
   case PC:
     ptr = &aarch64.gpr.pc;
     break;
+  case ZERO:
+    ptr = &aarch64._0;
+    break;
   case X0:
     ptr = &aarch64.gpr.x0;
     break;
@@ -240,6 +243,9 @@ const RegisterValue *CPUState::getRegisterX86(Register reg) {
   switch (reg) {
   case RIP:
     ptr = &x86.gpr.rip;
+    break;
+  case ZERO:
+    ptr = (void *)&x86.gpr._10;
     break;
   case RAX:
     ptr = &x86.gpr.rax;

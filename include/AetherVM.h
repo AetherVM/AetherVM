@@ -117,6 +117,9 @@ public:
   // address to help debugger processing PC value.
   void setOpcodeBinary(const Binary *bin);
 
+  // Debug helper. Let the internal debugger process each pc before executing.
+  void watchDog(RegisterValue pc);
+
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement....
   virtual bool recursiveLoad() { return false; }
