@@ -73,9 +73,10 @@ struct EventConfig {
   uint64_t bridge : 1 = false;
   // debugger
   uint64_t debug : 1 = false;
+  uint64_t watchdog : 1 = true;
   uint64_t dbgport : 16 = 60807;
 
-  uint64_t reserved : 39 = 0;
+  uint64_t reserved : 38 = 0;
 };
 static_assert(sizeof(EventConfig) == sizeof(uint64_t));
 

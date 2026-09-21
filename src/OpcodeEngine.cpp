@@ -834,7 +834,7 @@ template <typename T> void OpcodeHandler<T>::execPrebuiltMapped() const {
 }
 
 template <typename T> bool OpcodeHandler<T>::interpret() const {
-  if (engine->eventConf.debug)
+  if (engine->eventConf.debug && engine->eventConf.watchdog)
     engine->dbgContext.insn_handler(&CPU.aarch64, CPU.pcptr[0], nullptr);
   switch (type) {
   case OHT_Remill:

@@ -118,7 +118,10 @@ public:
 
   // Engine can use this instance to convert opcode pointer to static virtual
   // address to help debugger processing PC value.
-  void setOpcodeBinary(const Binary *bin);
+  // If you'll call the watch dog manually later for your own debug workflow,
+  // then pass watchdog as false otherwise the debugger watch dog will be called
+  // automatically in debug mode.
+  void setOpcodeBinary(const Binary *bin, bool watchdog = true);
 
   // Debug helper. Let the internal debugger process each pc before executing.
   void watchDog(RegisterValue pc);

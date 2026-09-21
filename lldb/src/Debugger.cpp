@@ -566,7 +566,7 @@ struct DebuggingContext {
   MainLoop mainloop;
   AetherProcessManager manager;
   AetherDbgServer server;
-  bool detached = false;
+  std::atomic<bool> detached{false};
 
   DebuggingContext() : manager(mainloop), server(mainloop, manager) {}
 
@@ -574,6 +574,8 @@ struct DebuggingContext {
 } dbgContext;
 
 void thread_handler(void *cpu);
+
+void proc_detach() { dbgContext.detached.store(true); }
 
 void DebuggingContext::initialize(void *cpu) {
   auto connection = std::make_unique<ConnectionFileDescriptor>();
@@ -599,7 +601,10 @@ void DebuggingContext::initialize(void *cpu) {
     server.InitializeConnection(std::move(connection));
 
     // dispatch debug event process in a new thread
-    std::thread([]() { dbgContext.mainloop.Run(); }).detach();
+    std::thread([]() {
+      dbgContext.mainloop.Run();
+      proc_detach();
+    }).detach();
   } else {
     std::cerr << "Fatal error occurred when initializing aether debugger "
                  "server socket."
@@ -608,10 +613,8 @@ void DebuggingContext::initialize(void *cpu) {
   }
 }
 
-void proc_detach() { dbgContext.detached = true; }
-
 void thread_handler(void *cpu) {
-  if (dbgContext.detached)
+  if (dbgContext.detached.load())
     return;
 
   if (!dbgContext.proc) {
@@ -629,14 +632,14 @@ void thread_handler(void *cpu) {
 }
 
 void insn_handler(void *state, uintptr_t pc, const void *insn) {
-  if (dbgContext.detached)
+  if (dbgContext.detached.load())
     return;
 
   dbgContext.proc->WatchDog(pc);
 }
 
 void memory_handler(void *state, uintptr_t addr, size_t size, bool write) {
-  if (dbgContext.detached)
+  if (dbgContext.detached.load())
     return;
 
   dbgContext.proc->WatchDog(addr, size, write);

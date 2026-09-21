@@ -191,11 +191,12 @@ bool BinaryEngine::setRegister(void *rawcpu, Register reg,
                                : cpu->setRegisterSSE(reg, val);
 }
 
-void BinaryEngine::setOpcodeBinary(const Binary *bin) { m_binary_opcode = bin; }
+void BinaryEngine::setOpcodeBinary(const Binary *bin, bool watchdog) {
+  m_binary_opcode = bin;
+  engine->eventConf.watchdog = watchdog;
+}
 
 void BinaryEngine::watchDog(RegisterValue pc) {
-  // if user call this explicitly, then disable the internal watch dog call
-  engine->eventConf.debug = false;
   engine->dbgContext.insn_handler(&CPU.aarch64, pc.u8, nullptr);
 }
 
