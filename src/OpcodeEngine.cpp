@@ -925,7 +925,7 @@ bool OpcodeEngine::emulate(std::span<const uint8_t> opcode) {
     if (opsz < 4)
       return false;
     opsz = 4;
-  } else {
+  } else if (opsz >= 16) {
     llvm::MCInst inst;
     opsz = engine->diser.disassemble(opcode.data(), opsz, inst);
     if (opsz == 0)

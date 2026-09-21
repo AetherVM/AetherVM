@@ -136,8 +136,8 @@ bool BinaryEngine::runMain() { return false; }
 
 const void *BinaryEngine::makeExecutable(addr_t target) { return nullptr; }
 
-const RegisterValue *BinaryEngine::getRegister(Register reg) {
-  return getRegister(&CPU, reg);
+const RegisterValue *BinaryEngine::getRegister(Register reg, bool cvtpc) {
+  return getRegister(&CPU, reg, cvtpc);
 }
 
 bool BinaryEngine::setRegister(Register reg, RegisterValue val) {
@@ -148,27 +148,30 @@ bool BinaryEngine::setRegister(Register reg, RegisterValueSIMD val) {
   return setRegister(&CPU, reg, val);
 }
 
-const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg) {
+const RegisterValue *BinaryEngine::getRegister(void *rawcpu, Register reg,
+                                               bool cvtpc) {
   auto cpu = reinterpret_cast<CPUState *>(rawcpu);
-  if (m_binary && reg == Register::PC) {
-    // convert the runtime pc value to the binary one so that user can apply it
-    // to any static analysis environment like IDA/Cutter/etc.
-    cpu->pc.u8 = m_binary->imageBase() + cpu->pcptr[0] - memory.basePointer;
-    return &cpu->pc;
-  }
-  if (m_binary_opcode && reg == Register::PC) {
-    size_t filesz;
-    auto filebuf = (uint64_t)m_binary_opcode->fileBuffer(filesz);
-    for (auto &[addr, sect] : m_binary_opcode->sections()) {
-      auto sectbuf = filebuf + sect.foff;
-      auto sectend = sectbuf + sect.size;
-      if (sectbuf <= cpu->pcptr[0] && cpu->pcptr[0] < sectend) {
-        // opcode pointer to static virtual address
-        cpu->pc.u8 = addr + cpu->pcptr[0] - sectbuf;
-        return &cpu->pc;
+  if (reg == Register::PC && cvtpc) {
+    if (m_binary) {
+      // convert the runtime pc value to the binary one so that user can apply
+      // it to any static analysis environment like IDA/Cutter/etc.
+      cpu->pc.u8 = m_binary->imageBase() + cpu->pcptr[0] - memory.basePointer;
+      return &cpu->pc;
+    }
+    if (m_binary_opcode) {
+      size_t filesz;
+      auto filebuf = (uint64_t)m_binary_opcode->fileBuffer(filesz);
+      for (auto &[addr, sect] : m_binary_opcode->sections()) {
+        auto sectbuf = filebuf + sect.foff;
+        auto sectend = sectbuf + sect.size;
+        if (sectbuf <= cpu->pcptr[0] && cpu->pcptr[0] < sectend) {
+          // opcode pointer to static virtual address
+          cpu->pc.u8 = addr + cpu->pcptr[0] - sectbuf;
+          return &cpu->pc;
+        }
+        if (sect.type != TEXT)
+          break;
       }
-      if (sect.type != TEXT)
-        break;
     }
   }
   return engine->arch == ARM64 ? cpu->getRegisterAArch64(reg)

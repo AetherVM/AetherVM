@@ -10,9 +10,11 @@
 namespace aether {
 
 enum class Register : int {
+  // Pseudo zero
+  ZERO,
+
   // General: PC,SP,FP
   PC,
-  ZERO,
 
   // AArch64
   X0,

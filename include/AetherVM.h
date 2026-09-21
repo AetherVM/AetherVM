@@ -76,7 +76,10 @@ public:
   // thread, return nullptr if reg is not invalid for this instance.
   // If the high 64 bits is needed, convert the result to
   // <const RegisterValueSIMD *>
-  const RegisterValue *getRegister(Register reg);
+  // If you're managing pc value manually, then pass cvtpc as false otherwise
+  // the pc register value will be converted to rva within the belonging binary
+  // instance automatically.
+  const RegisterValue *getRegister(Register reg, bool cvtpc = true);
 
   // Set the value of a specified register for the calling thread.
   // Don't reset SP register which is automatically set for each thread.
@@ -109,7 +112,7 @@ public:
 public:
   // Get and set the register belonging to the specific VM thread cpu,
   // internally used by the debugger.
-  const RegisterValue *getRegister(void *cpu, Register reg);
+  const RegisterValue *getRegister(void *cpu, Register reg, bool cvtpc = true);
   bool setRegister(void *cpu, Register reg, RegisterValue val);
   bool setRegister(void *cpu, Register reg, RegisterValueSIMD val);
 
