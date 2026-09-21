@@ -45,10 +45,10 @@ bool CPUState::initContext(addr_t entry) {
 }
 
 void CPUState::freeContext() {
-  if (runtime->eventConf.debug)
+  if (runtime && runtime->eventConf.debug)
     runtime->dbgContext.thread_handler(nullptr);
-
-  delete[] stack;
+  if (stack)
+    delete[] stack;
   std::memset(static_cast<void *>(this), 0, sizeof(*this));
 }
 
