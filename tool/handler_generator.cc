@@ -58,6 +58,16 @@ void generate_handler(std::string_view remill, std::string_view arch,
             for (auto bits : {"_8", "_16", "_32", "_64"})
               isels.insert(nameprefix + bits);
           }
+        } else if (line.starts_with("DEF_COND_ISEL")) {
+          auto start = line.find('(') + 1;
+          auto end = line.find(')');
+          auto name = trim_string(line.substr(start, end - start));
+          auto comma = name.find(',');
+          auto nameprefix = std::string(name.substr(0, comma));
+          for (auto cond :
+               {"_GE", "_GT", "_LE", "_LT", "_EQ", "_NE", "_CS", "_CC", "_MI",
+                "_PL", "_VS", "_VC", "_HI", "_LS", "_AL"})
+            isels.insert(nameprefix + cond);
         }
       });
   }
