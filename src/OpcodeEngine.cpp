@@ -32,7 +32,7 @@ uint8_t *pagestart = nullptr, *pagecur = nullptr;
 // Shared operand caches
 std::vector<RemillOperand> operands;
 // <id, index> of operand
-std::map<uint128_var_t, uint32_t> operandmap;
+std::map<uint128_var_t, OperandInfo> operandmap;
 
 // Register offset within the cpu state
 std::map<std::string, size_t> regoffs;
@@ -348,26 +348,9 @@ uint64_t LiftShiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
 // For write operands, this returns the register's *address* within `State`
 // (as an integer) so the semantics function can store its result there
 // directly. For read operands, it returns the register's *value*.
-uint64_t LiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
+uint64_t LiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op,
+                                bool ptr) {
   auto &arch_reg = op.reg;
-  bool ptr = RemillOperand::kActionWrite == op.action || op.size > 64;
-
-  if (!ptr && IsARM64()) {
-    switch (arch_reg.name[0]) {
-    // neon subregister type
-    case 'D':
-    case 'H':
-    case 'B':
-      ptr = true;
-      break;
-    case 'S':
-      ptr = arch_reg.name[1] != 'P'; // S0-S31 not SP
-      break;
-    default:
-      break;
-    }
-  }
-
   return ptr ? LoadRegAddressRaw(state_ptr, arch_reg)
              : LoadRegValueRaw(state_ptr, arch_reg);
 }
@@ -522,7 +505,7 @@ inline void UpdatePC() {
 
 } // namespace
 
-uint128_var_t RemillOperand::ID() const {
+uint128_var_t RemillOperand::ID(bool pointer) const {
   using remill::Operand;
   uint128_var_t id{0, 0};
   switch (type) {
@@ -530,6 +513,7 @@ uint128_var_t RemillOperand::ID() const {
     break;
   case kTypeRegister:
     std::memcpy(&id, reg.name.data(), std::min((size_t)8, reg.name.size()));
+    id.low |= ((uint64_t)pointer << 31);
     break;
   case kTypeShiftRegister:
     std::memcpy(&id, shift_reg.reg.name.data(),
@@ -598,6 +582,16 @@ template <typename T> void OpcodeHandler<T>::init(remill::Instruction &inst) {
   }
 }
 
+llvm::Function *getInstructionFunction(llvm::Module *module,
+                                       std::string_view function) {
+  std::stringstream ss;
+  ss << "ISEL_" << function;
+  auto isel_name = ss.str();
+  auto isel = remill::FindGlobaVariable(module, isel_name);
+  auto sem = isel->getInitializer()->stripPointerCasts();
+  return llvm::dyn_cast_or_null<llvm::Function>(sem);
+}
+
 template <typename T>
 void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
   auto arch = engine->remillArch.get();
@@ -617,15 +611,23 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
     init(inst);
     return;
   }
+  auto iselfn =
+      getInstructionFunction(engine->remillSemantic.get(), inst.function);
+  auto inum = 2;
   for (auto &op : inst.operands) {
+    auto arg = remill::NthArgument(iselfn, inum++);
+    auto arg_type = arg->getType();
+    auto pointer = llvm::isa<llvm::PointerType>(arg_type);
     auto optr = (RemillOperand *)&op;
-    auto id = optr->ID();
+    auto id = optr->ID(pointer);
     auto found = operandmap.find(id);
     if (found == operandmap.end()) {
       operands.push_back(*optr);
-      found =
-          operandmap.insert(std::make_pair(id, (uint32_t)operands.size() - 1))
-              .first;
+      found = operandmap
+                  .insert(std::make_pair(
+                      id, OperandInfo{(uint32_t)operands.size() - 1,
+                                      (uint32_t)pointer}))
+                  .first;
     }
     // set operands
     args.push_back(found->second);
@@ -705,10 +707,10 @@ template <typename T> bool OpcodeHandler<T>::interpRemill() const {
   params[1] = (uint64_t)state; // cpu state
   auto i = 2;
   for (auto &opi : args) {
-    auto optr = &operands[opi];
+    auto optr = &operands[opi.index];
     switch (optr->type) {
     case RemillOperand::kTypeRegister:
-      params[i++] = LiftRegisterOperandRaw(state, *optr);
+      params[i++] = LiftRegisterOperandRaw(state, *optr, opi.pointer);
       break;
     case RemillOperand::kTypeShiftRegister:
       params[i++] = LiftShiftRegisterOperandRaw(state, *optr);

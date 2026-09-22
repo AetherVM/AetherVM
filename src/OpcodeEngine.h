@@ -19,7 +19,12 @@ namespace aether {
 
 class RemillOperand : public remill::Operand {
 public:
-  uint128_var_t ID() const;
+  uint128_var_t ID(bool pointer) const;
+};
+
+struct OperandInfo {
+  uint32_t index : 31;  // index to shared operands
+  uint32_t pointer : 1; // pointer or not for register type
 };
 
 template <typename T> struct OpcodeHandler {
@@ -34,8 +39,8 @@ template <typename T> struct OpcodeHandler {
   T opcode;
   uint8_t oplen;
   Type type;
-  std::vector<uint32_t> args; // operands
-  const void *impl;           // implementation of this opcode
+  std::vector<OperandInfo> args; // operands
+  const void *impl;              // implementation of this opcode
 
 #if AETHER_OS_DARWIN_IOS
   std::vector<std::pair<Register, Register>> gpr, fpu;
