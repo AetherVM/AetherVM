@@ -32,7 +32,7 @@ uint8_t *pagestart = nullptr, *pagecur = nullptr;
 // Shared operand caches
 std::vector<RemillOperand> operands;
 // <id, index> of operand
-std::map<uint64_t, uint32_t> operandmap;
+std::map<uint128_var_t, uint32_t> operandmap;
 
 // Register offset within the cpu state
 std::map<std::string, size_t> regoffs;
@@ -522,9 +522,9 @@ inline void UpdatePC() {
 
 } // namespace
 
-uint64_t RemillOperand::ID() const {
+uint128_var_t RemillOperand::ID() const {
   using remill::Operand;
-  uint64_t id = 0;
+  uint128_var_t id{0, 0};
   switch (type) {
   case kTypeInvalid:
     break;
@@ -534,33 +534,35 @@ uint64_t RemillOperand::ID() const {
   case kTypeShiftRegister:
     std::memcpy(&id, shift_reg.reg.name.data(),
                 std::min((size_t)8, shift_reg.reg.name.size()));
-    id |= ((uint64_t)hash_value(
-               {(char *)&shift_reg.shift_size,
-                (char *)&shift_reg.extend_op + sizeof(shift_reg.extend_op)})
-           << 24);
+    id.low |= ((uint64_t)hash_value(
+                   {(char *)&shift_reg.shift_size,
+                    (char *)&shift_reg.extend_op + sizeof(shift_reg.extend_op)})
+               << 24);
     break;
   case kTypeImmediate:
-    id |= ((imm.val << 5) >> 5);
-    id |= ((uint64_t)imm.is_signed << 59);
+    id.low = imm.val;
+    id.high = imm.is_signed;
     break;
   case kTypeAddress:
-    id |= hash_value(addr.segment_base_reg.name + addr.base_reg.name +
-                     addr.index_reg.name);
-    id ^= ((uint64_t)(uint32_t)hash_value(
-               {(char *)&addr.scale, (char *)&addr.kind + sizeof(addr.kind)})
-           << 28);
+    id.low = hash_value(addr.segment_base_reg.name + addr.base_reg.name +
+                        addr.index_reg.name);
+    id.high =
+        ((uint64_t)(uint32_t)hash_value(
+             {(char *)&addr.scale, (char *)&addr.kind + sizeof(addr.kind)})
+         << 28);
     break;
   case kTypeExpression:
   case kTypeRegisterExpression:
   case kTypeImmediateExpression:
   case kTypeAddressExpression:
-    id |= (uint64_t)expr;
+    id.low = (uint64_t)expr;
     break;
   default:
     abort();
   }
-  return id | (((uint64_t)type) << 60) |
-         (((uint64_t)(action == kActionWrite)) << 63);
+  id.high |=
+      ((((uint64_t)type) << 60) | (((uint64_t)(action == kActionWrite)) << 63));
+  return id;
 }
 
 template <typename T> bool OpcodeHandler<T>::init() {

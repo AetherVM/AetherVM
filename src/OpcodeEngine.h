@@ -19,7 +19,7 @@ namespace aether {
 
 class RemillOperand : public remill::Operand {
 public:
-  uint64_t ID() const;
+  uint128_var_t ID() const;
 };
 
 template <typename T> struct OpcodeHandler {
