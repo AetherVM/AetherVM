@@ -248,6 +248,9 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
   llvm::MCInst inst;
   auto oplen =
       engine->diser.disassemble((uint8_t *)&opcode, sizeof(opcode), inst);
+  if (initMCInst(inst))
+    return;
+
   type = OHT_Prebuit;
   if (!oplen) {
     impl = (void *)&abort;

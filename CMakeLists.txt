@@ -64,6 +64,7 @@ set(SOURCE_FILES
   src/Lifter.h
   src/Memory.cpp
   src/Memory.h
+  src/OpcodeAArch64.cpp
   src/OpcodeEngine.cpp
   src/OpcodeEngine.h
   src/Orchestrator.cpp

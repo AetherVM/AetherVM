@@ -634,6 +634,13 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
   }
 }
 
+template <typename T> bool OpcodeHandler<T>::initMCInst(llvm::MCInst &inst) {
+  if (IsARM64())
+    return initMCInstARM64(inst);
+
+  return false;
+}
+
 template <typename T> void OpcodeHandler<T>::initDynamic() {
 #if AETHER_OS_DARWIN_IOS
   abort();
@@ -641,6 +648,9 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
   llvm::MCInst inst;
   auto oplen =
       engine->diser.disassemble((uint8_t *)&opcode, sizeof(opcode), inst);
+  if (initMCInst(inst))
+    return;
+
   type = OHT_Dynamic;
   if (!oplen) {
     impl = (void *)&abort;
@@ -843,6 +853,12 @@ template <typename T> bool OpcodeHandler<T>::interpret() const {
   switch (type) {
   case OHT_Remill:
     return interpRemill();
+  case OHT_MCInst:
+    if (IsARM64())
+      interpMCInstARM64();
+    else
+      abort();
+    break;
   case OHT_Dynamic:
     execDynamic();
     break;

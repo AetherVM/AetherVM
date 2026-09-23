@@ -15,6 +15,10 @@
 #include <span>
 #include <vector>
 
+namespace llvm {
+class MCInst;
+}
+
 namespace aether {
 
 class RemillOperand : public remill::Operand {
@@ -31,6 +35,7 @@ template <typename T> struct OpcodeHandler {
   // opcode handler type
   enum Type {
     OHT_Remill,         // interpreted by remill
+    OHT_MCInst,         // interpreted by OpcodeHandler
     OHT_Dynamic,        // dynamically generated on page-wx system
     OHT_Prebuit,        // prebuilt handlers on no-page-wx system like iOS
     OHT_PrebuiltMapped, // prebuilt handlers with register mapped
@@ -58,9 +63,12 @@ template <typename T> struct OpcodeHandler {
 
 private:
   void initRemill(remill::Instruction &inst);
+  bool initMCInst(llvm::MCInst &inst);
+  bool initMCInstARM64(llvm::MCInst &inst);
   void initDynamic();
   void initPrebuilt();
   bool interpRemill() const;
+  void interpMCInstARM64() const;
   void execDynamic() const;
   void execPrebuilt() const;
   void execPrebuiltMapped() const;
