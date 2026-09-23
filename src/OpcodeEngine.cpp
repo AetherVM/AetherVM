@@ -876,8 +876,7 @@ size_t OpcodeEngine::prefetch(std::span<const uint8_t> opcodes) {
     std::ignore = arch->DecodeInstruction(0, {ptr, ptr + insnsize}, inst,
                                           arch->CreateInitialContext());
     if (inst.bytes.size() == 0) {
-      ptr += arm64 ? 4 : 1;
-      continue;
+      inst.bytes = std::string{ptr, ptr + (arm64 ? 4 : 1)};
     }
 
     uint32_t tmp4{0};
