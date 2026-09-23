@@ -109,6 +109,12 @@ public:
   // guest code.
   int registerCallback(EventCallback callback);
 
+  // If a child thread will run under this binary engine instance, then all the
+  // emulate/execute operations must be between this enter/leave thread pair so
+  // that it can allocate and deallocate thread dependent resources.
+  void enterThread();
+  void leaveThread();
+
 public:
   // Get and set the register belonging to the specific VM thread cpu,
   // internally used by the debugger.

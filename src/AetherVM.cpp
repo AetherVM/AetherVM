@@ -319,4 +319,11 @@ void BinaryEngine::orchBinary(const Binary *bin, addr_t addend) {
   Orchestrator::inst()->encode(bin, addend, engine->eventConf);
 }
 
+void BinaryEngine::enterThread() {
+  CPU.runtime = engine;
+  CPU.initContext(0);
+}
+
+void BinaryEngine::leaveThread() { CPU.freeContext(); }
+
 } // namespace aether
