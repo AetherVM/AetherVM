@@ -39,8 +39,6 @@ public:
 
   // Prefetch and cache some opcodes so that later emulation can run faster, it
   // can be empty, the return value is the number of prefetched instructions.
-  // Each new thread should call it to initialize the internal CPU context
-  // before executing any emulation.
   size_t prefetch(std::span<const uint8_t> opcodes = {});
 
   // Emulate one single opcode of arm64 or x86_64 directly, it'll return false

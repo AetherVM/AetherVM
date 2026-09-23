@@ -44,10 +44,12 @@ BinaryEngineImpl::BinaryEngineImpl(ArchType type, FileType os, EventConfig cfg,
   remillArch = remill::Arch::Get(llvmContext, os_name, arch_name);
   remillSemantic = remill::LoadArchSemantics(
       remillArch.get(), {fs::path(self_path()).parent_path() / "bitcode"});
-  CPU.runtime = this;
   // remove all the handlers' definition as we have built them into AetherVM
   // itself, and rename ISEL handler to the final one we need
   Lifter::resetSemantic(*remillSemantic);
+
+  CPU.runtime = this;
+  CPU.initContext(0);
 
   // make it readonly so that each thread can share its handlers
   opcodeEmu.readonly = true;
@@ -75,8 +77,8 @@ static void *retaddr_x86() {
 }
 
 bool BinaryEngineImpl::startVM(addr_t entry) {
-  if (!CPU.initContext(entry))
-    return false;
+  // reset cpu context
+  CPU.initContext(entry);
 
   auto retaddr = arch == ARM64 ? retaddr_aarch64 : retaddr_x86;
   auto state = arch == ARM64 ? (void *)&CPU.aarch64 : (void *)&CPU.x86;

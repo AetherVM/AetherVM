@@ -47,9 +47,7 @@ size_t BinaryEngine::prefetch(std::span<const uint8_t> opcodes) {
   if (!m_machine)
     return 0;
 
-  auto count = engine->opcodeEmu.prefetch(opcodes);
-  CPU.initContext((addr_t)opcodes.data());
-  return count;
+  return engine->opcodeEmu.prefetch(opcodes);
 }
 
 bool BinaryEngine::emulate(uint8_t opcode) {
