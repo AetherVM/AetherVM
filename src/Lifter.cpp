@@ -711,10 +711,10 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
   // save host context
   for (auto r : regused) {
     if (Register::X19 <= r && r < Register::X30)
-      asmbody += std::format("str x{}, [sp, #-0x8]!\n",
+      asmbody += std::format("str x{}, [sp, #-0x10]!\n",
                              19 + (int)r - (int)Register::X19);
     else if (Register::Q8 <= r && r <= Register::Q15)
-      asmbody += std::format("str d{}, [sp, #-0x8]!\n",
+      asmbody += std::format("str d{}, [sp, #-0x10]!\n",
                              8 + (int)r - (int)Register::Q8);
   }
 
@@ -758,11 +758,11 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     auto r = *rit;
     if (Register::X19 <= r && r < Register::X29)
-      asmbody += std::format("ldr x{}, [sp], #0x8\n",
+      asmbody += std::format("ldr x{}, [sp], #0x10\n",
                              19 + (int)r - (int)Register::X19);
     else if (Register::Q8 <= r && r <= Register::Q15)
       asmbody +=
-          std::format("ldr d{}, [sp], #0x8\n", 8 + (int)r - (int)Register::Q8);
+          std::format("ldr d{}, [sp], #0x10\n", 8 + (int)r - (int)Register::Q8);
   }
 
   // update pc

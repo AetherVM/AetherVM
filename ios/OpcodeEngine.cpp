@@ -35,12 +35,12 @@ namespace aarch64 {
 
 #define IMPL_OPCODE_CHAIN_STR_LDR(n)                                           \
   AETHER_NAKED void vm_opcode_chain_str_##n(void) {                            \
-    AETHER_ASM("str " #n ", [sp, #-0x8]!\n"                                    \
+    AETHER_ASM("str " #n ", [sp, #-0x10]!\n"                                   \
                "" extract_handler_x16 ""                                       \
                "br x16\n");                                                    \
   }                                                                            \
   AETHER_NAKED void vm_opcode_chain_ldr_##n(void) {                            \
-    AETHER_ASM("ldr " #n ", [sp], #0x8\n"                                      \
+    AETHER_ASM("ldr " #n ", [sp], #0x10\n"                                     \
                "" extract_handler_x16 ""                                       \
                "br x16\n");                                                    \
   }
