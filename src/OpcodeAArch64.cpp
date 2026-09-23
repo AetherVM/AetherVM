@@ -32,7 +32,7 @@ inline void interp_STPDpre(llvm::MCInst &inst) {
   //  2: <MCOperand Reg:56>
   //  3: <MCOperand Reg:8>
   //  4: <MCOperand Imm:-14>>
-  //  I: stp dm, dn, [sp, #imm]
+  //  I: stp dm, dn, [sp, #imm]!
   auto idm = inst.getOperand(1).getReg() - AArch64::D0;
   auto idn = inst.getOperand(2).getReg() - AArch64::D0;
   auto imm = inst.getOperand(4).getImm() * 8;
@@ -43,6 +43,24 @@ inline void interp_STPDpre(llvm::MCInst &inst) {
   std::memcpy((void *)(sp + 0), dm, 8);
   std::memcpy((void *)(sp + 8), dn, 8);
   CPU.setRegisterAArch64(Register::SP, {.s8 = sp});
+}
+
+inline void interp_STPQi(llvm::MCInst &inst) {
+  // <MCInst 7578
+  //  0: <MCOperand Reg:144>
+  //  1: <MCOperand Reg:144>
+  //  2: <MCOperand Reg:8>
+  //  3: <MCOperand Imm:12>>
+  //  I: stp qm, qn, [sp, #imm]
+  auto iqm = inst.getOperand(0).getReg() - AArch64::Q0;
+  auto iqn = inst.getOperand(1).getReg() - AArch64::Q0;
+  auto imm = inst.getOperand(3).getImm() * 16;
+  auto qm = CPU.getRegisterAArch64((Register)((int)Register::Q0 + iqm));
+  auto qn = CPU.getRegisterAArch64((Register)((int)Register::Q0 + iqn));
+  auto sp = CPU.getRegisterAArch64(Register::SP)->s8;
+  sp += (int64_t)imm;
+  std::memcpy((void *)(sp + 0), qm, 16);
+  std::memcpy((void *)(sp + 8), qn, 16);
 }
 
 } // namespace
@@ -74,6 +92,9 @@ template <typename T> void OpcodeHandler<T>::interpMCInstARM64() const {
   switch (inst.getOpcode()) {
   case AArch64::STPDpre:
     interp_STPDpre(inst);
+    break;
+  case AArch64::STPQi:
+    interp_STPQi(inst);
     break;
   default:
     abort();
