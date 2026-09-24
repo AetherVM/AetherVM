@@ -325,3 +325,18 @@ void BinaryEngine::enterThread() {
 void BinaryEngine::leaveThread() { CPU.freeContext(); }
 
 } // namespace aether
+
+namespace google {
+extern void (*gflags_exitfunc)(int);
+}
+
+namespace {
+
+void gflags_nop_exit(int) {}
+
+struct GlobalInit {
+  // disable remill's gflags exiting our program for multiple flags...
+  GlobalInit() { google::gflags_exitfunc = &gflags_nop_exit; }
+} globalInit;
+
+} // namespace

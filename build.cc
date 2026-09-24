@@ -102,10 +102,13 @@ struct BuildConfig {
   std::string this_root;
   std::string build_root;
   std::string build_type = "Release";
+  bool icpp;
 
   BuildConfig(int argc, const char *argv[]) {
     if (argc > 1)
       build_type = argv[1];
+
+    icpp = fs::path(argv[0]).stem() == "build-icpp";
   }
 
   bool build_prepare(const fs::path &root) {
@@ -115,10 +118,9 @@ struct BuildConfig {
       build_type = "RelWithDebInfo";
 #endif
 
-    auto build_dir_name = std::format("build-{}", build_type);
     auto aebi_root = root.parent_path() / "AetherBinary";
     auto llvm = aebi_root / "build-llvm/install";
-    auto aebi = aebi_root / build_dir_name / "install";
+    auto aebi = aebi_root / std::format("build-{}/install", build_type);
     if (!fs::exists(llvm)) {
       std::println(
           R"(The following paths should exist, you can clone and build https://github.com/AetherVM/AetherBinary to generate them:
@@ -130,7 +132,9 @@ struct BuildConfig {
     install_llvm = llvm.generic_string();
     install_aebi = aebi.generic_string();
     this_root = root.generic_string();
-    build_root = (root / build_dir_name).generic_string();
+    build_root =
+        (root / std::format("build-{}{}", icpp ? "icpp-" : "", build_type))
+            .generic_string();
     return true;
   }
 
@@ -261,7 +265,7 @@ struct BuildConfig {
         "-DCMAKE_INSTALL_PREFIX={} "
         "-DLLVM_PROJECT_ROOT={} "
         "-DLLVM_BUILD_PATH={} "
-        "-DICPP_PATH={} "
+        "-DICPP_PATH={} {} "
         "-S {} "
         "-B {} ",
         install_llvm, install_aebi, install_remill_deps, install_remill,
@@ -269,7 +273,8 @@ struct BuildConfig {
         dqpath(((aebi_build.parent_path() / "third/llvm-project")
                     .generic_string())),
         dqpath(((aebi_build / "llvm").generic_string())),
-        dqpath(icpp::program()), dqpath(this_root), dqpath(build_root));
+        dqpath(icpp::program()), icpp ? "-DICPP_RUNTIME=ON" : "",
+        dqpath(this_root), dqpath(build_root));
     return cmake_init(cmake, false) ? cmake_build(build_root) : false;
   }
 };

@@ -277,6 +277,8 @@ std::unique_ptr<llvm::MemoryBuffer> generate_object(llvm::Module &module) {
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
           triple, "generic", feature, opt, llvm::Reloc::PIC_, std::nullopt,
           llvm::CodeGenOptLevel::Default));
+  // make their data layout compatible
+  module.setDataLayout(targetMachine->createDataLayout());
 
   llvm::SmallVector<char, 0> buffer;
   llvm::raw_svector_ostream os(buffer);
@@ -710,7 +712,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
   */
   // save host context
   for (auto r : regused) {
-    if (Register::X19 <= r && r < Register::X30)
+    if (Register::X19 <= r && r <= Register::X30)
       asmbody += std::format("str x{}, [sp, #-0x10]!\n",
                              19 + (int)r - (int)Register::X19);
     else if (Register::Q8 <= r && r <= Register::Q15)
@@ -757,7 +759,7 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
   // load host context
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     auto r = *rit;
-    if (Register::X19 <= r && r < Register::X29)
+    if (Register::X19 <= r && r <= Register::X30)
       asmbody += std::format("ldr x{}, [sp], #0x10\n",
                              19 + (int)r - (int)Register::X19);
     else if (Register::Q8 <= r && r <= Register::Q15)

@@ -96,17 +96,18 @@ int main(int argc, const char *argv[]) {
     aethervm_build_type = build_type;
   }
 
-  auto build_dir = script_dir / (std::string("build") + "-" + build_type);
+  auto build_name = fs::path(argv[0]).stem().string();
+  auto icpp = build_name == "build-icpp";
+  auto build_dir = script_dir / (build_name + "-" + build_type);
   if (!fs::exists(build_dir / "build.ninja")) {
-    auto aethervm = proj_root /
-                    (std::string("build") + "-" + aethervm_build_type) /
-                    "install";
+    auto aethervm =
+        proj_root / (build_name + "-" + aethervm_build_type) / "install";
     command("cmake -S {} -B {} -G Ninja -DCMAKE_BUILD_TYPE={} "
             "-DCMAKE_PREFIX_PATH=\"{};{}\" {} "
-            "-DLLVM_PROJECT_ROOT={}",
+            "-DLLVM_PROJECT_ROOT={} {}",
             dqpath(script_dir), dqpath(build_dir), build_type,
             llvm_install.string(), aethervm.string(), EXTRA_CMAKE,
-            dqpath(llvm_root));
+            dqpath(llvm_root), icpp ? "-DICPP_RUNTIME=ON" : "");
   }
   command("cmake --build {}", dqpath(build_dir));
 

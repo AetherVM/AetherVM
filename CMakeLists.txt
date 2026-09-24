@@ -175,6 +175,12 @@ target_compile_options(AetherVM PRIVATE
 
   ${DISABLE_RTTI}
 )
+if(ICPP_RUNTIME)
+  target_compile_options(AetherVM PRIVATE
+    -DICPP_DLLIMPL=1
+  )
+  set(ICPP_TYPE "-icpp")
+endif()
 target_compile_features(AetherVM PUBLIC cxx_std_20)
 
 target_compile_definitions(AetherVM PRIVATE
@@ -241,7 +247,7 @@ else()
 endif()
 
 install(FILES
-  ${CMAKE_SOURCE_DIR}/lldb/build-${AetherDbg_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}AetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
+  ${CMAKE_SOURCE_DIR}/lldb/build${ICPP_TYPE}-${AetherDbg_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}AetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
   DESTINATION ${AetherDbg_INSTALL_DIR}
   OPTIONAL
 )

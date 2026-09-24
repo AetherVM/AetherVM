@@ -56,6 +56,7 @@ IMPL_OPCODE_CHAIN_STR_LDR(x26);
 IMPL_OPCODE_CHAIN_STR_LDR(x27);
 IMPL_OPCODE_CHAIN_STR_LDR(x28);
 IMPL_OPCODE_CHAIN_STR_LDR(x29);
+IMPL_OPCODE_CHAIN_STR_LDR(x30);
 
 IMPL_OPCODE_CHAIN_STR_LDR(d8);
 IMPL_OPCODE_CHAIN_STR_LDR(d9);
@@ -75,7 +76,7 @@ const void *vm_opcode_chain_str_xs[] = {
     IMPL_OPCODE_CHAIN_STR_LDR(x23), IMPL_OPCODE_CHAIN_STR_LDR(x24),
     IMPL_OPCODE_CHAIN_STR_LDR(x25), IMPL_OPCODE_CHAIN_STR_LDR(x26),
     IMPL_OPCODE_CHAIN_STR_LDR(x27), IMPL_OPCODE_CHAIN_STR_LDR(x28),
-    IMPL_OPCODE_CHAIN_STR_LDR(x29),
+    IMPL_OPCODE_CHAIN_STR_LDR(x29), IMPL_OPCODE_CHAIN_STR_LDR(x30),
 };
 
 const void *vm_opcode_chain_str_ds[] = {
@@ -94,7 +95,7 @@ const void *vm_opcode_chain_ldr_xs[] = {
     IMPL_OPCODE_CHAIN_STR_LDR(x23), IMPL_OPCODE_CHAIN_STR_LDR(x24),
     IMPL_OPCODE_CHAIN_STR_LDR(x25), IMPL_OPCODE_CHAIN_STR_LDR(x26),
     IMPL_OPCODE_CHAIN_STR_LDR(x27), IMPL_OPCODE_CHAIN_STR_LDR(x28),
-    IMPL_OPCODE_CHAIN_STR_LDR(x29),
+    IMPL_OPCODE_CHAIN_STR_LDR(x29), IMPL_OPCODE_CHAIN_STR_LDR(x30),
 };
 
 const void *vm_opcode_chain_ldr_ds[] = {
@@ -186,7 +187,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
   auto regused = parse_regused(inst);
   // save host context
   for (auto r : regused) {
-    if (Register::X19 <= r && r < Register::X30)
+    if (Register::X19 <= r && r <= Register::X30)
       chains.push_back(vm_opcode_chain_str_xs[(int)r - (int)Register::X19]);
     else if (Register::Q8 <= r && r <= Register::Q15)
       chains.push_back(vm_opcode_chain_str_ds[(int)r - (int)Register::Q8]);
@@ -207,7 +208,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
 
   // load guest context
   for (auto r : regused) {
-    if (Register::X0 <= r && r < Register::X30)
+    if (Register::X0 <= r && r <= Register::X30)
       chains.push_back(
           vm_opcode_chain_v2h_xs[(int)r - (int)Register::X0][regcpu]);
     else if (Register::Q0 <= r && r <= Register::Q31)
@@ -220,7 +221,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
 
   // save guest context
   for (auto r : regused) {
-    if (Register::X0 <= r && r < Register::X30)
+    if (Register::X0 <= r && r <= Register::X30)
       chains.push_back(
           vm_opcode_chain_h2v_xs[(int)r - (int)Register::X0][regcpu]);
     else if (Register::Q0 <= r && r <= Register::Q31)
@@ -231,7 +232,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
   // load host context
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     auto r = *rit;
-    if (Register::X19 <= r && r < Register::X29)
+    if (Register::X19 <= r && r <= Register::X30)
       chains.push_back(vm_opcode_chain_ldr_xs[(int)r - (int)Register::X19]);
     else if (Register::Q8 <= r && r <= Register::Q15)
       chains.push_back(vm_opcode_chain_ldr_ds[(int)r - (int)Register::Q8]);

@@ -121,10 +121,14 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
     if (!opr.isReg())
       continue;
     auto reg = opr.getReg();
-    if (reg >= AArch64::W0 && reg <= AArch64::W28)
+    if (reg >= AArch64::W0 && reg <= AArch64::W30)
       regused.insert(reg - AArch64::W0);
     else if (reg >= AArch64::X0 && reg <= AArch64::X28)
       regused.insert(reg - AArch64::X0);
+    else if (reg == AArch64::FP)
+      regused.insert(29);
+    else if (reg == AArch64::LR)
+      regused.insert(30);
     else if (reg >= AArch64::B0 && reg <= AArch64::B31)
       fpuused.insert(reg - AArch64::B0);
     else if (reg >= AArch64::H0 && reg <= AArch64::H31)
@@ -138,7 +142,7 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
     else if (reg >= AArch64::Z0 && reg <= AArch64::Z31)
       fpuused.insert(reg - AArch64::Z0);
   }
-  if (*fpuused.rbegin() < 16)
+  if (*fpuused.rbegin() < 8)
     return opcode;
 
   std::map<unsigned, unsigned> &regmaps = opregs.regmaps,
@@ -155,10 +159,14 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
     if (!opr.isReg())
       continue;
     auto reg = opr.getReg();
-    if (reg >= AArch64::W0 && reg <= AArch64::W28)
+    if (reg >= AArch64::W0 && reg <= AArch64::W30)
       opr.setReg(regmaps.find(reg - AArch64::W0)->second + AArch64::W0);
     else if (reg >= AArch64::X0 && reg <= AArch64::X28)
       opr.setReg(regmaps.find(reg - AArch64::X0)->second + AArch64::X0);
+    else if (reg == AArch64::FP)
+      opr.setReg(regmaps.find(29)->second + AArch64::X0);
+    else if (reg == AArch64::LR)
+      opr.setReg(regmaps.find(30)->second + AArch64::X0);
     else if (reg >= AArch64::B0 && reg <= AArch64::B31)
       opr.setReg(fpumaps.find(reg - AArch64::B0)->second + AArch64::B0);
     else if (reg >= AArch64::H0 && reg <= AArch64::H31)
@@ -283,7 +291,7 @@ size_t opcret_generator(std::string_view outpath) {
 #include <Orchestrator.h>
 
 )";
-  constexpr int max_gpr = 30, max_fpu = 32;
+  constexpr int max_gpr = 31, max_fpu = 32;
   std::array<int, 7> cpu_regs{0, 1, 2, 3, 4, 5, 26};
   for (int x = 0; x < max_gpr; x++) {
     for (auto c : cpu_regs) {

@@ -141,4 +141,9 @@ target_compile_options(AetherDbg PRIVATE
 
   ${DISABLE_RTTI}
 )
+if(ICPP_RUNTIME)
+  target_compile_options(AetherDbg PRIVATE
+    -DICPP_DLLIMPL=1
+  )
+endif()
 target_compile_features(AetherDbg PUBLIC cxx_std_20)

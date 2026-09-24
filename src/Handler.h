@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <vector>
 
+#include "Common.h"
+
 #define ISEL_NAME(name) ISEL_##name
 #define ISEL_DECL(name) // extern const void **ISEL_NAME(name)
 #define ISEL_RAW_ITEM(name)                                                    \

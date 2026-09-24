@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include "Common.h"
+
 namespace aether {
 
 enum class Register : int {
