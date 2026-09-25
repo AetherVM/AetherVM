@@ -52,4 +52,6 @@
 #define OpcodeHandlers OpcodeHandlersICPP
 #define OpcodeHandler OpcodeHandlerICPP
 #define Orchestrator OrchestratorICPP
+#define opcode_generator opcode_generator_icpp
+#define opcret_generator opcret_generator_icpp
 #endif

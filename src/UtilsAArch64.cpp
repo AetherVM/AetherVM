@@ -9,6 +9,8 @@
 
 #include <Disassembler.h>
 #include <Utils.h>
+
+#include <flat_set>
 #include <fstream>
 
 #include <llvm/MC/MCInst.h>
@@ -202,9 +204,8 @@ size_t opcode_generator(std::string_view path) {
                 engine.remillSemantic.get()};
   Disassembler diser("arm64");
   llvm::MCInst inst;
-  std::set<uint32_t> opcodes;
-  std::set<unsigned> canopc, cannot;
-  aarch64::OpcodeRegisters opregs;
+  std::flat_set<uint32_t> opcodes;
+  std::flat_set<uint16_t> canopc, cannot;
   uint64_t progress = -1, min = 0, max = 0xFFFFFFFF;
   for (uint64_t opcode = min; opcode <= max; opcode++) {
     auto prog = (opcode - min) * 100 / (max - min);
@@ -224,14 +225,14 @@ size_t opcode_generator(std::string_view path) {
       continue;
 
     auto regused = aarch64::parse_regused(inst);
-    bool x18293031 = false, neon = false;
+    // x18 is reserved on iOS
+    // x31 is sp which will be interpreted by MCInst interpreter of OpcodeEngine
+    bool x1831 = false, neon = false;
     for (auto r : regused) {
       switch (r) {
       case Register::X18:
-      case Register::X29:
-      case Register::X30:
       case Register::X31:
-        x18293031 = true;
+        x1831 = true;
         break;
       default:
         if (!neon)
@@ -239,9 +240,10 @@ size_t opcode_generator(std::string_view path) {
         break;
       }
     }
-    if (x18293031 || !neon)
+    if (x1831 || !neon)
       continue;
 
+    aarch64::OpcodeRegisters opregs;
     if (cannot.find(opc) != cannot.end()) {
       opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
       continue;
