@@ -16,7 +16,6 @@ constexpr uint8_t x64_ret = 0xC3;
 void aarch64_opcodes() {
   aether::MachineARM64 marm64;
   aether::BinaryEngine engine{&marm64};
-  engine.prefetch();
 
   auto insn = "nop";
   auto opcode = assemble(&marm64, insn);

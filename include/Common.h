@@ -37,3 +37,19 @@
 #else
 #define AETHER_VMAPI __attribute__((visibility("default")))
 #endif // end of _WIN32
+
+// Rename these symbol names if we're building AetherVM for ICPP, so that we can
+// separate ICPP's runtime and the normal built AetherVM, and then AetherVM's
+// consumer script of ICPP can run normally, otherwise they will have conflicts
+// of the shared internal thread local CPU state.
+#if ICPP_DLLIMPL
+#define BinaryEngine BinaryEngineICPP
+#define BinaryEngineImpl BinaryEngineImplICPP
+#define CPUState CPUStateICPP
+#define Lifter LifterICPP
+#define GuestMemory GuestMemoryICPP
+#define OpcodeEngine OpcodeEngineICPP
+#define OpcodeHandlers OpcodeHandlersICPP
+#define OpcodeHandler OpcodeHandlerICPP
+#define Orchestrator OrchestratorICPP
+#endif

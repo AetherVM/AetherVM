@@ -21,14 +21,6 @@ class Machine;
 class Binary;
 struct BinaryEngineImpl;
 
-// Rename BinaryEngine if we're building AetherVM for ICPP, so that we can
-// separate ICPP's runtime and the normal built AetherVM, and then AetherVM's
-// consumer script of ICPP can run normally, otherwise they will have conflicts
-// of the shared internal thread local CPU state.
-#if ICPP_DLLIMPL
-#define BinaryEngine BinaryEngineICPP
-#endif
-
 class AETHER_VMAPI BinaryEngine {
 public:
   // Construct a raw virtual cpu context from an architecture instance, what you
