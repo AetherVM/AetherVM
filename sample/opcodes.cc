@@ -92,6 +92,9 @@ void execute_hash_elf(std::string_view script, std::string_view arch,
   auto argreg = arm64 ? aether::Register::X0 : aether::Register::RCX;
   auto retreg = arm64 ? aether::Register::X0 : aether::Register::RAX;
 
+  std::span<const uint8_t> insn_ret{arm64 ? (uint8_t *)&arm64_ret : &x64_ret,
+                                    arm64 ? sizeof(arm64_ret)
+                                          : sizeof(x64_ret)};
   aether::MachineARM64 marm64;
   aether::MachineX86 mx64;
   auto mach = arm64 ? (aether::Machine *)&marm64 : (aether::Machine *)&mx64;
@@ -103,16 +106,14 @@ void execute_hash_elf(std::string_view script, std::string_view arch,
   // initialize the first argument
   engine.setRegister(argreg, {.str = name.data()});
 
-  // call elf_hash function using opcode emulation
+  // call the elf_hash function using opcode emulation
   auto opcstart = (const uint8_t *)bin->addrBuff(func.start);
   auto opcend = opcstart + func.end - func.start;
   // set the current pc=opcstart
   engine.prefetch({opcstart, opcend});
-  std::span<const uint8_t> insn_ret{arm64 ? (uint8_t *)&arm64_ret : &x64_ret,
-                                    arm64 ? sizeof(arm64_ret)
-                                          : sizeof(x64_ret)};
+  engine.setRegister(aether::Register::PC, {.u8 = (uint64_t)opcstart});
   while (true) {
-    auto opc = engine.getRegister(aether::Register::PC)->u1p;
+    auto opc = engine.getRegister(aether::Register::PC, false)->u1p;
     if (std::memcmp(insn_ret.data(), opc, insn_ret.size()) == 0)
       break;
     engine.emulate({opc, 16});
@@ -175,7 +176,7 @@ void execute_endec(std::string_view script, std::string_view arch,
   // prefect all the opcode in text section
   engine.prefetch({sectstart, sectend});
 
-  // call elf_hash function
+  // call the test_main function
   auto fnstart = (const uint8_t *)bin->addrBuff(func->start);
   engine.setRegister(aether::Register::PC, {.u8 = (uint64_t)fnstart});
   while (true) {
