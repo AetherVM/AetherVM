@@ -99,6 +99,9 @@ template <typename T> void OpcodeHandler<T>::interpMCInstARM64() const {
   default:
     abort();
   }
+  // update pc to the next address
+  auto pc = CPU.getRegisterAArch64(Register::PC)->u8;
+  CPU.setRegisterAArch64(Register::PC, {.u8 = pc + 4});
 }
 
 template struct OpcodeHandler<uint8_t>;
