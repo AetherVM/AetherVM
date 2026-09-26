@@ -8,6 +8,8 @@
 #define ISEL_UNSUPPORTED_INSTRUCTION ISEL_UNSUPPORTED_INSTRUCTION_X86
 #define ISEL_INVALID_INSTRUCTION ISEL_INVALID_INSTRUCTION_X86
 
+#include <cstdlib>
+
 #include <lib/Arch/X86/Runtime/Instructions.cpp>
 
 #define UNDEF_ISEL(n)                                                          \
