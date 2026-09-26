@@ -164,6 +164,10 @@ int main(int argc, const char *argv[]) {
   if (!cfg.build_aethervm())
     return -1;
 
+  // useful if we want to debug the AetherVM iOS runtime on macOS
+  if (std::getenv("NO_MAC2IOS"))
+    return 0;
+
   auto install = cfg.build_root + "/install";
   const char *cvt_argv[] = {install.data()};
   return icpp::exec_source((thisroot / "../tool/mac2ios.cc").string(),

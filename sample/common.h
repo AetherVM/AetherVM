@@ -45,6 +45,8 @@ bool load_libraries(std::string_view script_file) {
   auto script_dir = script_path.parent_path();
   auto vm_dir = script_dir.parent_path();
   auto binary_dir = vm_dir.parent_path() / "AetherBinary";
+  if (std::getenv("NO_MAC2IOS"))
+    vm_dir /= "ios"; // we're using iOS version on macOS
   for (std::string_view type :
        {"build-Debug", "build-RelWithDebInfo", "build-Release"}) {
     auto libvm = vm_dir / type / vm_name;

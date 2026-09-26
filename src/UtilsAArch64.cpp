@@ -302,20 +302,20 @@ size_t opcret_generator(std::string_view outpath) {
       outsrc << std::format(
           R"(AETHER_NAKED void vm_opcode_chain_v2h_gpr{0}_cpu{1}(void) {{
   AETHER_ASM("ldr x{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16 ""
+    "" extract_handler_x16_pre ""
     "br x16"
   );
 }}
 
 AETHER_NAKED void vm_opcode_chain_h2v_gpr{0}_cpu{1}(void) {{
   AETHER_ASM("str x{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16 ""
+    "" extract_handler_x16_pre ""
     "br x16"
   );
 }}
   
 )",
-          x, c, aarch64::offset_reg((Register)((int)Register::X0 + c)));
+          x, c, aarch64::offset_reg((Register)((int)Register::X0 + x)));
     }
   }
   for (int q = 0; q < max_fpu; q++) {
@@ -323,20 +323,20 @@ AETHER_NAKED void vm_opcode_chain_h2v_gpr{0}_cpu{1}(void) {{
       outsrc << std::format(
           R"(AETHER_NAKED void vm_opcode_chain_v2h_fpu{0}_cpu{1}(void) {{
   AETHER_ASM("ldr q{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16 ""
+    "" extract_handler_x16_pre ""
     "br x16"
   );
 }}
 
 AETHER_NAKED void vm_opcode_chain_h2v_fpu{0}_cpu{1}(void) {{
   AETHER_ASM("str q{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16 ""
+    "" extract_handler_x16_pre ""
     "br x16"
   );
 }}
   
 )",
-          q, c, aarch64::offset_reg((Register)((int)Register::X0 + c)));
+          q, c, aarch64::offset_reg((Register)((int)Register::Q0 + q)));
     }
   }
   for (int x = 0; x < max_gpr; x++) {

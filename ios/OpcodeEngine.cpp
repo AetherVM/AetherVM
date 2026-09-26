@@ -40,12 +40,12 @@ namespace aarch64 {
 #define IMPL_OPCODE_CHAIN_STR_LDR(n)                                           \
   AETHER_NAKED void vm_opcode_chain_str_##n(void) {                            \
     AETHER_ASM("str " #n ", [sp, #-0x10]!\n"                                   \
-               "" extract_handler_x16 ""                                       \
+               "" extract_handler_x16_pre ""                                   \
                "br x16\n");                                                    \
   }                                                                            \
   AETHER_NAKED void vm_opcode_chain_ldr_##n(void) {                            \
     AETHER_ASM("ldr " #n ", [sp], #0x10\n"                                     \
-               "" extract_handler_x16 ""                                       \
+               "" extract_handler_x16_pre ""                                   \
                "br x16\n");                                                    \
   }
 
@@ -112,7 +112,7 @@ const void *vm_opcode_chain_ldr_ds[] = {
 #define IMPL_OPCODE_CHAIN_SAVE_X26(n)                                          \
   AETHER_NAKED void vm_opcode_chain_save_x26_##n(void) {                       \
     AETHER_ASM("mov " #n ", x26\n"                                             \
-               "" extract_handler_x16 ""                                       \
+               "" extract_handler_x16_pre ""                                   \
                "br x16\n");                                                    \
   }
 
@@ -133,12 +133,10 @@ const void *vm_opcode_chain_save_x26[] = {
 };
 
 static AETHER_NAKED void execute_prebuilt(void) {
-  AETHER_ASM("add x27, x27, #8\n"
-             "" extract_handler_x16 ""
+  AETHER_ASM("" extract_handler_x16_pre ""
              "blr x16\n" // call the prebuilt opcode
-             "add x27, x27, #8\n"
+             "" extract_handler_x16_pre ""
              "mov x2, x27\n" // argument instruction
-             "" extract_handler_x16 ""
              "br x16");
 }
 
@@ -150,9 +148,8 @@ static AETHER_NAKED void finish_opchain(void) {
              "str x2, [x1]\n"         // set new pc
              "mov x1, x2\n"           // argument vmaddr
                                       // advance to the next instruction
-             "add x27, x27, #8\n"
+             "" extract_handler_x16_pre ""
              "mov x2, x27\n" // argument instruction
-             "" extract_handler_x16 ""
              "br x16");
 }
 
@@ -234,7 +231,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
   }
 
   chains.push_back((void *)&execute_prebuilt);
-  chains.push_back((void *)&prebuilt);
+  chains.push_back((void *)prebuilt);
 
   // save guest context
   for (auto r : regused) {

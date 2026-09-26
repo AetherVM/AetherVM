@@ -157,6 +157,10 @@ struct CPUState;
   "ldr x16, [x27]\n"                                                           \
   "ubfx x16, x16, #0, #59\n"
 
+#define extract_handler_x16_pre                                                \
+  "ldr x16, [x27, #8]!\n"                                                      \
+  "ubfx x16, x16, #0, #59\n"
+
 #define extract_handler_r10                                                    \
   "mov 0x0(%r13), %r10\n"                                                      \
   "shl $5, %r10\n"                                                             \
