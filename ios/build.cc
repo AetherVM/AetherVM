@@ -105,7 +105,7 @@ struct BuildConfig {
     auto arm64_opc_br = build_opcode / "AetherVMExt/arm64.opc.br";
     if (!fs::exists(arm64_opc_br)) {
       if (!command(std::format(
-              "git clone https://github.com/AetherVM/AetherVMExt {}",
+              "git clone --depth=1 https://github.com/AetherVM/AetherVMExt {}",
               arm64_opc_br.parent_path().string())))
         return false;
     }

@@ -277,6 +277,8 @@ size_t opcret_generator(std::string_view outpath) {
     // add a ret instruction for each opcode
     uint32_t opc[2]{0, insn_ret};
     inf.read((char *)&opc[0], 4);
+    if (inf.gcount() != 4)
+      break;
     outf.write((char *)&opc[0], 8);
     i++;
   }

@@ -12,6 +12,10 @@
 #include <UtilsAArch64.h>
 
 #include <llvm/IR/Instruction.h>
+#include <llvm/MC/MCInst.h>
+
+#define GET_REGINFO_ENUM
+#include <Target/AArch64/AArch64GenRegisterInfo.inc>
 
 // shortcuts for engine implementation stub
 #define engine (CPU.runtime)
@@ -161,7 +165,20 @@ struct OpcodeNativeImpl {
 
   explicit OpcodeNativeImpl(uint32_t opcode) : opc{opcode} {}
 
-  const void *callable() {
+  const void *callable(llvm::MCInst &inst) {
+    for (unsigned i = 0; i < inst.getNumOperands(); i++) {
+      auto &opr = inst.getOperand(i);
+      if (opr.isReg()) {
+        using namespace llvm;
+        switch (opr.getReg()) {
+        case AArch64::X27: // x27 is our chain pointer
+        case AArch64::LR:  // lr will be rewritten when using blr
+          return nullptr;
+        default:
+          break;
+        }
+      }
+    }
     auto found = binary_search(prebuilt, size, *this);
     return is_exact(found, prebuilt, size, *this) ? found : nullptr;
   }
@@ -260,7 +277,7 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
 
   using namespace aarch64;
   OpcodeNativeImpl tmp{opcode};
-  auto callable = tmp.callable();
+  auto callable = tmp.callable(inst);
   if (callable) {
     impl = callable;
     setup_chains(chains, inst, impl);
@@ -269,7 +286,7 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
 
     OpcodeRegisters opregs;
     tmp.opc = normalize_opcode(engine->diser, inst, opcode, opregs);
-    callable = tmp.callable();
+    callable = tmp.callable(inst);
     if (!callable) {
       // should never happen
       abort();
