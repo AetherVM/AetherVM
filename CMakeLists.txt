@@ -246,7 +246,7 @@ install(FILES
 install(FILES
   "${remill_DIR}/../../../share/remill/22/semantics/aarch64.bc"
   "${remill_DIR}/../../../share/remill/22/semantics/amd64_avx512.bc"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/bitcode
+  DESTINATION ${AetherDbg_INSTALL_DIR}/bitcode
 )
 
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
