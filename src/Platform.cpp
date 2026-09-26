@@ -6,6 +6,8 @@
 #include <Platform.h>
 #include <Utils.h>
 
+#include <vector>
+
 #if AETHER_OS_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
