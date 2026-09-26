@@ -129,14 +129,16 @@ target_include_directories(AetherVM PRIVATE
   ${LLVM_BUILD_PATH}/lib
   ${CMAKE_BINARY_DIR}
 )
-
+if(ICPP_RUNTIME)
+  set(AetherVM_Name "AetherVMICPP")
+endif()
 if(APPLE)
   target_link_options(AetherVM PRIVATE
     -Wl,-rpath,@executable_path
     -Wl,-rpath,@executable_path/../lib
     -Wl,-rpath,@loader_path
     -Wl,-rpath,@loader_path/../lib
-    -Wl,-install_name,@rpath/libAetherVM.dylib
+    -Wl,-install_name,@rpath/lib${AetherVM_Name}.dylib
   )
 elseif(MSVC)
 else()
@@ -180,6 +182,9 @@ target_compile_options(AetherVM PRIVATE
   ${DISABLE_RTTI}
 )
 if(ICPP_RUNTIME)
+  set_target_properties(AetherVM PROPERTIES
+    OUTPUT_NAME ${AetherVM_Name}
+  )
   target_compile_options(AetherVM PRIVATE
     -DICPP_DLLIMPL=1
   )

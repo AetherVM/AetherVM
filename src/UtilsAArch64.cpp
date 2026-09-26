@@ -302,15 +302,15 @@ size_t opcret_generator(std::string_view outpath) {
       outsrc << std::format(
           R"(AETHER_NAKED void vm_opcode_chain_v2h_gpr{0}_cpu{1}(void) {{
   AETHER_ASM("ldr x{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16_pre ""
-    "br x16"
+    "" extract_handler_x30_pre ""
+    "br x30"
   );
 }}
 
 AETHER_NAKED void vm_opcode_chain_h2v_gpr{0}_cpu{1}(void) {{
   AETHER_ASM("str x{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16_pre ""
-    "br x16"
+    "" extract_handler_x30_pre ""
+    "br x30"
   );
 }}
   
@@ -323,15 +323,15 @@ AETHER_NAKED void vm_opcode_chain_h2v_gpr{0}_cpu{1}(void) {{
       outsrc << std::format(
           R"(AETHER_NAKED void vm_opcode_chain_v2h_fpu{0}_cpu{1}(void) {{
   AETHER_ASM("ldr q{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16_pre ""
-    "br x16"
+    "" extract_handler_x30_pre ""
+    "br x30"
   );
 }}
 
 AETHER_NAKED void vm_opcode_chain_h2v_fpu{0}_cpu{1}(void) {{
   AETHER_ASM("str q{0}, [x{1}, #{2:#x}]\n"
-    "" extract_handler_x16_pre ""
-    "br x16"
+    "" extract_handler_x30_pre ""
+    "br x30"
   );
 }}
   

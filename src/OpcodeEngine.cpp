@@ -820,27 +820,31 @@ template <typename T> void OpcodeHandler<T>::execPrebuiltMapped() const {
 #if AETHER_OS_DARWIN_IOS
   RegisterValue gprmapper[8];
   RegisterValueSIMD fpumapper[8];
-  // save mapper register and then set the mapper value to mappee
+  // save mapper register and then set the mapper value from mappee
   int i = 0;
   for (auto &r : gpr) {
-    gprmapper[i++] = *CPU.getRegisterAArch64(r.first);
-    CPU.setRegisterAArch64(r.first, *CPU.getRegisterAArch64(r.second));
+    gprmapper[i++] = *CPU.getRegisterAArch64(r.second);
+    CPU.setRegisterAArch64(r.second, *CPU.getRegisterAArch64(r.first));
   }
   i = 0;
   for (auto &r : fpu) {
-    fpumapper[i++] = *(RegisterValueSIMD *)CPU.getRegisterAArch64(r.first);
-    CPU.setRegisterNEON(r.first,
-                        *(RegisterValueSIMD *)CPU.getRegisterAArch64(r.second));
+    fpumapper[i++] = *(RegisterValueSIMD *)CPU.getRegisterAArch64(r.second);
+    CPU.setRegisterNEON(r.second,
+                        *(RegisterValueSIMD *)CPU.getRegisterAArch64(r.first));
   }
   execPrebuilt();
-  // load mapper register's original value
+  // set the mappee value from mapper and restore mapper register's original
+  // value
   i = 0;
   for (auto &r : gpr) {
-    CPU.setRegisterAArch64(r.first, gprmapper[i++]);
+    CPU.setRegisterAArch64(r.first, *CPU.getRegisterAArch64(r.second));
+    CPU.setRegisterAArch64(r.second, gprmapper[i++]);
   }
   i = 0;
   for (auto &r : fpu) {
-    CPU.setRegisterNEON(r.first, fpumapper[i++]);
+    CPU.setRegisterNEON(r.first,
+                        *(RegisterValueSIMD *)CPU.getRegisterAArch64(r.second));
+    CPU.setRegisterNEON(r.second, fpumapper[i++]);
   }
 #else
   abort();
