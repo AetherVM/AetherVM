@@ -76,7 +76,7 @@ private:
 
 template <typename T> struct OpcodeHandlers {
   std::set<OpcodeHandler<T>> handlers;
-  const OpcodeHandler<T> *caches[0xFF]{nullptr};
+  const OpcodeHandler<T> *caches[256]{nullptr};
 
   void prefetch(remill::Instruction &inst, T opcode) {
     auto tmpopc = OpcodeHandler<T>{.opcode = opcode};

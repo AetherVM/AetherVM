@@ -657,11 +657,12 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
     return;
   }
   auto arch = engine->remillArch.get();
-  auto nativeHandler = arch->arch_name == remill::kArchAArch64LittleEndian
-                           ? Lifter::nativeHandlerAArch64
-                           : Lifter::nativeHandlerX64;
   auto asmbody =
-      nativeHandler(inst, {(uint8_t *)&opcode, (uint8_t *)&opcode + oplen});
+      arch->arch_name == remill::kArchAArch64LittleEndian
+          ? Lifter::nativeHandlerAArch64(
+                inst, {(uint8_t *)&opcode, (uint8_t *)&opcode + oplen})
+          : Lifter::nativeHandlerX64(
+                inst, {(uint8_t *)&opcode, (uint8_t *)&opcode + oplen}, false);
   uint8_t newopc[20], asmbin[256];
   intptr_t binsz = 0, pagesz = page_size();
   for (auto &insn : string_view_split(asmbody, '\n')) {

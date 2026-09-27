@@ -33,7 +33,7 @@ void aarch64_opcodes() {
 #if AETHER_ARCH_ARM64
   insn = "dup v0.2d, v0.d[0]";
 #else
-  insn = "fmov d1, d0"
+  insn = "fmov d1, d0";
 #endif
   engine.emulate(assemble(&marm64, insn));
 #if AETHER_ARCH_ARM64

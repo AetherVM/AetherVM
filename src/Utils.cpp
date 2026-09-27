@@ -5,6 +5,7 @@
 
 #include <Utils.h>
 #include <functional>
+#include <vector>
 
 namespace aether {
 

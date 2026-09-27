@@ -790,11 +790,13 @@ void Lifter::emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,
 }
 
 std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
-                                     std::span<const uint8_t> opcode) {
+                                     std::span<const uint8_t> opcode,
+                                     bool llvm) {
   // during the chained execution of the vm handlers:
   // r12 is "void *cpu"
   // r13 is 'const Instruction *insns'
   std::string asmbody;
+  std::string_view constprefix = llvm ? "$$" : "$";
 
   auto regused = x86::parse_regused(Inst);
   /*
@@ -881,9 +883,9 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
   }
   for (auto r : regused) {
     if (is_callee_saved_xmm(r))
-      asmbody += std::format("sub $$0x10, %rsp\n"
+      asmbody += std::format("sub {}0x10, %rsp\n"
                              "movdqu %{}, (%rsp)\n",
-                             x86::xmm_name(r));
+                             constprefix, x86::xmm_name(r));
   }
 
   // just use the original r12 or find an unused, ABI-volatile gpr as our
@@ -929,8 +931,8 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     if (is_callee_saved_xmm(*rit))
       asmbody += std::format("movdqu (%rsp), %{}\n"
-                             "add $$0x10, %rsp\n",
-                             x86::xmm_name(*rit));
+                             "add {}0x10, %rsp\n",
+                             x86::xmm_name(*rit), constprefix);
   }
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     if (is_callee_saved_gpr(*rit))
@@ -945,22 +947,23 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
                                        // yet holding an arg value at this
                                        // point on either ABI)
              "mov (%rcx), %rdx\n";     // load pc into scratch
-  asmbody += std::format("add $${:#x}, %rdx\n", opcode.size()); // next pc
-  asmbody += "mov %rdx, (%rcx)\n";                              // set new pc
+  asmbody +=
+      std::format("add {}{:#x}, %rdx\n", constprefix, opcode.size()); // next pc
+  asmbody += "mov %rdx, (%rcx)\n";                       // set new pc
   asmbody += std::format("mov %rax, %{}\n", kArgState);  // argument: state
   asmbody += std::format("mov %rdx, %{}\n", kArgVmAddr); // argument: vmaddr
 
   // advance to the next instruction
-  asmbody += "add $$8, %r13\n";
+  asmbody += std::format("add {}8, %r13\n", constprefix);
   asmbody += std::format("mov %r13, %{}\n", kArgInsn); // argument: instruction
-  asmbody += extract_handler_r10_llvmir;
+  asmbody += llvm ? extract_handler_r10_llvmir : extract_handler_r10;
   asmbody += "jmp *%r10\n";
   return asmbody;
 }
 
 void Lifter::emitX64(llvm::Function &Func, const llvm::MCInst &Inst,
                      std::span<const uint8_t> opcode) {
-  auto asmbody = nativeHandlerX64(Inst, opcode);
+  auto asmbody = nativeHandlerX64(Inst, opcode, true);
   generate_naked_function(Func, asmbody);
 }
 

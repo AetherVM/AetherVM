@@ -74,7 +74,8 @@ struct Lifter {
   static std::string nativeHandlerAArch64(const llvm::MCInst &Inst,
                                           std::span<const uint8_t> opcode);
   static std::string nativeHandlerX64(const llvm::MCInst &Inst,
-                                      std::span<const uint8_t> opcode);
+                                      std::span<const uint8_t> opcode,
+                                      bool llvm);
 
 private:
   void emitAArch64(llvm::Function &Func, const llvm::MCInst &Inst,

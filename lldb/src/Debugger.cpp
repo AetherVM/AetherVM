@@ -69,7 +69,7 @@ AetherDbgServer::AetherDbgServer(MainLoop &loop, AetherProcessManager &manager)
   auto log_handler_sp =
       std::make_shared<StreamLogHandler>(fileno(stdout), false);
   process_gdb_remote::ProcessGDBRemoteLog::Initialize();
-  Log::EnableLogChannel(log_handler_sp, 0, "gdb-remote", {"packets", nullptr},
+  Log::EnableLogChannel(log_handler_sp, 0, "gdb-remote", {"packets"},
                         llvm::errs());
 #endif
 }
