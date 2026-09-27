@@ -358,9 +358,9 @@ size_t offset_reg(std::string_view reg) {
     return (size_t)&state->addr.ss_base;
   if (reg == "ES_BASE")
     return (size_t)&state->addr.es_base;
-  if (reg == "GS_BASE")
+  if (reg == "GS_BASE" || reg == "GSBASE")
     return (size_t)&state->addr.gs_base;
-  if (reg == "FS_BASE")
+  if (reg == "FS_BASE" || reg == "FSBASE")
     return (size_t)&state->addr.fs_base;
   if (reg == "DS_BASE")
     return (size_t)&state->addr.ds_base;

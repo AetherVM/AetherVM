@@ -147,12 +147,11 @@ void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
 
   // Flags & Segment Registers
   static constexpr std::string_view misc_names[] = {
-      "CF",      "PF",      "AF",      "ZF",      "SF",      "DF",
-      "OF",      "RFLAGS",  "EFLAGS",  "FLAGS",   "SS",      "ES",
-      "GS",      "FS",      "DS",      "CS",      "SS_BASE", "ES_BASE",
-      "GS_BASE", "FS_BASE", "DS_BASE", "CS_BASE", "FPU_C0",  "FPU_C1",
-      "FPU_C2",  "FPU_C3",  "FPU_PE",  "FPU_UE",  "FPU_OE",  "FPU_ZE",
-      "FPU_DE",  "FPU_IE",  "FPU_SF"};
+      "CF",     "PF",      "AF",      "ZF",      "SF",      "DF",     "OF",
+      "RFLAGS", "EFLAGS",  "FLAGS",   "SS",      "ES",      "GS",     "FS",
+      "DS",     "CS",      "SS_BASE", "ES_BASE", "GS_BASE", "GSBASE", "FS_BASE",
+      "FSBASE", "DS_BASE", "CS_BASE", "FPU_C0",  "FPU_C1",  "FPU_C2", "FPU_C3",
+      "FPU_PE", "FPU_UE",  "FPU_OE",  "FPU_ZE",  "FPU_DE",  "FPU_IE", "FPU_SF"};
 
   for (std::string_view name : misc_names) {
     regoffs[std::string(name)] = x86::offset_reg(name);
