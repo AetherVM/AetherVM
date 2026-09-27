@@ -296,6 +296,13 @@ const RegisterValue *CPUState::getRegisterX86(Register reg) {
     ptr = &x86.gpr.r15;
     break;
   case RFLAGS:
+    x86.rflag.af = x86.aflag.af;
+    x86.rflag.cf = x86.aflag.cf;
+    x86.rflag.df = x86.aflag.df;
+    x86.rflag.of = x86.aflag.of;
+    x86.rflag.pf = x86.aflag.pf;
+    x86.rflag.sf = x86.aflag.sf;
+    x86.rflag.zf = x86.aflag.zf;
     ptr = &x86.rflag;
     break;
   case SS:
@@ -382,6 +389,16 @@ bool CPUState::setRegisterX86(Register reg, RegisterValue val) {
     return false;
 
   *ptr = val;
+
+  if (reg == Register::RFLAGS) {
+    x86.aflag.af = x86.rflag.af;
+    x86.aflag.cf = x86.rflag.cf;
+    x86.aflag.df = x86.rflag.df;
+    x86.aflag.of = x86.rflag.of;
+    x86.aflag.pf = x86.rflag.pf;
+    x86.aflag.sf = x86.rflag.sf;
+    x86.aflag.zf = x86.rflag.zf;
+  }
   return true;
 }
 
