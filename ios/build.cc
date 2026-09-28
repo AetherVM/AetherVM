@@ -32,10 +32,13 @@ struct BuildConfig {
   std::string this_root;
   std::string build_root;
   std::string build_type = "Release";
+  bool icpp;
 
   BuildConfig(int argc, const char *argv[]) {
     if (argc > 1)
       build_type = argv[1];
+
+    icpp = fs::path(argv[0]).stem() == "build-icpp";
   }
 
   bool build_prepare(const fs::path &projroot, const fs::path &thisroot) {
@@ -54,7 +57,9 @@ struct BuildConfig {
     install_remill_deps =
         (projroot / build_dir_name / "remill-deps/install").string();
     this_root = thisroot.string();
-    build_root = (thisroot / build_dir_name).string();
+    build_root =
+        (thisroot / std::format("build-{}{}", icpp ? "icpp-" : "", build_type))
+            .string();
     return true;
   }
 
@@ -138,14 +143,15 @@ struct BuildConfig {
         "-DLLVM_PROJECT_ROOT={} "
         "-DLLVM_BUILD_PATH={} "
         "-DICPP_PATH={} "
-        "-DAETHER_BUILD_IOS=ON "
+        "-DAETHER_BUILD_IOS=ON {} "
         "-S {} "
         "-B {} ",
         install_llvm, install_aebi, install_remill_deps, install_remill,
         dqpath((fs::path(build_root) / "install").string()),
         dqpath(((aebi_build.parent_path() / "third/llvm-project").string())),
         dqpath(((aebi_build / "llvm").string())), dqpath(icpp::program()),
-        dqpath(this_root + "/.."), dqpath(build_root));
+        icpp ? "-DICPP_RUNTIME=ON" : "", dqpath(this_root + "/.."),
+        dqpath(build_root));
     return cmake_init(cmake, false) ? cmake_build(build_root) : false;
   }
 };

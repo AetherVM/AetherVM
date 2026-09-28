@@ -50,7 +50,7 @@ void convert_mac2ios(std::string_view approot) {
       temp_path += ".tmp";
 
       // Run vtool to update the LC_BUILD_VERSION platform struct to ios
-      std::string cmd = "vtool -arch arm64 -set-build-version ios 17.0 26.4 "
+      std::string cmd = "vtool -arch arm64 -set-build-version ios 16.5 26.4 "
                         "-replace -output \"" +
                         temp_path.string() + "\" \"" + path.string() +
                         "\" > /dev/null 2>&1";
