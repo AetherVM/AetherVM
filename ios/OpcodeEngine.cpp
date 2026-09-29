@@ -286,6 +286,13 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
     callable = tmp.callable(inst);
     if (!callable) {
       // should never happen
+      std::string strinst;
+      engine->diser.print(inst, strinst);
+      log_print(Runtime,
+                "Didn't find the callable of aarch64 opcode at {:p}:{:x} {}.",
+                (void *)&opcode, *(uint32_t *)&opcode, strinst);
+      inst.print(llvm::errs());
+      putchar('\n');
       abort();
     }
     impl = callable;
@@ -303,3 +310,12 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
 }
 
 } // namespace aether
+
+#ifndef NDEBUG
+namespace llvm {
+
+// fix missing symbols on iOS
+int DisableABIBreakingChecks = 1;
+
+} // namespace llvm
+#endif
