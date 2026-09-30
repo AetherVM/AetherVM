@@ -310,12 +310,3 @@ template <> void OpcodeHandler<uint32_t>::initPrebuilt() {
 }
 
 } // namespace aether
-
-#ifndef NDEBUG
-namespace llvm {
-
-// fix missing symbols on iOS
-int DisableABIBreakingChecks = 1;
-
-} // namespace llvm
-#endif

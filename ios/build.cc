@@ -152,10 +152,10 @@ struct BuildConfig {
     return toolchain_args + icpp_clang;
   }
 
-  bool cmake_init(std::string_view args, bool remill) {
+  bool cmake_init(std::string_view args, bool remill, bool patch = false) {
     if (command(std::format("cmake -G Ninja -DCMAKE_BUILD_TYPE={} {} {}",
                             build_type, args, cmake_extra(remill)))) {
-      if (remill) {
+      if (patch) {
         check_patch(build_root + "/remill/build.ninja", "# AetherVM iOS Build",
                     "build-ios-llvm/install/bin/llvm-link",
                     "build-llvm/install/bin/llvm-link");
@@ -221,7 +221,7 @@ struct BuildConfig {
                       "-B {} ",
                       install_llvm, install_remill_deps, dqpath(install_remill),
                       proj_root, dqpath(remill_root), dqpath(remill.string()));
-      if (cmake_init(cmake, true) ? cmake_build(remill.string()) : false)
+      if (cmake_init(cmake, true, true) ? cmake_build(remill.string()) : false)
         return true;
     }
     return false;

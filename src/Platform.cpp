@@ -34,6 +34,12 @@ remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_6ModuleEJEEC1Ev);
 remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_8FunctionEJEEC1Ev);
 remill_llvm_dep(
     _ZN4llvm21SymbolTableListTraitsINS_8FunctionEJEE13addNodeToListEPS1_);
+remill_llvm_dep(
+    _ZN4llvm15AnalysisManagerINS_13LazyCallGraph3SCCEJRS1_EE5clearEv);
+remill_llvm_dep(
+    _ZN4llvm15AnalysisManagerINS_4LoopEJRNS_27LoopStandardAnalysisResultsEEE5clearEv);
+remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_6ModuleEJEE5clearEv);
+remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_8FunctionEJEE5clearEv);
 #else
 #include <mach/mach_vm.h>
 #endif
