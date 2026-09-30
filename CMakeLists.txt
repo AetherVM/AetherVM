@@ -113,8 +113,11 @@ if(MSVC)
   target_link_libraries(AetherVM PRIVATE LLVM-22)
 else()
   target_link_libraries(AetherVM PRIVATE LLVM)
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_link_libraries(AetherVM PRIVATE ${LLVM_BUILD_PATH}/lib/Support/CMakeFiles/LLVMSupport.dir/SmallVector.cpp.o)
+  endif()
 endif()
-  
+
 target_link_libraries(AetherVM PRIVATE 
   AetherBinary::AetherBinary
   remill

@@ -340,9 +340,3 @@ struct GlobalInit {
 } globalInit;
 
 } // namespace
-
-#if __APPLE__
-// link this nop syslog to disable the syslog dependency of glog so that we can
-// share the same build between macOS and iOS build
-extern "C" void syslog$DARWIN_EXTSN(void) {}
-#endif
