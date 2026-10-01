@@ -77,6 +77,7 @@ set(SOURCE_FILES
   src/Utils.cpp
   src/UtilsAArch64.cpp
   src/UtilsAArch64.h
+  src/Workaround.cpp
   src/X86.cpp
   src/X86.h
 )
