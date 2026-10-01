@@ -6,14 +6,14 @@
 #include <cstdint>
 
 extern "C" {
-extern const uint8_t arm64_native_start[];
-extern const uint8_t arm64_native_end[];
+extern const uint8_t aetherext_start[];
+extern const uint8_t aetherext_end[];
 }
 
 __asm__(".section __TEXT,__text\n"
-        ".globl _arm64_native_start\n"
-        "_arm64_native_start:\n"
+        ".globl _aetherext_start\n"
+        "_aetherext_start:\n"
         // this path is relative to the current building directory
         ".incbin \"../build-opcode/arm64.opc.ret\"\n"
-        ".globl _arm64_native_end\n"
-        "_arm64_native_end:\n");
+        ".globl _aetherext_end\n"
+        "_aetherext_end:\n");

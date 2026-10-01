@@ -81,9 +81,12 @@ set(SOURCE_FILES
   src/X86.h
 )
 if(AETHER_BUILD_IOS)
+  add_library(AetherVMExt SHARED
+    ios/OpcodeAArch64.cpp
+  )
+
   list(APPEND SOURCE_FILES
     ios/build-opcode/ContextSwitch.cpp
-    ios/OpcodeAArch64.cpp
     ios/OpcodeEngine.cpp
   )
 endif()
@@ -117,7 +120,9 @@ else()
     target_link_libraries(AetherVM PRIVATE ${LLVM_BUILD_PATH}/lib/Support/CMakeFiles/LLVMSupport.dir/SmallVector.cpp.o)
   endif()
 endif()
-
+if(AETHER_BUILD_IOS)
+  target_link_libraries(AetherVM PRIVATE AetherVMExt)
+endif()
 target_link_libraries(AetherVM PRIVATE 
   AetherBinary::AetherBinary
   remill
@@ -203,7 +208,11 @@ target_compile_definitions(AetherVM PRIVATE
 )
 
 # Install rules
-install(TARGETS AetherVM
+if(AETHER_BUILD_IOS)
+  set(Target_AetherVMExt AetherVMExt)
+endif()
+
+install(TARGETS AetherVM ${Target_AetherVMExt}
   EXPORT AetherVMTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

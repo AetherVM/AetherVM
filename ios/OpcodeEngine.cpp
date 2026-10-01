@@ -23,8 +23,8 @@
 using RemillRegister = remill::Operand::Register;
 
 // prebuilt callable opcode
-extern const uint8_t arm64_native_start[];
-extern const uint8_t arm64_native_end[];
+extern const uint8_t aetherext_start[];
+extern const uint8_t aetherext_end[];
 
 // host to vm
 extern const void **vm_opcode_chain_h2v_xs[];
@@ -215,9 +215,9 @@ struct OpcodeNativeImpl {
 static_assert(sizeof(OpcodeNativeImpl) == 8);
 
 const OpcodeNativeImpl *OpcodeNativeImpl::prebuilt =
-    (OpcodeNativeImpl *)&arm64_native_start[0];
+    (OpcodeNativeImpl *)&aetherext_start[0];
 const size_t OpcodeNativeImpl::size =
-    (arm64_native_end - arm64_native_start) / sizeof(OpcodeNativeImpl);
+    (aetherext_end - aetherext_start) / sizeof(OpcodeNativeImpl);
 
 void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
                   const void *prebuilt) {
