@@ -177,6 +177,33 @@ struct BuildConfig {
     return true;
   }
 
+  bool build_opcode() {
+    auto build_opcode = fs::path(this_root) / "build-opcode";
+    auto arm64_opc_br = build_opcode / "AetherVMExt/arm64.opc.br";
+    if (!fs::exists(arm64_opc_br)) {
+      if (!command(std::format(
+              "git clone --depth=1 https://github.com/AetherVM/AetherVMExt {}",
+              arm64_opc_br.parent_path().string())))
+        return false;
+    }
+    auto arm64_opc = (build_opcode / "arm64.opc").string();
+    if (!fs::exists(arm64_opc)) {
+      if (!command(std::format("brotli -d -o {} {}", arm64_opc,
+                               arm64_opc_br.string())))
+        return false;
+    }
+
+    auto arm64_opc_ret = arm64_opc + ".ret";
+    if (fs::exists(arm64_opc_ret))
+      return true;
+
+    // convert .opc to .opc.ret
+    const char *cvt_argv[] = {arm64_opc_ret.data()};
+    return icpp::exec_source(
+               (this_root + "/../tool/handler_generator_arm64.cc"),
+               std::size(cvt_argv), cvt_argv) == 0;
+  }
+
   bool build_remill_deps() {
     auto remdeps = fs::path(build_root) / "remill-deps";
     install_remill_deps = (remdeps / "install").string();
@@ -252,6 +279,9 @@ struct BuildConfig {
 int main(int argc, const char *argv[]) {
   BuildConfig cfg(argc, argv);
   if (!cfg.build_prepare(fs::absolute(argv[0]).parent_path()))
+    return -1;
+
+  if (!cfg.build_opcode())
     return -1;
 
   if (!cfg.build_remill_deps())
