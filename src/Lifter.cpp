@@ -756,6 +756,9 @@ std::string Lifter::nativeHandlerAArch64(const llvm::MCInst &Inst,
                       regcpu, aarch64::offset_reg(r));
   }
 
+  if (regcpu != 26)
+    asmbody += std::format("mov x26, x{}\n", regcpu);
+
   // load host context
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {
     auto r = *rit;
@@ -925,6 +928,9 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
       asmbody += std::format("movdqu %{}, {:#x}(%{})\n", x86::xmm_name(r),
                              x86::offset_reg(r), x86::gpr_name64(regcpu));
   }
+
+  if (regcpu != Register::R12)
+    asmbody += std::format("mov %{}, %r12\n", x86::gpr_name64(regcpu));
 
   // load host context (reverse of the two save loops above, XMM block first
   // since it was pushed last)

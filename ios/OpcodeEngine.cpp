@@ -116,12 +116,26 @@ const void *vm_opcode_chain_ldr_ds[] = {
                "br x30\n");                                                    \
   }
 
+#define IMPL_OPCODE_CHAIN_LOAD_X26(n)                                          \
+  AETHER_NAKED void vm_opcode_chain_load_x26_##n(void) {                       \
+    AETHER_ASM("mov x26, " #n "\n"                                             \
+               "" extract_handler_x30_pre ""                                   \
+               "br x30\n");                                                    \
+  }
+
 IMPL_OPCODE_CHAIN_SAVE_X26(x0);
 IMPL_OPCODE_CHAIN_SAVE_X26(x1);
 IMPL_OPCODE_CHAIN_SAVE_X26(x2);
 IMPL_OPCODE_CHAIN_SAVE_X26(x3);
 IMPL_OPCODE_CHAIN_SAVE_X26(x4);
 IMPL_OPCODE_CHAIN_SAVE_X26(x5);
+
+IMPL_OPCODE_CHAIN_LOAD_X26(x0);
+IMPL_OPCODE_CHAIN_LOAD_X26(x1);
+IMPL_OPCODE_CHAIN_LOAD_X26(x2);
+IMPL_OPCODE_CHAIN_LOAD_X26(x3);
+IMPL_OPCODE_CHAIN_LOAD_X26(x4);
+IMPL_OPCODE_CHAIN_LOAD_X26(x5);
 
 #undef IMPL_OPCODE_CHAIN_SAVE_X26
 #define IMPL_OPCODE_CHAIN_SAVE_X26(n) (void *)&vm_opcode_chain_save_x26_##n
@@ -130,6 +144,15 @@ const void *vm_opcode_chain_save_x26[] = {
     IMPL_OPCODE_CHAIN_SAVE_X26(x0), IMPL_OPCODE_CHAIN_SAVE_X26(x1),
     IMPL_OPCODE_CHAIN_SAVE_X26(x2), IMPL_OPCODE_CHAIN_SAVE_X26(x3),
     IMPL_OPCODE_CHAIN_SAVE_X26(x4), IMPL_OPCODE_CHAIN_SAVE_X26(x5),
+};
+
+#undef IMPL_OPCODE_CHAIN_LOAD_X26
+#define IMPL_OPCODE_CHAIN_LOAD_X26(n) (void *)&vm_opcode_chain_load_x26_##n
+
+const void *vm_opcode_chain_load_x26[] = {
+    IMPL_OPCODE_CHAIN_LOAD_X26(x0), IMPL_OPCODE_CHAIN_LOAD_X26(x1),
+    IMPL_OPCODE_CHAIN_LOAD_X26(x2), IMPL_OPCODE_CHAIN_LOAD_X26(x3),
+    IMPL_OPCODE_CHAIN_LOAD_X26(x4), IMPL_OPCODE_CHAIN_LOAD_X26(x5),
 };
 
 static AETHER_NAKED void execute_prebuilt(void) {
@@ -168,6 +191,7 @@ struct OpcodeNativeImpl {
       if (opr.isReg()) {
         using namespace llvm;
         switch (opr.getReg()) {
+        case AArch64::X26: // x26 is our cpu context
         case AArch64::X27: // x27 is our chain pointer
         case AArch64::LR:  // lr will be rewritten when using blr
           return nullptr;
@@ -242,6 +266,9 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
       chains.push_back(
           vm_opcode_chain_h2v_qs[(int)r - (int)Register::Q0][regcpu]);
   }
+
+  if (regcpu != 26)
+    chains.push_back(vm_opcode_chain_load_x26[regcpu]);
 
   // load host context
   for (auto rit = regused.rbegin(), rend = regused.rend(); rit != rend; rit++) {

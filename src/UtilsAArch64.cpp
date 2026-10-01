@@ -226,13 +226,19 @@ size_t opcode_generator(std::string_view path) {
 
     auto regused = aarch64::parse_regused(inst);
     // x18 is reserved on iOS
+    // x26 is used for cpu context
+    // x27 is used for instruction chain pointer
+    // x30 is used as jump register for trampoline
     // x31 is sp which will be interpreted by MCInst interpreter of OpcodeEngine
-    bool x1831 = false, neon = false;
+    bool resreg = false, neon = false;
     for (auto r : regused) {
       switch (r) {
       case Register::X18:
+      case Register::X26:
+      case Register::X27:
+      case Register::X30:
       case Register::X31:
-        x1831 = true;
+        resreg = true;
         break;
       default:
         if (!neon)
@@ -240,12 +246,13 @@ size_t opcode_generator(std::string_view path) {
         break;
       }
     }
-    if (x1831 || !neon)
+    if (resreg)
       continue;
 
     aarch64::OpcodeRegisters opregs;
     if (cannot.find(opc) != cannot.end()) {
-      opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
+      opcodes.insert(neon ? normalize_opcode(diser, inst, opcode, opregs)
+                          : opcode);
       continue;
     }
 
@@ -255,7 +262,8 @@ size_t opcode_generator(std::string_view path) {
     }
 
     cannot.insert(opc);
-    opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
+    opcodes.insert(neon ? normalize_opcode(diser, inst, opcode, opregs)
+                        : opcode);
   }
 
   std::ofstream outf{path.data(), std::ios::binary};
