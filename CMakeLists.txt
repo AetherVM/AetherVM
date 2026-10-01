@@ -85,6 +85,9 @@ if(AETHER_BUILD_IOS)
   add_library(AetherVMExt SHARED
     ios/OpcodeAArch64.cpp
   )
+  target_link_options(AetherVMExt PRIVATE
+    -Wl,-install_name,@rpath/libAetherVMExt.dylib
+  )
 
   list(APPEND SOURCE_FILES
     ios/build-opcode/ContextSwitch.cpp
