@@ -144,8 +144,6 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
     else if (reg >= AArch64::Z0 && reg <= AArch64::Z31)
       fpuused.insert(reg - AArch64::Z0);
   }
-  if (*fpuused.rbegin() < 8)
-    return opcode;
 
   std::map<unsigned, unsigned> &regmaps = opregs.regmaps,
                                &fpumaps = opregs.fpumaps;
@@ -230,7 +228,7 @@ size_t opcode_generator(std::string_view path) {
     // x27 is used for instruction chain pointer
     // x30 is used as jump register for trampoline
     // x31 is sp which will be interpreted by MCInst interpreter of OpcodeEngine
-    bool resreg = false, neon = false;
+    bool resreg = false;
     for (auto r : regused) {
       switch (r) {
       case Register::X18:
@@ -241,8 +239,6 @@ size_t opcode_generator(std::string_view path) {
         resreg = true;
         break;
       default:
-        if (!neon)
-          neon = Register::Q0 <= r && r <= Register::Q31;
         break;
       }
     }
@@ -251,8 +247,7 @@ size_t opcode_generator(std::string_view path) {
 
     aarch64::OpcodeRegisters opregs;
     if (cannot.find(opc) != cannot.end()) {
-      opcodes.insert(neon ? normalize_opcode(diser, inst, opcode, opregs)
-                          : opcode);
+      opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
       continue;
     }
 
@@ -262,8 +257,7 @@ size_t opcode_generator(std::string_view path) {
     }
 
     cannot.insert(opc);
-    opcodes.insert(neon ? normalize_opcode(diser, inst, opcode, opregs)
-                        : opcode);
+    opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
   }
 
   std::ofstream outf{path.data(), std::ios::binary};
