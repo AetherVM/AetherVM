@@ -152,17 +152,9 @@ struct BuildConfig {
     return toolchain_args + icpp_clang;
   }
 
-  bool cmake_init(std::string_view args, bool remill, bool patch = false) {
-    if (command(std::format("cmake -G Ninja -DCMAKE_BUILD_TYPE={} {} {}",
-                            build_type, args, cmake_extra(remill)))) {
-      if (patch) {
-        check_patch(build_root + "/remill/build.ninja", "# AetherVM iOS Build",
-                    "build-ios-llvm/install/bin/llvm-link",
-                    "build-llvm/install/bin/llvm-link");
-      }
-      return true;
-    }
-    return false;
+  bool cmake_init(std::string_view args, bool remill) {
+    return command(std::format("cmake -G Ninja -DCMAKE_BUILD_TYPE={} {} {}",
+                               build_type, args, cmake_extra(remill)));
   }
 
   bool cmake_build(std::string_view path) {
@@ -226,6 +218,8 @@ struct BuildConfig {
       if (fs::exists(remill / "install/lib/cmake/remill/remillConfig.cmake"))
         return true; // already built
 
+      auto icpp_root =
+          fs::path(icpp::program()).parent_path().parent_path().string();
       auto remill_root = proj_root + "/third/remill";
       auto cmake =
           std::format("-DLLVM_LINK_LLVM_DYLIB=ON "
@@ -240,11 +234,14 @@ struct BuildConfig {
                       "-DREMILL_ENABLE_DIFFERENTIAL_TESTING=OFF "
                       "-DSLEIGH_EXECUTABLE={}/build-Release/remill/_deps/"
                       "sleigh-build/sleighspecs/spec-compiler/sleigh "
+                      "-DICPP_INSTALL_DIR={} "
+                      "-DCMAKE_PROJECT_INCLUDE_BEFORE={}/cmake/llvm-link.cmake "
                       "-S {} "
                       "-B {} ",
                       install_llvm, install_remill_deps, dqpath(install_remill),
-                      proj_root, dqpath(remill_root), dqpath(remill.string()));
-      if (cmake_init(cmake, true, true) ? cmake_build(remill.string()) : false)
+                      proj_root, dqpath(icpp_root), proj_root,
+                      dqpath(remill_root), dqpath(remill.string()));
+      if (cmake_init(cmake, true) ? cmake_build(remill.string()) : false)
         return true;
     }
     return false;
