@@ -117,7 +117,7 @@ struct BuildConfig {
     auto projroot = thisroot.parent_path();
     auto aebiroot = projroot.parent_path() / "AetherBinary";
     auto llvm = aebiroot / "build-ios-llvm/install";
-    auto aebi = aebiroot / std::format("build-ios.{}/install", build_type);
+    auto aebi = aebiroot / std::format("build-ios-{}/install", build_type);
     if (!fs::exists(llvm)) {
       std::println(
           R"(The following paths should exist, you can clone and build https://github.com/AetherVM/AetherBinary to generate them:
@@ -159,10 +159,6 @@ struct BuildConfig {
         check_patch(build_root + "/remill/build.ninja", "# AetherVM iOS Build",
                     "build-ios-llvm/install/bin/llvm-link",
                     "build-llvm/install/bin/llvm-link");
-        check_patch(proj_root + "/third/remill/bin/lift/Lift.cpp",
-                    "// AetherVM iOS Build",
-                    "int main(int argc, char *argv[]) {",
-                    "int main(int argc, char *argv[]) { return -1;");
       }
       return true;
     }

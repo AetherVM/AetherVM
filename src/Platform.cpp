@@ -22,24 +22,6 @@
 #if AETHER_OS_DARWIN_IOS
 #define mach_vm_read_overwrite(...) -1
 #define mach_vm_write(...) -1
-#define remill_llvm_dep(n)                                                     \
-  extern "C" int n(void) { return 0; }
-
-remill_llvm_dep(
-    _ZN4llvm11PassManagerINS_6ModuleENS_15AnalysisManagerIS1_JEEEJEE3runERS1_RS3_);
-remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_13LazyCallGraph3SCCEJRS1_EEC1Ev);
-remill_llvm_dep(
-    _ZN4llvm15AnalysisManagerINS_4LoopEJRNS_27LoopStandardAnalysisResultsEEEC1Ev);
-remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_6ModuleEJEEC1Ev);
-remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_8FunctionEJEEC1Ev);
-remill_llvm_dep(
-    _ZN4llvm21SymbolTableListTraitsINS_8FunctionEJEE13addNodeToListEPS1_);
-remill_llvm_dep(
-    _ZN4llvm15AnalysisManagerINS_13LazyCallGraph3SCCEJRS1_EE5clearEv);
-remill_llvm_dep(
-    _ZN4llvm15AnalysisManagerINS_4LoopEJRNS_27LoopStandardAnalysisResultsEEE5clearEv);
-remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_6ModuleEJEE5clearEv);
-remill_llvm_dep(_ZN4llvm15AnalysisManagerINS_8FunctionEJEE5clearEv);
 #else
 #include <mach/mach_vm.h>
 #endif
