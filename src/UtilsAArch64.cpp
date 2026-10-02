@@ -181,10 +181,8 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
       opr.setReg(fpumaps.find(reg - AArch64::Z0)->second + AArch64::Z0);
   }
 
-  std::string strinst;
   uint8_t newopcode[20] = {0};
-  diser.print(inst, strinst);
-  diser.assemble(strinst.data(), newopcode, false);
+  diser.assemble(inst, newopcode, false);
   if (newopcode[0] != 4) {
     asmerropcs.insert(inst.getOpcode());
     return opcode;
