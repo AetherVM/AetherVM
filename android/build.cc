@@ -114,19 +114,21 @@ std::string common_args(std::string_view toolchain_file, std::string_view arch,
                         std::string_view libcxx_dir,
                         std::string_view install_llvm) {
   std::string link_flags = std::format("-nostdlib++ -L{}/lib", libcxx_dir);
+  std::string_view target = arch == "arm64-v8a" ? "aarch64-linux-android24"
+                                                : "x86_64-linux-android24";
   icpp::strings args;
   args.push_back(std::format("-DCMAKE_TOOLCHAIN_FILE={}", toolchain_file));
   args.push_back("-DCMAKE_CROSSCOMPILING=TRUE");
-  args.push_back("-DLLVM_COMPILER_CHECKED=TRUE");
   args.push_back(std::format("-DLLVM_DIR={}/lib/cmake/llvm", install_llvm));
   args.push_back(std::format("-DLLVM_BUILD_DIR={}/../llvm", install_llvm));
   args.push_back("-DANDROID_STL=none");
   args.push_back("-DANDROID_PLATFORM=25");
   args.push_back(std::format("-DANDROID_ABI={}", arch));
-  args.push_back(
-      std::format("-DCMAKE_CXX_FLAGS=\"-nostdinc++ -nostdlib++ -fPIC "
-                  "-I{}/include/c++/v1\"",
-                  libcxx_dir));
+  args.push_back(std::format("-DCMAKE_C_FLAGS=\"--target={}\"", target));
+  args.push_back(std::format(
+      "-DCMAKE_CXX_FLAGS=\"--target={} -nostdinc++ -nostdlib++ -fPIC "
+      "-I{}/include/c++/v1\"",
+      target, libcxx_dir));
   args.push_back(std::format("-DCMAKE_EXE_LINKER_FLAGS=\"{}\"", link_flags));
   args.push_back(std::format("-DCMAKE_SHARED_LINKER_FLAGS=\"{}\"", link_flags));
   args.push_back("-DCMAKE_CXX_STANDARD_LIBRARIES=\"-Wl,-Bdynamic -lc++ "
@@ -231,7 +233,8 @@ struct BuildConfig {
                                       libcxx_build.string(), install_llvm);
     // the CLANG_PATH is for remill to build its semantics
     auto icpp_clang =
-        remill ? std::format("-DCLANG_PATH={}/clang", icpp_dir) : std::string();
+        remill ? std::format("-DCLANG_PATH={}/clang" EXE_EXT, icpp_dir)
+               : std::string();
     return toolchain_args + icpp_clang;
   }
 
@@ -255,7 +258,7 @@ struct BuildConfig {
       return true; // already built
 
     auto remdeps_root =
-        (fs::path(proj_root) / "third/remill/dependencies").generic_string();
+        (fs::path(proj_root) / "android/remill-deps").generic_string();
     auto cmake =
         std::format("-DUSE_EXTERNAL_LLVM=ON "
                     "-DCMAKE_PREFIX_PATH=\"{}\" "
@@ -264,8 +267,16 @@ struct BuildConfig {
                     "-B {} ",
                     install_llvm, dqpath(install_remill_deps),
                     dqpath(remdeps_root), dqpath(remdeps.generic_string()));
-    return cmake_init(cmake, true) ? cmake_build(remdeps.generic_string())
-                                   : false;
+    auto result =
+        cmake_init(cmake, true) ? cmake_build(remdeps.generic_string()) : false;
+#if __WIN__
+    // mbuild generates the wrong library names on Windows, so we need to create
+    // symlinks for them
+    command(std::format("cd \"{}\\lib\" && mklink libxed.a xed.lib && mklink "
+                        "libxed-ild.a xed-ild.lib",
+                        install_remill_deps));
+#endif
+    return result;
   }
 
   bool build_remill() {
@@ -276,22 +287,33 @@ struct BuildConfig {
       if (fs::exists(remill / "install/lib/cmake/remill/remillConfig.cmake"))
         return true; // already built
 
+      auto icpp_root =
+          fs::path(icpp::program()).parent_path().parent_path().string();
       auto remill_root = proj_root + "/third/remill";
-      auto cmake =
-          std::format("-DLLVM_LINK_LLVM_DYLIB=ON "
-                      "-DREMILL_BUILD_SPARC32_RUNTIME=OFF "
-                      "-DCMAKE_PREFIX_PATH=\"{};{}\" "
-                      "-DCMAKE_INSTALL_PREFIX={} "
-                      "-DREMILL_ENABLE_TESTING=OFF "
-                      "-DREMILL_ENABLE_TESTING_X86=OFF "
-                      "-DREMILL_ENABLE_TESTING_AARCH64=OFF "
-                      "-DREMILL_ENABLE_TESTING_SLEIGH_THUMB=OFF "
-                      "-DREMILL_ENABLE_TESTING_SLEIGH_PPC=OFF "
-                      "-DREMILL_ENABLE_DIFFERENTIAL_TESTING=OFF "
-                      "-S {} "
-                      "-B {} ",
-                      install_llvm, install_remill_deps, dqpath(install_remill),
-                      dqpath(remill_root), dqpath(remill.generic_string()));
+      auto cmake = std::format(
+          "-DLLVM_LINK_LLVM_DYLIB=ON "
+          "-DREMILL_BUILD_SPARC32_RUNTIME=OFF "
+          "-DCMAKE_PREFIX_PATH=\"{};{}\" "
+          "-DXED_DIR={}/lib/cmake/XED "
+          "-Dglog_DIR={}/lib/cmake/glog "
+          "-Dgflags_DIR={}/lib/cmake/gflags "
+          "-DCMAKE_INSTALL_PREFIX={} "
+          "-DREMILL_ENABLE_TESTING=OFF "
+          "-DREMILL_ENABLE_TESTING_X86=OFF "
+          "-DREMILL_ENABLE_TESTING_AARCH64=OFF "
+          "-DREMILL_ENABLE_TESTING_SLEIGH_THUMB=OFF "
+          "-DREMILL_ENABLE_TESTING_SLEIGH_PPC=OFF "
+          "-DREMILL_ENABLE_DIFFERENTIAL_TESTING=OFF "
+          "-DSLEIGH_EXECUTABLE={}/build-Release/remill/_deps/"
+          "sleigh-build/sleighspecs/spec-compiler/sleigh "
+          "-DICPP_INSTALL_DIR={} "
+          "-DCMAKE_PROJECT_INCLUDE_BEFORE={}/cmake/llvm-link.cmake "
+          "-S {} "
+          "-B {} ",
+          install_llvm, install_remill_deps, install_remill_deps,
+          install_remill_deps, install_remill_deps, dqpath(install_remill),
+          proj_root, dqpath(icpp_root), proj_root, dqpath(remill_root),
+          dqpath(remill.generic_string()));
       if (cmake_init(cmake, true) ? cmake_build(remill.generic_string())
                                   : false)
         return true;
@@ -303,6 +325,12 @@ struct BuildConfig {
     auto aebi_build = fs::path(install_llvm).parent_path();
     auto cmake = std::format(
         "-DCMAKE_PREFIX_PATH=\"{};{};{};{}\" "
+        "-DAetherBinary_DIR={}/lib/cmake/AetherBinary "
+        "-Dremill_DIR={}/lib/cmake/remill "
+        "-Dsleigh_DIR={}/lib/cmake/sleigh "
+        "-DXED_DIR={}/lib/cmake/XED "
+        "-Dglog_DIR={}/lib/cmake/glog "
+        "-Dgflags_DIR={}/lib/cmake/gflags "
         "-DCMAKE_INSTALL_PREFIX={} "
         "-DLLVM_PROJECT_ROOT={} "
         "-DLLVM_BUILD_PATH={} "
@@ -310,6 +338,8 @@ struct BuildConfig {
         "-S {} "
         "-B {} ",
         install_llvm, install_aebi, install_remill_deps, install_remill,
+        install_aebi, install_remill, install_remill, install_remill_deps,
+        install_remill_deps, install_remill_deps,
         dqpath((fs::path(build_root) / "install").generic_string()),
         dqpath(((aebi_build.parent_path() / "third/llvm-project")
                     .generic_string())),
