@@ -804,8 +804,8 @@ static inline void vm_entry(const Instruction *insns) {
 }
 
 template <typename T> void OpcodeHandler<T>::execDynamic() const {
-  Instruction insns[2]{{(event_func_t)impl}, {finish_emulation}};
-  vm_entry(&insns[0]);
+  event_func_t insns[2] = {(event_func_t)impl, (event_func_t)finish_emulation};
+  vm_entry(reinterpret_cast<Instruction *>(&insns[0]));
 }
 
 template <typename T> void OpcodeHandler<T>::execPrebuilt() const {
