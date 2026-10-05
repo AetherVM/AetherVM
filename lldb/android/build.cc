@@ -252,7 +252,7 @@ struct BuildConfig {
   bool build_aetherdbg() {
     auto args =
         std::format("-DCMAKE_PREFIX_PATH=\"{};{}\" "
-                    "-DAetherVM_DIR={}/lib/cmake/AetherVM"
+                    "-DAetherVM_DIR={}/lib/cmake/AetherVM "
                     "{} -B {} -S {}/.. ",
                     install_llvm, install_aevm, install_aevm,
                     icpp ? "-DICPP_RUNTIME=ON" : "", build_root, this_root);

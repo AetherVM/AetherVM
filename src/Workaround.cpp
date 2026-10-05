@@ -20,7 +20,10 @@ struct GlobalInit {
 
 } // namespace
 
+#if _WIN32
+#else
 // shut up gflags about multiple flags
 extern "C" int vfprintf(FILE *stream, const char *format, va_list ap) {
   return 1;
 }
+#endif
