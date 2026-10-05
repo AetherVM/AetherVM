@@ -84,6 +84,42 @@ std::string get_host_triple() {
       ;
 }
 
+bool patch_string(std::string_view infile, std::string_view pattern,
+                  std::string_view replace) {
+  std::stringstream buffer;
+  {
+    // read file
+    buffer << std::ifstream(fs::path(infile), std::ios::in | std::ios::binary)
+                  .rdbuf();
+  }
+
+  std::string content = buffer.str();
+  std::size_t pos = 0;
+  while ((pos = content.find(pattern, pos)) != std::string::npos) {
+    // do the replacement
+    content.replace(pos, pattern.length(), replace);
+    pos += replace.length();
+  }
+
+  fs::path temp_file = infile;
+  temp_file.replace_extension(".tmp");
+  {
+    // write file
+    std::ofstream outf(temp_file,
+                       std::ios::out | std::ios::binary | std::ios::trunc);
+    outf.write(content.data(), content.size());
+  }
+
+  // rename the temp as the original file
+  fs::rename(temp_file, infile);
+  return true;
+}
+
+void patch_build_ninja(std::string_view ninja) {
+  // NDK doesn't provide these libraries
+  patch_string(ninja, "-lrt", " ");
+}
+
 struct BuildConfig {
   std::string install_llvm;
   std::string install_aebi;
@@ -190,7 +226,8 @@ struct BuildConfig {
   }
 
   bool build_lldb() {
-    auto lldb_build_dir = this_root + "/build-lldb";
+    auto lldb_build_dir =
+        std::format("{}/build-{}-lldb", this_root, build_arch);
     auto lldb_server_obj = lldb_build_dir +
                            "/lldb/tools/lldb/tools/lldb-server/CMakeFiles/"
                            "lldb-server.dir/lldb-server.cpp.o";
@@ -204,22 +241,25 @@ struct BuildConfig {
           "-DLLVM_TABLEGEN={}/build-llvm/llvm/bin/llvm-tblgen" EXE_EXT " "
           "-DLLVM_HOST_TRIPLE={} -B {} -S {}/../cmake ",
           aebi_proj_root, get_host_triple(), lldb_build_dir, this_root);
-      return cmake_init(args)
-                 ? command(std::format("cmake --build {} --target lldb-server",
-                                       dqpath(lldb_build_dir)))
-                 : false;
+      if (!cmake_init(args))
+        return false;
+      patch_build_ninja(lldb_build_dir + "/build.ninja");
+      return command(std::format("cmake --build {} --target lldb-server",
+                                 dqpath(lldb_build_dir)));
     }
   }
 
   bool build_aetherdbg() {
     auto args =
         std::format("-DCMAKE_PREFIX_PATH=\"{};{}\" "
+                    "-DAetherVM_DIR={}/lib/cmake/AetherVM"
                     "{} -B {} -S {}/.. ",
-                    install_llvm, install_aevm, icpp ? "-DICPP_RUNTIME=ON" : "",
-                    build_root, this_root);
-    return cmake_init(args)
-               ? command(std::format("cmake --build {}", dqpath(build_root)))
-               : false;
+                    install_llvm, install_aevm, install_aevm,
+                    icpp ? "-DICPP_RUNTIME=ON" : "", build_root, this_root);
+    if (!cmake_init(args))
+      return false;
+    patch_build_ninja(build_root + "/build.ninja");
+    return command(std::format("cmake --build {}", dqpath(build_root)));
   }
 };
 

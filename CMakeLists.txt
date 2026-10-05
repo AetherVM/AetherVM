@@ -271,8 +271,18 @@ else()
   set(AetherDbg_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+  if(ANDROID_ABI)
+    set(AetherDbg_BUILD_DIR android/build${ICPP_TYPE}-${ANDROID_ABI})
+  else()
+    set(AetherDbg_BUILD_DIR ios/build${ICPP_TYPE})
+  endif()
+else()
+  set(AetherDbg_BUILD_DIR build${ICPP_TYPE})
+endif()
+
 install(FILES
-  ${CMAKE_SOURCE_DIR}/lldb/build${ICPP_TYPE}-${AetherDbg_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}AetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
+  ${CMAKE_SOURCE_DIR}/lldb/${AetherDbg_BUILD_DIR}-${AetherDbg_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}AetherDbg${CMAKE_SHARED_LIBRARY_SUFFIX}
   DESTINATION ${AetherDbg_INSTALL_DIR}
   OPTIONAL
 )

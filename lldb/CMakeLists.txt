@@ -13,6 +13,14 @@ if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+  if(ANDROID_ABI)
+    set(LLDB_BUILD_DIR android/build-${ANDROID_ABI}-lldb)
+  else()
+    set(LLDB_BUILD_DIR ios/build-lldb)
+  endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -48,14 +56,14 @@ target_include_directories(AetherDbg PRIVATE
   ../src
   ../third/remill
   ../third/remill/include
-  build-lldb/lldb/tools/lldb/include
+  ${LLDB_BUILD_DIR}/lldb/tools/lldb/include
   ${LLVM_PROJECT_ROOT}/lldb/include
   ${LLVM_PROJECT_ROOT}/lldb/source
   ${LLVM_INCLUDE_DIRS}
 )
 
 target_link_directories(AetherDbg PRIVATE
-  build-lldb/lldb/lib
+  ${LLDB_BUILD_DIR}/lldb/lib
 )
 
 set(LLDB_LIBS   
