@@ -4,7 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 /*
-Build AetherDbg for ICPP in one go, usage: icpp build-icpp.cc [Debug]
+Build AetherDbg for Android ICPP in one go, usage: icpp build-icpp.cc [Debug]
 */
 
 #define main build_main
