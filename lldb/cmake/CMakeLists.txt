@@ -14,6 +14,11 @@ endif()
 
 project(AetherLLDB)
 
+if(APPLE)
+  # LLVM needs this to set the correct flags, but the ios.toolchain.cmake set it as iOS
+  set(CMAKE_SYSTEM_NAME "Darwin")
+endif()
+
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
 endif()
