@@ -131,8 +131,9 @@ std::string common_args(std::string_view toolchain_file, std::string_view arch,
       target, libcxx_dir));
   args.push_back(std::format("-DCMAKE_EXE_LINKER_FLAGS=\"{}\"", link_flags));
   args.push_back(std::format("-DCMAKE_SHARED_LINKER_FLAGS=\"{}\"", link_flags));
-  args.push_back("-DCMAKE_CXX_STANDARD_LIBRARIES=\"-Wl,-Bdynamic -lc++ "
-                 "-lc++abi -lunwind\"");
+  args.push_back(
+      "-DCMAKE_CXX_STANDARD_LIBRARIES=\"-Wl,-rpath,$$ORIGIN "
+      "-Wl,-rpath,$$ORIGIN/../lib -Wl,-Bdynamic -lc++ -lc++abi -lunwind\"");
   args.push_back("-Wno-deprecated");
 
   std::string strargs;
