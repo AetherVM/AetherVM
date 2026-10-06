@@ -878,6 +878,7 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
   constexpr const char *kArgState = ARGREG_0;
   constexpr const char *kArgVmAddr = ARGREG_1;
   constexpr const char *kArgInsn = ARGREG_2;
+  size_t candidx = 0;
 
   // save host context
   for (auto r : regused) {
@@ -897,15 +898,32 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
   // that this loop doesn't do)
   Register regcpu = Register::R12;
   if (regused.find(Register::R12) != regused.end()) {
-    for (auto cand : kCpuCandidates) {
+    while (true) {
+      auto cand = kCpuCandidates[candidx++];
       if (regused.find(cand) == regused.end()) {
         regcpu = cand;
         break;
       }
     }
   }
+
+  // use a temporary register to save the original rsp if it's used in the
+  // instruction
+  Register regrsp = Register::RSP;
+  if (regused.find(Register::RSP) != regused.end()) {
+    while (true) {
+      auto cand = kCpuCandidates[candidx++];
+      if (regused.find(cand) == regused.end()) {
+        regrsp = cand;
+        break;
+      }
+    }
+  }
+
   if (regcpu != Register::R12)
     asmbody += std::format("mov %r12, %{}\n", x86::gpr_name64(regcpu));
+  if (regrsp != Register::RSP)
+    asmbody += std::format("mov %rsp, %{}\n", x86::gpr_name64(regrsp));
 
   // load guest context
   for (auto r : regused) {
@@ -931,6 +949,8 @@ std::string Lifter::nativeHandlerX64(const llvm::MCInst &Inst,
 
   if (regcpu != Register::R12)
     asmbody += std::format("mov %{}, %r12\n", x86::gpr_name64(regcpu));
+  if (regrsp != Register::RSP)
+    asmbody += std::format("mov %{}, %rsp\n", x86::gpr_name64(regrsp));
 
   // load host context (reverse of the two save loops above, XMM block first
   // since it was pushed last)
