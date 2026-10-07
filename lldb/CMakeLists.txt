@@ -19,6 +19,8 @@ if(CMAKE_CROSSCOMPILING)
   else()
     set(LLDB_BUILD_DIR ios/build-lldb)
   endif()
+else()
+  set(LLDB_BUILD_DIR build-lldb)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
