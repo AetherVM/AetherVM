@@ -24,6 +24,7 @@ namespace aether {
 class RemillOperand : public remill::Operand {
 public:
   uint128_var_t ID(bool pointer) const;
+  void initOffsets();
 };
 
 struct OperandInfo {

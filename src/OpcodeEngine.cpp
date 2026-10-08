@@ -17,8 +17,6 @@
 // shortcuts for engine implementation stub
 #define engine (CPU.runtime)
 
-using RemillRegister = remill::Operand::Register;
-
 namespace aether {
 
 thread_local OpcodeEngine EMU;
@@ -36,6 +34,14 @@ std::map<uint128_var_t, OperandInfo> operandmap;
 
 // Register offset within the cpu state
 std::map<std::string, size_t> regoffs;
+
+struct RemillRegister {
+  std::string name;
+  uint32_t size;   // In bits.
+  uint32_t offset; // In bytes from the CPU State.
+};
+
+static_assert(sizeof(RemillRegister) == sizeof(remill::Operand::Register));
 
 void load_regoffs_aarch64(std::map<std::string, size_t> &regoffs) {
   // General Purpose Registers (X0 - X30) and 32-bit aliases (W0 - W30)
@@ -193,6 +199,23 @@ inline size_t GetOffset(const std::string &reg) {
   return found->second;
 }
 
+inline size_t GetOffset(const RemillRegister &reg) {
+  assert(reg.offset);
+  return reg.offset;
+}
+
+inline void SetOffset(RemillRegister *regptr) {
+  regptr->offset = GetOffset(regptr->name);
+}
+
+inline void SetOffset(remill::Operand::Register *regptr, bool force = true) {
+  if (!force && !regptr->name.size())
+    return;
+
+  auto ptr = (RemillRegister *)regptr;
+  ptr->offset = GetOffset(ptr->name);
+}
+
 inline bool IsARM64() {
   return engine->remillArch->arch_name == remill::kArchAArch64LittleEndian;
 }
@@ -200,13 +223,13 @@ inline bool IsARM64() {
 // Compute the address of a register within `State`, as a raw integer.
 inline uint64_t LoadRegAddressRaw(void *state_ptr, const RemillRegister &reg) {
   return reinterpret_cast<uint64_t>(reinterpret_cast<uint8_t *>(state_ptr) +
-                                    GetOffset(reg.name));
+                                    GetOffset(reg));
 }
 
 // Read a register's current value out of `State`, zero-extended to 64 bits.
 uint64_t LoadRegValueRaw(void *state_ptr, const RemillRegister &reg) {
   const auto addr =
-      reinterpret_cast<const uint8_t *>(state_ptr) + GetOffset(reg.name);
+      reinterpret_cast<const uint8_t *>(state_ptr) + GetOffset(reg);
   const size_t num_bytes = (static_cast<size_t>(reg.size) + 7u) / 8u;
   if (num_bytes > 8)
     return reinterpret_cast<uint64_t>(addr);
@@ -235,10 +258,10 @@ uint64_t LoadWordRegValOrZeroRaw(void *state_ptr, const RemillRegister &reg,
 
 // Lift a shift-register operand to a raw value.
 uint64_t LiftShiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
-  auto &arch_reg = op.shift_reg.reg;
+  auto arch_reg = (const RemillRegister *)&op.shift_reg.reg;
 
-  auto reg = LoadRegValueRaw(state_ptr, arch_reg);
-  auto reg_size = static_cast<unsigned>(arch_reg.size);
+  auto reg = LoadRegValueRaw(state_ptr, *arch_reg);
+  auto reg_size = static_cast<unsigned>(arch_reg->size);
   const auto word_size = sizeof(uintptr_t) * 8;
 
   const uint64_t zero = 0;
@@ -349,9 +372,9 @@ uint64_t LiftShiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op) {
 // directly. For read operands, it returns the register's *value*.
 uint64_t LiftRegisterOperandRaw(void *state_ptr, const RemillOperand &op,
                                 bool ptr) {
-  auto &arch_reg = op.reg;
-  return ptr ? LoadRegAddressRaw(state_ptr, arch_reg)
-             : LoadRegValueRaw(state_ptr, arch_reg);
+  auto arch_reg = (RemillRegister *)&op.reg;
+  return ptr ? LoadRegAddressRaw(state_ptr, *arch_reg)
+             : LoadRegValueRaw(state_ptr, *arch_reg);
 }
 
 // Lift an immediate operand to a raw, correctly sign/zero-extended value.
@@ -370,12 +393,13 @@ uint64_t LiftAddressOperandRaw(void *state_ptr, const RemillOperand &op) {
   auto &arch_addr = op.addr;
   const auto word_size = sizeof(uintptr_t) * 8;
 
-  auto addr = LoadWordRegValOrZeroRaw(state_ptr, arch_addr.base_reg, word_size);
-  auto index =
-      LoadWordRegValOrZeroRaw(state_ptr, arch_addr.index_reg, word_size);
+  auto addr = LoadWordRegValOrZeroRaw(
+      state_ptr, *(RemillRegister *)&arch_addr.base_reg, word_size);
+  auto index = LoadWordRegValOrZeroRaw(
+      state_ptr, *(RemillRegister *)&arch_addr.index_reg, word_size);
   const auto scale = static_cast<uint64_t>(arch_addr.scale);
-  auto segment =
-      LoadWordRegValOrZeroRaw(state_ptr, arch_addr.segment_base_reg, word_size);
+  auto segment = LoadWordRegValOrZeroRaw(
+      state_ptr, *(RemillRegister *)&arch_addr.segment_base_reg, word_size);
 
   if (index) {
     addr = MaskToBits(addr + index * scale, word_size);
@@ -463,6 +487,7 @@ uint64_t LiftExpressionOperandRecRaw(void *state_ptr,
     RemillRegister reg;
     reg.name = (*reg_op)->name;
     reg.size = (*reg_op)->size;
+    SetOffset(&reg);
     return LoadRegValueRaw(state_ptr, reg);
   } else if (auto ci_op = std::get_if<llvm::Constant *>(op)) {
     if (const auto *ci = llvm::dyn_cast_or_null<llvm::ConstantInt>(*ci_op))
@@ -473,6 +498,7 @@ uint64_t LiftExpressionOperandRecRaw(void *state_ptr,
     RemillRegister reg;
     reg.name = *str_op;
     reg.size = str_op->at(0) == 'w' ? 32 : 64;
+    SetOffset(&reg);
     return LoadRegValueRaw(state_ptr, reg);
   } else {
     abort();
@@ -546,6 +572,26 @@ uint128_var_t RemillOperand::ID(bool pointer) const {
   id.high |=
       ((((uint64_t)type) << 60) | (((uint64_t)(action == kActionWrite)) << 63));
   return id;
+}
+
+void RemillOperand::initOffsets() {
+  using remill::Operand;
+  uint128_var_t id{0, 0};
+  switch (type) {
+  case kTypeRegister:
+    SetOffset(&reg);
+    break;
+  case kTypeShiftRegister:
+    SetOffset(&shift_reg.reg);
+    break;
+  case kTypeAddress:
+    SetOffset(&addr.segment_base_reg, false);
+    SetOffset(&addr.base_reg);
+    SetOffset(&addr.index_reg, false);
+    break;
+  default:
+    break;
+  }
 }
 
 template <typename T> bool OpcodeHandler<T>::init() {
@@ -622,6 +668,7 @@ void OpcodeHandler<T>::initRemill(remill::Instruction &inst) {
     auto found = operandmap.find(id);
     if (found == operandmap.end()) {
       operands.push_back(*optr);
+      operands.rbegin()->initOffsets();
       found = operandmap
                   .insert(std::make_pair(
                       id, OperandInfo{(uint32_t)operands.size() - 1,
