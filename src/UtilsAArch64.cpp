@@ -148,11 +148,21 @@ uint32_t normalize_opcode(Disassembler &diser, llvm::MCInst &inst,
   std::map<unsigned, unsigned> &regmaps = opregs.regmaps,
                                &fpumaps = opregs.fpumaps;
   unsigned ireg = 0;
-  for (auto i : regused)
+  for (auto i : regused) {
+    while (opregs.usedregs.find(
+               (aether::Register)((unsigned)Register::X0 + ireg)) !=
+           opregs.usedregs.end())
+      ireg++;
     regmaps.insert({i, ireg++});
+  }
   ireg = 0;
-  for (auto i : fpuused)
+  for (auto i : fpuused) {
+    while (opregs.usedregs.find(
+               (aether::Register)((unsigned)Register::Q0 + ireg)) !=
+           opregs.usedregs.end())
+      ireg++;
     fpumaps.insert({i, ireg++});
+  }
 
   for (unsigned i = 0; i < inst.getNumOperands(); i++) {
     auto &opr = inst.getOperand(i);
@@ -220,14 +230,15 @@ size_t opcode_generator(std::string_view path) {
     if (canopc.find(opc) != canopc.end())
       continue;
 
-    auto regused = aarch64::parse_regused(inst);
+    aarch64::OpcodeRegisters opregs;
+    opregs.usedregs = aarch64::parse_regused(inst);
     // x18 is reserved on iOS
     // x26 is used for cpu context
     // x27 is used for instruction chain pointer
     // x30 is used as jump register for trampoline
     // x31 is sp which will be interpreted by MCInst interpreter of OpcodeEngine
     bool resreg = false;
-    for (auto r : regused) {
+    for (auto r : opregs.usedregs) {
       switch (r) {
       case Register::X18:
       case Register::X26:
@@ -243,7 +254,6 @@ size_t opcode_generator(std::string_view path) {
     if (resreg)
       continue;
 
-    aarch64::OpcodeRegisters opregs;
     if (cannot.find(opc) != cannot.end()) {
       opcodes.insert(normalize_opcode(diser, inst, opcode, opregs));
       continue;

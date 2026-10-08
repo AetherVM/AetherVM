@@ -110,11 +110,8 @@ struct BuildConfig {
   bool icpp;
 
   BuildConfig(int argc, const char *argv[]) {
-    for (int i = 1; i < argc; ++i) {
-      std::string_view arg{argv[i]};
-      if (arg.starts_with("-type="))
-        build_type = arg.substr(6);
-    }
+    if (argc > 1)
+      build_type = argv[1];
 
     icpp = fs::path(argv[0]).stem() == "build-icpp";
   }

@@ -21,6 +21,7 @@ class Disassembler;
 namespace aarch64 {
 
 struct OpcodeRegisters {
+  std::set<aether::Register> usedregs;
   std::set<unsigned> regused, fpuused;
   std::map<unsigned, unsigned> regmaps, fpumaps;
   std::set<unsigned> asmerropcs;

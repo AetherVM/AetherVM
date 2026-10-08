@@ -267,7 +267,7 @@ void setup_chains(std::vector<const void *> &chains, const llvm::MCInst &inst,
           vm_opcode_chain_h2v_qs[(int)r - (int)Register::Q0][regcpu]);
   }
 
-  if (regcpu != 26)
+  if (regcpu != 6)
     chains.push_back(vm_opcode_chain_load_x26[regcpu]);
 
   // load host context
