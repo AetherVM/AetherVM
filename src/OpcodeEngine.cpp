@@ -115,7 +115,7 @@ void load_regoffs_x64(std::map<std::string, size_t> &regoffs) {
       "RAX", "EAX", "AX",  "AL",  "AH",  "RBX", "EBX", "BX",  "BL",  "BH",
       "RCX", "ECX", "CX",  "CL",  "CH",  "RDX", "EDX", "DX",  "DL",  "DH",
       "RSI", "ESI", "SI",  "SIL", "RDI", "EDI", "DI",  "DIL", "RSP", "ESP",
-      "SP",  "SPL", "RBP", "EBP", "BP",  "BPL", "RIP", "EIP", "IP"};
+      "SP",  "SPL", "RBP", "EBP", "BP",  "BPL", "RIP", "EIP", "IP",  "PC"};
 
   for (std::string_view name : gpr_names) {
     regoffs[std::string(name)] = x86::offset_reg(name);
@@ -194,8 +194,11 @@ inline uint64_t SignExtend(uint64_t val, unsigned bits) {
 
 inline size_t GetOffset(const std::string &reg) {
   auto found = regoffs.find(reg);
-  if (found == regoffs.end())
+  if (found == regoffs.end()) {
+    log_print(Runtime,
+              "Fatal error, failed to get the offset of register '{}'.", reg);
     abort();
+  }
   return found->second;
 }
 
@@ -586,7 +589,7 @@ void RemillOperand::initOffsets() {
     break;
   case kTypeAddress:
     SetOffset(&addr.segment_base_reg, false);
-    SetOffset(&addr.base_reg);
+    SetOffset(&addr.base_reg, false);
     SetOffset(&addr.index_reg, false);
     break;
   default:
