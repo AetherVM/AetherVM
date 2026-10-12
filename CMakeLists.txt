@@ -4,7 +4,7 @@
 # See LICENSE file in the root directory for full license text.
 
 cmake_minimum_required(VERSION 3.20)
-project(AetherVM VERSION 0.2.0 LANGUAGES C CXX)
+project(AetherVM VERSION 0.3.0 LANGUAGES C CXX)
 
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)

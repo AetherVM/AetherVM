@@ -58,11 +58,11 @@ public:
   // the binary.
   bool execute(addr_t target);
 
-  // Execute the main function of an executable binary file which the current
-  // attached binary should be. The subclass should override recursiveLoad to do
-  // stuffs like relocation binding, segment mapping, and dependent libraries
-  // loading, otherwise it fails instantly.
-  virtual bool runMain();
+  // Execute the main function of the input binary file. The subclass should
+  // override recursiveLoad to do stuffs like relocation binding, segment
+  // mapping, and dependent libraries loading, and pre-encode its runtime
+  // metadata, otherwise it fails instantly.
+  virtual int runMain(int argc, const char *argv[]);
 
   // Make an executable function pointer from a virtual guest target, in cases
   // like: 1.the target of relocation is directly called by host system; 2.the
@@ -131,8 +131,9 @@ public:
   void watchDog(RegisterValue pc);
 
 protected:
-  // For MachOEngine, ELFEngine, and PEEngine to implement....
-  virtual bool recursiveLoad() { return false; }
+  // For MachOEngine, ELFEngine, and PEEngine to implement, it should return the
+  // virtual address of the main entry.
+  virtual addr_t recursiveLoad() { return 0; }
 
   // Lift the opcodes for engine runtime.
   void liftOpcodes(const Binary *bin, addr_t addr,
@@ -140,6 +141,9 @@ protected:
 
   // Map, Lift and Orchestrate the bin into guest memory region.
   void orchBinary(const Binary *bin, addr_t addend);
+
+  // Pre-encode the binary file and generate its runtime metadata.
+  bool preEncode(const Binary *bin, std::string_view outpath);
 
 protected:
   // The current emulating machine type.

@@ -130,8 +130,6 @@ bool BinaryEngine::execute(addr_t target) {
   return false;
 }
 
-bool BinaryEngine::runMain() { return false; }
-
 const void *BinaryEngine::makeExecutable(addr_t target) { return nullptr; }
 
 const RegisterValue *BinaryEngine::getRegister(Register reg, bool cvtpc) {
@@ -323,5 +321,17 @@ void BinaryEngine::enterThread() {
 }
 
 void BinaryEngine::leaveThread() { CPU.freeContext(); }
+
+bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath) {
+  return false;
+}
+
+int BinaryEngine::runMain(int argc, const char *argv[]) {
+  auto mainva = recursiveLoad();
+  if (!mainva)
+    return -1;
+
+  return -1;
+}
 
 } // namespace aether
