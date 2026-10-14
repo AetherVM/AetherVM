@@ -1,3 +1,6 @@
 [submodule "third/remill"]
 	path = third/remill
 	url = https://github.com/lifting-bits/remill
+[submodule "third/xxHash"]
+	path = third/xxHash
+	url = https://github.com/Cyan4973/xxHash

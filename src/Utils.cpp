@@ -4,6 +4,7 @@
 // See LICENSE file in the root directory for full license text.
 
 #include <Utils.h>
+#include <xxhash.h>
 #include <functional>
 #include <vector>
 
@@ -12,6 +13,10 @@ namespace aether {
 size_t hash_value(std::string_view str) {
   std::hash<std::string_view> hasher;
   return hasher(str);
+}
+
+uint64_t hash_buffer(const void *buffer, size_t size) {
+  return (uint64_t)XXH3_64bits(buffer, size);
 }
 
 std::vector<std::string_view> string_view_split(std::string_view str,

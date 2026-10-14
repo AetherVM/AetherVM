@@ -121,7 +121,10 @@ inline uint8_t fib_hash8(uint128_var_t x) {
   return static_cast<uint8_t>((combined * K64) >> 56);
 }
 
+// in-memory use only
 AETHER_VMAPI size_t hash_value(std::string_view str);
+// can be persisted and cross platform
+AETHER_VMAPI uint64_t hash_buffer(const void *buffer, size_t size);
 AETHER_VMAPI size_t opcode_generator(std::string_view path);
 AETHER_VMAPI std::size_t opcret_generator(std::string_view path);
 AETHER_VMAPI std::vector<std::string_view>

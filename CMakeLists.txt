@@ -28,6 +28,12 @@ find_package(LLVM CONFIG REQUIRED)
 find_package(AetherBinary CONFIG REQUIRED)
 find_package(remill CONFIG REQUIRED)
 
+# xxHash
+set(XXHASH_BUILD_XXHSUM OFF)        # Don't build command line tool
+option(BUILD_SHARED_LIBS OFF)       # Build static library
+
+add_subdirectory(third/xxHash/build/cmake EXCLUDE_FROM_ALL)
+
 configure_file(
   "${CMAKE_SOURCE_DIR}/include/Version.h.in"
   "${CMAKE_BINARY_DIR}/generated/Version.h"
@@ -130,6 +136,7 @@ endif()
 target_link_libraries(AetherVM PRIVATE 
   AetherBinary::AetherBinary
   remill
+  xxHash::xxhash
 )
 
 target_include_directories(AetherVM PRIVATE 
@@ -137,6 +144,7 @@ target_include_directories(AetherVM PRIVATE
   lldb/src
   third/remill
   third/remill/include
+  third/xxHash
   ${LLVM_INCLUDE_DIRS}
   ${LLVM_BUILD_PATH}/lib
   ${CMAKE_BINARY_DIR}
