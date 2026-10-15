@@ -12,6 +12,7 @@
 #include "Handler.h"
 #include "OpcodeEngine.h"
 #include "Orchestrator.h"
+#include "PreEncoder.h"
 
 namespace aether {
 
@@ -323,7 +324,8 @@ void BinaryEngine::enterThread() {
 void BinaryEngine::leaveThread() { CPU.freeContext(); }
 
 bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath) {
-  return false;
+  PreEncoder encoder{bin, outpath};
+  return encoder.encode();
 }
 
 int BinaryEngine::runMain(int argc, const char *argv[]) {

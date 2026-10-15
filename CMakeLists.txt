@@ -80,6 +80,8 @@ set(SOURCE_FILES
   src/Orchestrator.cpp
   src/Orchestrator.h
   src/Platform.cpp
+  src/PreEncoder.cpp
+  src/PreEncoder.h
   src/Utils.cpp
   src/UtilsAArch64.cpp
   src/UtilsAArch64.h
