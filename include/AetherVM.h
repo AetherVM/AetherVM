@@ -143,7 +143,8 @@ protected:
   void orchBinary(const Binary *bin, addr_t addend);
 
   // Pre-encode the binary file and generate its runtime metadata.
-  bool preEncode(const Binary *bin, std::string_view outpath);
+  bool preEncode(const Binary *bin, std::string_view outpath,
+                 bool haswx = true);
 
 protected:
   // The current emulating machine type.

@@ -13,14 +13,16 @@ class Binary;
 
 class PreEncoder {
 public:
-  PreEncoder(const Binary *bin, std::string_view outpath);
+  PreEncoder(const Binary *bin, std::string_view outpath, bool haswx);
   ~PreEncoder();
 
   bool encode();
 
 private:
   void prefetch();
-  void parseBasicBlocks();
+  void analyzeInsnMeta();
+  bool serialize();
+  uint32_t handlerIndex(std::span<const uint8_t> opcode);
 
 private:
   struct Handler {
@@ -34,16 +36,20 @@ private:
       const OpcodeHandler<uint128_var_t> *ptr16;
     };
   };
-  struct BasicBlock {
-    uint32_t rva;                // rva of this basic block
-    std::vector<uint32_t> insns; // instruction handler indexs
+  struct InsnMeta {
+    uint32_t rva;     // rva of this instruction
+    uint32_t handler; // instruction handler index
   };
 
   const Binary *m_bin;
   std::string_view m_outpath;
+  bool m_haswx; // writable-executable page
+
   OpcodeEngine m_engine;
   std::vector<Handler> m_handlers;
-  std::vector<BasicBlock> m_basicblocks;
+  // the [start, end) index ranges of the different length opcodes
+  std::pair<uint32_t, uint32_t> m_ranges[5];
+  std::vector<InsnMeta> m_insnmetas;
 };
 
 } // namespace aether

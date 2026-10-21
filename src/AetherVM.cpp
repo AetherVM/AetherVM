@@ -323,8 +323,9 @@ void BinaryEngine::enterThread() {
 
 void BinaryEngine::leaveThread() { CPU.freeContext(); }
 
-bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath) {
-  PreEncoder encoder{bin, outpath};
+bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath,
+                             bool haswx) {
+  PreEncoder encoder{bin, outpath, haswx};
   return encoder.encode();
 }
 
