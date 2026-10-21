@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "IMetaData.h"
+
 #include <Register.h>
 #include <Utils.h>
 
@@ -135,6 +137,9 @@ struct OpcodeEngine {
   bool emulate(std::span<const uint8_t> opcode);
 
   ~OpcodeEngine();
+
+  static bool convertOperands(std::vector<IMetaData::Operand> &metadata,
+                              std::vector<IMetaData::Expression> &expressions);
 };
 
 // emulation engine for each thread

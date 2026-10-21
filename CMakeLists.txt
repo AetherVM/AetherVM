@@ -69,6 +69,8 @@ set(SOURCE_FILES
   src/Handler.h
   src/HandlerAArch64.cpp
   src/HandlerX86.cpp
+  src/IMetaData.cpp
+  src/IMetaData.h
   src/Intrinsic.cpp
   src/Lifter.cpp
   src/Lifter.h

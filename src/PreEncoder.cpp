@@ -9,11 +9,19 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
+#include <limits>
 
 namespace aether {
 
+std::map<uint32_t, uint32_t> PreEncoder::m_rva2rt;
+
 PreEncoder::PreEncoder(const Binary *bin, std::string_view outpath, bool haswx)
-    : m_bin(bin), m_outpath(outpath), m_haswx(haswx) {}
+    : m_bin(bin), m_outpath(outpath), m_haswx(haswx) {
+  // set the engine to readonly mode so that it can free all the internal
+  // resources after finishing encoding
+  m_engine.readonly = true;
+}
 
 PreEncoder::~PreEncoder() {}
 
@@ -109,7 +117,53 @@ void PreEncoder::analyzeInsnMeta() {
   }
 }
 
-bool PreEncoder::serialize() { return false; }
+bool PreEncoder::serialize() {
+  std::vector<IMetaData::Operand> operands;
+  std::vector<IMetaData::Expression> expressions;
+  if (!OpcodeEngine::convertOperands(operands, expressions))
+    return false;
+
+  const uint64_t off_operands = sizeof(IMetaData);
+  const uint64_t off_expressions =
+      off_operands + operands.size() * sizeof(IMetaData::Operand);
+  const uint64_t outsize =
+      off_expressions + expressions.size() * sizeof(IMetaData::Expression);
+  if (outsize > std::numeric_limits<uint32_t>::max()) {
+    log_print(Runtime, "Metadata size exceeds the 32-bit format limit");
+    return false;
+  }
+
+  std::vector<uint8_t> outbuf(static_cast<size_t>(outsize), 0);
+  IMetaData metadata{};
+  metadata.magic = IMetaData::kMagic;
+  metadata.version = IMetaData::kVersion;
+  metadata.size = static_cast<uint32_t>(outsize);
+  metadata.off_operands = static_cast<uint32_t>(off_operands);
+  metadata.num_operands = static_cast<uint32_t>(operands.size());
+  metadata.off_expressions = static_cast<uint32_t>(off_expressions);
+  metadata.num_expressions = static_cast<uint32_t>(expressions.size());
+  metadata.off_instructions = static_cast<uint32_t>(outsize);
+  metadata.off_chains = static_cast<uint32_t>(outsize);
+  if (m_haswx)
+    metadata.flags |= IMetaData::kFlag_haswx;
+
+  std::memcpy(outbuf.data(), &metadata, sizeof(metadata));
+  if (!operands.empty()) {
+    std::memcpy(outbuf.data() + off_operands, operands.data(),
+                operands.size() * sizeof(IMetaData::Operand));
+  }
+  if (!expressions.empty()) {
+    std::memcpy(outbuf.data() + off_expressions, expressions.data(),
+                expressions.size() * sizeof(IMetaData::Expression));
+  }
+
+  std::ofstream ofs(std::string(m_outpath), std::ios::binary);
+  if (!ofs)
+    return false;
+  ofs.write(reinterpret_cast<const char *>(outbuf.data()),
+            static_cast<std::streamsize>(outbuf.size()));
+  return ofs.good();
+}
 
 bool PreEncoder::encode() {
   // prefetch all the opcodes into opcode engine

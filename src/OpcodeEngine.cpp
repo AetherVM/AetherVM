@@ -12,7 +12,10 @@
 
 #include <Platform.h>
 
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Instruction.h>
+
+#include <limits>
 
 // shortcuts for engine implementation stub
 #define engine (CPU.runtime)
@@ -42,6 +45,9 @@ struct RemillRegister {
 };
 
 static_assert(sizeof(RemillRegister) == sizeof(remill::Operand::Register));
+static_assert(remill::Operand::kTypeAddressExpression <= UINT8_MAX);
+static_assert(remill::Operand::kActionWrite <= UINT8_MAX);
+static_assert(remill::Operand::Address::kControlFlowTarget <= UINT8_MAX);
 
 void load_regoffs_aarch64(std::map<std::string, size_t> &regoffs) {
   // General Purpose Registers (X0 - X30) and 32-bit aliases (W0 - W30)
@@ -531,6 +537,200 @@ inline void UpdatePC() {
   CPU.pcptr[0] = IsARM64() ? CPU.aarch64.gpr._1 : CPU.x86.gpr._1;
 }
 
+bool ConvertExpression(const remill::OperandExpression *expression,
+                       std::vector<IMetaData::Expression> &nodes,
+                       IMetaData::Expression &converted, std::string &error) {
+  using MetadataExpression = IMetaData::Expression;
+  if (!expression) {
+    error = "null Remill operand expression";
+    return false;
+  }
+
+  converted = {};
+  if (const auto *op = std::get_if<remill::LLVMOpExpr>(expression)) {
+    if (op->llvm_opcode > std::numeric_limits<uint8_t>::max()) {
+      error = "LLVM opcode does not fit in expression metadata";
+      return false;
+    }
+    converted.kind = MetadataExpression::kOperation;
+    converted.opcode = static_cast<uint8_t>(op->llvm_opcode);
+    auto append_child = [&](const remill::OperandExpression *child,
+                            uint32_t &child_index) {
+      MetadataExpression child_node{};
+      if (!ConvertExpression(child, nodes, child_node, error))
+        return false;
+      if (nodes.size() >= MetadataExpression::no_child) {
+        error = "too many Remill operand expression nodes";
+        return false;
+      }
+      child_index = static_cast<uint32_t>(nodes.size());
+      nodes.push_back(child_node);
+      return true;
+    };
+    if (!append_child(op->op1, converted.payload.operation.lhs))
+      return false;
+    converted.payload.operation.rhs = MetadataExpression::no_child;
+    if (op->op2 && !append_child(op->op2, converted.payload.operation.rhs))
+      return false;
+    if (expression->type) {
+      const auto width =
+          engine->remillSemantic->getDataLayout().getTypeSizeInBits(
+              expression->type);
+      if (width > std::numeric_limits<uint8_t>::max()) {
+        error = "expression width does not fit in metadata";
+        return false;
+      }
+      converted.width = static_cast<uint8_t>(width);
+    }
+  } else if (const auto *reg =
+                 std::get_if<const remill::Register *>(expression)) {
+    if (!*reg) {
+      error = "null register in Remill operand expression";
+      return false;
+    }
+    const auto found = regoffs.find((*reg)->name);
+    if (found == regoffs.end()) {
+      error = "unknown register in Remill operand expression: " + (*reg)->name;
+      return false;
+    }
+    if (found->second > std::numeric_limits<uint16_t>::max() ||
+        (*reg)->size > std::numeric_limits<uint16_t>::max()) {
+      error = "register offset or size does not fit in expression metadata: " +
+              (*reg)->name;
+      return false;
+    }
+    converted.kind = MetadataExpression::kRegister;
+    converted.payload.reg = {static_cast<uint16_t>(found->second),
+                             static_cast<uint16_t>((*reg)->size)};
+  } else if (const auto *constant = std::get_if<llvm::Constant *>(expression)) {
+    const auto *integer = llvm::dyn_cast_or_null<llvm::ConstantInt>(*constant);
+    if (!integer || integer->getBitWidth() > 64) {
+      error = "unsupported constant in Remill operand expression";
+      return false;
+    }
+    converted.kind = MetadataExpression::kConstant;
+    converted.width = static_cast<uint8_t>(integer->getBitWidth());
+    const uint64_t value = integer->getZExtValue();
+    converted.payload.constant = {static_cast<uint32_t>(value),
+                                  static_cast<uint32_t>(value >> 32)};
+  } else if (const auto *name = std::get_if<std::string>(expression)) {
+    if (name->empty()) {
+      error = "empty register name in Remill operand expression";
+      return false;
+    }
+    const auto found = regoffs.find(*name);
+    if (found == regoffs.end()) {
+      error = "unknown register in Remill operand expression: " + *name;
+      return false;
+    }
+    if (found->second > std::numeric_limits<uint16_t>::max()) {
+      error = "register offset does not fit in expression metadata: " + *name;
+      return false;
+    }
+    converted.kind = MetadataExpression::kRegister;
+    converted.payload.reg = {
+        static_cast<uint16_t>(found->second),
+        static_cast<uint16_t>(name->front() == 'w' ? 32 : 64)};
+  } else {
+    error = "unknown Remill operand expression kind";
+    return false;
+  }
+  return true;
+}
+
+bool ConvertOperand(const RemillOperand &operand,
+                    std::vector<IMetaData::Expression> &expressions,
+                    IMetaData::Operand &metadata, std::string &error) {
+  auto fits_u8 = [&](uint64_t value, const char *field) {
+    if (value <= std::numeric_limits<uint8_t>::max())
+      return true;
+    error =
+        std::string("Remill operand ") + field + " does not fit in metadata";
+    return false;
+  };
+  metadata = {};
+  if (!fits_u8(operand.size, "size"))
+    return false;
+  metadata.type = static_cast<uint8_t>(operand.type);
+  metadata.action = static_cast<uint8_t>(operand.action);
+  metadata.size = static_cast<uint8_t>(operand.size);
+
+  auto convert_register = [&](const remill::Operand::Register &reg,
+                              IMetaData::Operand::Register &converted) {
+    const auto *fixed = reinterpret_cast<const RemillRegister *>(&reg);
+    if (fixed->offset > std::numeric_limits<uint16_t>::max() ||
+        fixed->size > std::numeric_limits<uint16_t>::max()) {
+      error = "Remill register offset or size does not fit in metadata: " +
+              reg.name;
+      return false;
+    }
+    converted = {static_cast<uint16_t>(fixed->offset),
+                 static_cast<uint16_t>(fixed->size)};
+    return true;
+  };
+
+  switch (operand.type) {
+  case remill::Operand::kTypeInvalid:
+    break;
+  case remill::Operand::kTypeRegister:
+    if (!convert_register(operand.reg, metadata.value.reg))
+      return false;
+    break;
+  case remill::Operand::kTypeShiftRegister:
+    if (!fits_u8(operand.shift_reg.shift_size, "shift size") ||
+        !fits_u8(operand.shift_reg.extract_size, "extract size") ||
+        !convert_register(operand.shift_reg.reg,
+                          metadata.value.shift_register.reg))
+      return false;
+    metadata.value.shift_register = {
+        metadata.value.shift_register.reg,
+        static_cast<uint8_t>(operand.shift_reg.shift_size),
+        static_cast<uint8_t>(operand.shift_reg.extract_size),
+        operand.shift_reg.shift_first,
+        operand.shift_reg.can_shift_op_size,
+        static_cast<uint8_t>(operand.shift_reg.shift_op),
+        static_cast<uint8_t>(operand.shift_reg.extend_op)};
+    break;
+  case remill::Operand::kTypeImmediate:
+    metadata.value.immediate = {operand.imm.val, operand.imm.is_signed};
+    break;
+  case remill::Operand::kTypeAddress:
+    if (!fits_u8(operand.addr.address_size, "address size"))
+      return false;
+    metadata.value.address = {};
+    if (!operand.addr.segment_base_reg.name.empty())
+      if (!convert_register(operand.addr.segment_base_reg,
+                            metadata.value.address.regs[0]))
+        return false;
+    if (!operand.addr.base_reg.name.empty())
+      if (!convert_register(operand.addr.base_reg,
+                            metadata.value.address.regs[1]))
+        return false;
+    if (!operand.addr.index_reg.name.empty())
+      if (!convert_register(operand.addr.index_reg,
+                            metadata.value.address.regs[2]))
+        return false;
+    metadata.value.address.scale = operand.addr.scale;
+    metadata.value.address.displacement = operand.addr.displacement;
+    metadata.value.address.address_size =
+        static_cast<uint8_t>(operand.addr.address_size);
+    metadata.value.address.kind = static_cast<uint8_t>(operand.addr.kind);
+    break;
+  case remill::Operand::kTypeExpression:
+  case remill::Operand::kTypeRegisterExpression:
+  case remill::Operand::kTypeImmediateExpression:
+  case remill::Operand::kTypeAddressExpression:
+    if (!ConvertExpression(operand.expr, expressions, metadata.value.expression,
+                           error))
+      return false;
+    break;
+  default:
+    error = "unknown Remill operand type";
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 uint128_var_t RemillOperand::ID(bool pointer) const {
@@ -579,7 +779,6 @@ uint128_var_t RemillOperand::ID(bool pointer) const {
 
 void RemillOperand::initOffsets() {
   using remill::Operand;
-  uint128_var_t id{0, 0};
   switch (type) {
   case kTypeRegister:
     SetOffset(&reg);
@@ -1053,6 +1252,25 @@ OpcodeEngine::~OpcodeEngine() {
   operands.clear();
   operandmap.clear();
   regoffs.clear();
+}
+
+bool OpcodeEngine::convertOperands(
+    std::vector<IMetaData::Operand> &metadata,
+    std::vector<IMetaData::Expression> &expressions) {
+  metadata.clear();
+  expressions.clear();
+  metadata.reserve(operands.size());
+  for (const auto &operand : operands) {
+    IMetaData::Operand converted{};
+    std::string error;
+    if (!ConvertOperand(operand, expressions, converted, error)) {
+      log_print(Runtime, "Failed to convert Remill operand to metadata: {}",
+                error);
+      return false;
+    }
+    metadata.push_back(converted);
+  }
+  return true;
 }
 
 } // namespace aether

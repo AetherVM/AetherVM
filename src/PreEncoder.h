@@ -50,6 +50,9 @@ private:
   // the [start, end) index ranges of the different length opcodes
   std::pair<uint32_t, uint32_t> m_ranges[5];
   std::vector<InsnMeta> m_insnmetas;
+
+  // map from encoder rva to the target rva of the same runtime function
+  static std::map<uint32_t, uint32_t> m_rva2rt;
 };
 
 } // namespace aether
