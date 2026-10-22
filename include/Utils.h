@@ -49,6 +49,7 @@ template <typename T> constexpr T align_down(T value, size_t align_size) {
 enum LogType {
   Develop,
   Runtime,
+  RuntimeRaw,
   Ignore,
 };
 
@@ -68,6 +69,9 @@ inline void log_print(LogType type, std::format_string<Args...> format,
     commit = true;
     tchar = 'R';
     break;
+  case RuntimeRaw:
+    commit = true;
+    break;
   case Ignore:
     return;
   default:
@@ -76,9 +80,11 @@ inline void log_print(LogType type, std::format_string<Args...> format,
   if (!commit)
     return;
 
-  auto now = std::time(nullptr);
-  std::cout << std::put_time(std::localtime(&now), "%T") << " " << tchar
-            << " - ";
+  if (type != RuntimeRaw) {
+    auto now = std::time(nullptr);
+    std::cout << std::put_time(std::localtime(&now), "%T") << " " << tchar
+              << " - ";
+  }
   auto msg = std::vformat(format.get(), std::make_format_args(args...));
   std::cout << msg << std::endl;
 }
