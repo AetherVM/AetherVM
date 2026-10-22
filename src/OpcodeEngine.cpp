@@ -649,11 +649,9 @@ bool ConvertOperand(const RemillOperand &operand,
     return false;
   };
   metadata = {};
-  if (!fits_u8(operand.size, "size"))
-    return false;
   metadata.type = static_cast<uint8_t>(operand.type);
   metadata.action = static_cast<uint8_t>(operand.action);
-  metadata.size = static_cast<uint8_t>(operand.size);
+  metadata.size = static_cast<uint16_t>(operand.size);
 
   auto convert_register = [&](const remill::Operand::Register &reg,
                               IMetaData::Operand::Register &converted) {

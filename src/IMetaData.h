@@ -88,7 +88,7 @@ struct IMetaData {
       Expression expression;
     };
 
-    uint8_t size;
+    uint16_t size;
     uint8_t type;
     uint8_t action;
     Value value;
