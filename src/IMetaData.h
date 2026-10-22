@@ -10,10 +10,7 @@ namespace aether {
 
 struct IMetaData {
   static constexpr uint32_t kMagic = 'MVEA'; // AEVM
-  static constexpr uint32_t kVersion = 5;
-
-  // the target platform has write-execute memory support
-  static constexpr uint32_t kFlag_haswx = 0x1;
+  static constexpr uint32_t kVersion = 1;
 
   // Operand fields use fixed-width values and register state offsets, never
   // pointers or variable-length Remill strings.
@@ -97,18 +94,43 @@ struct IMetaData {
     Value value;
   };
 
+  // Note, when serializing for arm64 with valid aotimpl, each of Handler must
+  // be aligned with 4 bytes, so that the aot implementation bytes can be
+  // correctly aligned in memory at runtime to execute properly.
+  struct Handler {
+    uint16_t impl;    // implementation index
+    uint8_t type : 4; // OpcodeHandler::Type
+    uint8_t oplen : 4;
+    uint8_t oprnum;
+    uint8_t opcode[0];
+    uint16_t operands[0];
+    uint8_t aotimpl[0]; // aot implementation bytes
+  };
+
+  // header
   uint32_t magic;
   uint32_t version;
   uint32_t size;
-  uint32_t flags;
-  uint32_t off_operands;     // remill operand section offset
-  uint32_t num_operands;     // number of remill operands
-  uint32_t off_expressions;  // expression node section offset
-  uint32_t num_expressions;  // number of expression nodes
-  uint32_t off_instructions; // aot instruction section offset
-  uint32_t num_instructions; // number of aot instructions
-  uint32_t off_chains;       // execution chain section offset
-  uint32_t num_chains;       // number of execution chains
+  // <rva, handler offset from the start of the handler section>
+  uint32_t off_instruction; // instruction meta section offset
+  uint32_t num_instruction; // number of instruction metas
+  // remill operand list
+  uint32_t off_operands; // remill operand section offset
+  uint32_t num_operands; // number of remill operands
+  // expression node list referenced by remill operands
+  uint32_t off_expressions; // expression node section offset
+  uint32_t num_expressions; // number of expression nodes
+  // handler list
+  uint32_t off_handlers; // handler section offset
+  uint32_t num_handlers; // number of handler
+  // end of header
+  //
+  // body of the metadata follows the header
+  //
+  // instruction meta
+  // operand meta
+  // expression meta
+  // handler meta
 };
 
 } // namespace aether

@@ -896,12 +896,14 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
   llvm::MCInst inst;
   auto oplen =
       engine->diser.disassemble((uint8_t *)&opcode, sizeof(opcode), inst);
+  this->oplen = static_cast<uint8_t>(oplen);
   if (initMCInst(inst))
     return;
 
   type = OHT_Dynamic;
   if (!oplen) {
     impl = (void *)&abort;
+    implsize = 0;
     return;
   }
   auto arch = engine->remillArch.get();
@@ -943,6 +945,7 @@ template <typename T> void OpcodeHandler<T>::initDynamic() {
   // rw-
   page_commit(pagestart, pagesz, true, true, false);
   impl = pagecur;
+  implsize = static_cast<uint16_t>(binsz);
   std::memcpy(pagecur, &asmbin[0], binsz);
   pagecur += binsz;
   // r-x

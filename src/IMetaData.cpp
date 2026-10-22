@@ -9,7 +9,7 @@
 
 namespace aether {
 
-static_assert(sizeof(IMetaData) == 48);
+static_assert(sizeof(IMetaData) == 44);
 static_assert(sizeof(IMetaData::Operand::Register) == 4);
 static_assert(sizeof(IMetaData::Operand::ShiftRegister) == 10);
 static_assert(sizeof(IMetaData::Operand::Immediate) == 16);

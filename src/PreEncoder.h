@@ -22,6 +22,8 @@ private:
   void prefetch();
   void analyzeInsnMeta();
   bool serialize();
+  std::vector<std::vector<uint8_t>>
+  serializeHandler(std::vector<uint32_t> &hoffsets);
   uint32_t handlerIndex(std::span<const uint8_t> opcode);
 
 private:
@@ -50,9 +52,6 @@ private:
   // the [start, end) index ranges of the different length opcodes
   std::pair<uint32_t, uint32_t> m_ranges[5];
   std::vector<InsnMeta> m_insnmetas;
-
-  // map from encoder rva to the target rva of the same runtime function
-  static std::map<uint32_t, uint32_t> m_rva2rt;
 };
 
 } // namespace aether

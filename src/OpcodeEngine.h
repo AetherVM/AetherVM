@@ -47,6 +47,7 @@ template <typename T> struct OpcodeHandler {
   T opcode;
   uint8_t oplen;
   Type type;
+  uint16_t implsize = 0;
   std::vector<OperandInfo> args; // operands
   const void *impl;              // implementation of this opcode
 
