@@ -1,5 +1,12 @@
 ## v0.2.0
 ### Bug fixes:
+ * fix apple rpath name for non-icpp build mode;
+ 
+### Improvements:
+ * add pre-encoder for binary;
+
+## v0.2.0
+### Bug fixes:
  * add missing remill arm64 condition handlers;
  
 ### Improvements:

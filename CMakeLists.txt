@@ -155,6 +155,8 @@ target_include_directories(AetherVM PRIVATE
 )
 if(ICPP_RUNTIME)
   set(AetherVM_Name "AetherVMICPP")
+else()
+  set(AetherVM_Name "AetherVM")
 endif()
 if(APPLE)
   target_link_options(AetherVM PRIVATE
