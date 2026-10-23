@@ -12,6 +12,10 @@ struct IMetaData {
   static constexpr uint32_t kMagic = 'MVEA'; // AEVM
   static constexpr uint32_t kVersion = 1;
 
+  enum {
+    kFlag_HasWX = 1 << 0, // writable and executable memory region
+  };
+
   // Operand fields use fixed-width values and register state offsets, never
   // pointers or variable-length Remill strings.
   struct Expression {
@@ -111,6 +115,7 @@ struct IMetaData {
   uint32_t magic;
   uint32_t version;
   uint32_t size;
+  uint32_t flags; // metadata flags, e.g., kFlag_HasWX
   // <rva, handler offset from the start of the handler section>
   uint32_t off_instruction; // instruction meta section offset
   uint32_t num_instruction; // number of instruction metas

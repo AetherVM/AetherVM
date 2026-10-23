@@ -16,6 +16,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <set>
 #include <string>
 
 namespace aether {
@@ -23,24 +24,25 @@ namespace aether {
 namespace {
 
 const char *operandTypeName(uint8_t type) {
-  switch (type) {
-  case 0:
+  using Operand = remill::Operand;
+  switch (static_cast<Operand::Type>(type)) {
+  case Operand::kTypeInvalid:
     return "invalid";
-  case 1:
+  case Operand::kTypeRegister:
     return "register";
-  case 2:
+  case Operand::kTypeShiftRegister:
     return "shift-register";
-  case 3:
+  case Operand::kTypeImmediate:
     return "immediate";
-  case 4:
+  case Operand::kTypeAddress:
     return "address";
-  case 5:
+  case Operand::kTypeExpression:
     return "expression";
-  case 6:
+  case Operand::kTypeRegisterExpression:
     return "register-expression";
-  case 7:
+  case Operand::kTypeImmediateExpression:
     return "immediate-expression";
-  case 8:
+  case Operand::kTypeAddressExpression:
     return "address-expression";
   default:
     return "unknown";
@@ -48,16 +50,17 @@ const char *operandTypeName(uint8_t type) {
 }
 
 const char *handlerTypeName(uint8_t type) {
-  switch (type) {
-  case 0:
+  using Handler = OpcodeHandler<uint8_t>;
+  switch (static_cast<Handler::Type>(type)) {
+  case Handler::OHT_Remill:
     return "Remill";
-  case 1:
+  case Handler::OHT_MCInst:
     return "MCInst";
-  case 2:
+  case Handler::OHT_Dynamic:
     return "Dynamic";
-  case 3:
+  case Handler::OHT_Prebuit:
     return "Prebuilt";
-  case 4:
+  case Handler::OHT_PrebuiltMapped:
     return "PrebuiltMapped";
   default:
     return "unknown";
@@ -206,10 +209,8 @@ PreEncoder::serializeHandler(std::vector<uint32_t> &hoffsets) {
   };
 
   for (const auto &source : m_handlers) {
-    bool is_dynamic = false;
     auto convert = [&]<typename T>(const OpcodeHandler<T> &handler)
         -> std::optional<std::vector<uint8_t>> {
-      is_dynamic = handler.type == OpcodeHandler<T>::OHT_Dynamic;
       if (handler.oplen > 15 || handler.oplen > source.oplen ||
           handler.args.size() > UINT8_MAX)
         return std::nullopt;
@@ -242,11 +243,11 @@ PreEncoder::serializeHandler(std::vector<uint32_t> &hoffsets) {
         if (aotimpl) {
           if (handler.implsize && !handler.impl)
             return std::nullopt;
-          impl = 0;
+          impl = handler.implsize;
         } else {
           if (dynamic_handler_index >= no_impl)
             return std::nullopt;
-          impl = static_cast<uint16_t>(dynamic_handler_index);
+          impl = static_cast<uint16_t>(dynamic_handler_index++);
         }
         break;
       default:
@@ -327,8 +328,6 @@ PreEncoder::serializeHandler(std::vector<uint32_t> &hoffsets) {
     hoffsets.push_back(static_cast<uint32_t>(handler_section_offset));
     handler_section_offset += record->size();
     serialized.push_back(std::move(*record));
-    if (is_dynamic)
-      ++dynamic_handler_index;
   }
   return serialized;
 }
@@ -382,6 +381,7 @@ bool PreEncoder::serialize() {
   metadata.magic = IMetaData::kMagic;
   metadata.version = IMetaData::kVersion;
   metadata.size = static_cast<uint32_t>(outsize);
+  metadata.flags = 0;
   metadata.off_instruction = static_cast<uint32_t>(off_instruction);
   metadata.num_instruction = static_cast<uint32_t>(instructions.size());
   metadata.off_operands = static_cast<uint32_t>(off_operands);
@@ -390,6 +390,8 @@ bool PreEncoder::serialize() {
   metadata.num_expressions = static_cast<uint32_t>(expressions.size());
   metadata.off_handlers = static_cast<uint32_t>(off_handlers);
   metadata.num_handlers = static_cast<uint32_t>(handlers.size());
+  if (m_haswx)
+    metadata.flags |= IMetaData::kFlag_HasWX;
 
   std::memcpy(outbuf.data(), &metadata, sizeof(metadata));
   if (!instructions.empty()) {
@@ -495,6 +497,7 @@ void PreEncoder::dump(std::string_view path) {
             << "  version: " << metadata.version << '\n'
             << "  declared size: " << metadata.size << " bytes\n"
             << "  actual size: " << file_size << " bytes\n"
+            << "  flags: 0x" << std::hex << metadata.flags << std::dec << '\n'
             << "  instructions: offset " << metadata.off_instruction
             << ", count " << metadata.num_instruction << '\n'
             << "  operands: offset " << metadata.off_operands << ", count "
@@ -546,12 +549,15 @@ void PreEncoder::dump(std::string_view path) {
     return;
   }
 
+  std::set<uint32_t> referenced_offsets;
   std::cout << "\nInstructions (" << metadata.num_instruction << "):\n";
   for (uint32_t i = 0; i < metadata.num_instruction; ++i) {
     InsnMeta instruction{};
     const uint64_t offset =
         uint64_t{metadata.off_instruction} + uint64_t{i} * sizeof(instruction);
     readAt(offset, instruction);
+    if (instruction.handler != UINT32_MAX)
+      referenced_offsets.insert(instruction.handler);
     std::cout << "  [" << i << "] rva=0x" << std::hex << instruction.rva
               << " handler-offset=";
     if (instruction.handler == UINT32_MAX)
@@ -569,14 +575,14 @@ void PreEncoder::dump(std::string_view path) {
     readAt(offset, operand);
     std::cout << "  [" << i << "] type=" << operandTypeName(operand.type)
               << " (" << static_cast<unsigned>(operand.type) << "), action=";
-    switch (operand.action) {
-    case 0:
+    switch (static_cast<remill::Operand::Action>(operand.action)) {
+    case remill::Operand::kActionInvalid:
       std::cout << "invalid";
       break;
-    case 1:
+    case remill::Operand::kActionRead:
       std::cout << "read";
       break;
-    case 2:
+    case remill::Operand::kActionWrite:
       std::cout << "write";
       break;
     default:
@@ -584,12 +590,12 @@ void PreEncoder::dump(std::string_view path) {
       break;
     }
     std::cout << ", size=" << operand.size << " bits";
-    switch (operand.type) {
-    case 1:
+    switch (static_cast<remill::Operand::Type>(operand.type)) {
+    case remill::Operand::kTypeRegister:
       std::cout << ", register={offset=" << operand.value.reg.offset
                 << ", size=" << operand.value.reg.size << '}';
       break;
-    case 2: {
+    case remill::Operand::kTypeShiftRegister: {
       const auto &value = operand.value.shift_register;
       std::cout << ", shift-register={register={offset=" << value.reg.offset
                 << ", size=" << value.reg.size
@@ -604,13 +610,13 @@ void PreEncoder::dump(std::string_view path) {
                 << '}';
       break;
     }
-    case 3:
+    case remill::Operand::kTypeImmediate:
       std::cout << ", immediate={value=0x" << std::hex
                 << operand.value.immediate.value << std::dec << ", signed="
                 << static_cast<unsigned>(operand.value.immediate.is_signed)
                 << '}';
       break;
-    case 4: {
+    case remill::Operand::kTypeAddress: {
       const auto &value = operand.value.address;
       std::cout << ", address={segment-register={offset="
                 << value.regs[0].offset << ", size=" << value.regs[0].size
@@ -623,17 +629,17 @@ void PreEncoder::dump(std::string_view path) {
                 << ", kind=" << static_cast<unsigned>(value.kind) << '}';
       break;
     }
-    case 5:
-    case 6:
-    case 7:
-    case 8: {
+    case remill::Operand::kTypeExpression:
+    case remill::Operand::kTypeRegisterExpression:
+    case remill::Operand::kTypeImmediateExpression:
+    case remill::Operand::kTypeAddressExpression: {
       const auto &value = operand.value.expression;
       std::cout << ", expression={kind=" << expressionKindName(value.kind)
                 << " (" << static_cast<unsigned>(value.kind)
                 << "), opcode=" << static_cast<unsigned>(value.opcode)
                 << ", width=" << static_cast<unsigned>(value.width)
                 << ", reserved=" << static_cast<unsigned>(value.reserved);
-      switch (value.kind) {
+      switch (static_cast<IMetaData::Expression::Kind>(value.kind)) {
       case IMetaData::Expression::kOperation:
         std::cout << ", operation={lhs=" << value.payload.operation.lhs
                   << ", rhs=" << value.payload.operation.rhs << '}';
@@ -661,7 +667,7 @@ void PreEncoder::dump(std::string_view path) {
       std::cout << '}';
       break;
     }
-    case 0:
+    case remill::Operand::kTypeInvalid:
       break;
     default:
       std::cout << ", payload-bytes=[";
@@ -687,7 +693,7 @@ void PreEncoder::dump(std::string_view path) {
               << "), opcode=" << static_cast<unsigned>(expression.opcode)
               << ", width=" << static_cast<unsigned>(expression.width)
               << ", reserved=" << static_cast<unsigned>(expression.reserved);
-    switch (expression.kind) {
+    switch (static_cast<IMetaData::Expression::Kind>(expression.kind)) {
     case IMetaData::Expression::kOperation:
       std::cout << ", operation={lhs=" << expression.payload.operation.lhs
                 << ", rhs=" << expression.payload.operation.rhs << '}';
@@ -715,61 +721,44 @@ void PreEncoder::dump(std::string_view path) {
     std::cout << '\n';
   }
 
-  const uint64_t handler_size = data.size() - metadata.off_handlers;
   std::cout << "\nHandlers (" << metadata.num_handlers << "):\n";
-  bool fixed_handler_layout = true;
-  uint64_t fixed_layout_end = metadata.off_handlers;
-  for (uint32_t i = 0; i < metadata.num_handlers; ++i) {
-    IMetaData::Handler handler{};
-    constexpr uint64_t fixed_size = offsetof(IMetaData::Handler, opcode);
-    if (fixed_layout_end > data.size() ||
-        fixed_size > data.size() - fixed_layout_end) {
-      fixed_handler_layout = false;
-      break;
-    }
-    std::memcpy(&handler, data.data() + fixed_layout_end, fixed_size);
-    const uint64_t record_size =
-        fixed_size + handler.oplen +
-        (handler.type == 0 ? uint64_t{handler.oprnum} * sizeof(uint16_t) : 0);
-    if (handler.type > 4 || record_size > data.size() - fixed_layout_end) {
-      fixed_handler_layout = false;
-      break;
-    }
-    fixed_layout_end += record_size;
-  }
-  fixed_handler_layout &= fixed_layout_end == data.size();
+  constexpr uint64_t fixed_size = offsetof(IMetaData::Handler, opcode);
+  using HandlerType = OpcodeHandler<uint8_t>::Type;
+  auto recordSize = [&](const IMetaData::Handler &handler) {
+    return fixed_size + handler.oplen +
+           (handler.type == HandlerType::OHT_Remill
+                ? uint64_t{handler.oprnum} * sizeof(uint16_t)
+                : 0);
+  };
 
+  bool aotimpl = metadata.flags & IMetaData::kFlag_HasWX;
+  std::set<uint32_t> computed_offsets;
   uint64_t handler_offset = metadata.off_handlers;
-  bool handler_tail_dumped = false;
   for (uint32_t i = 0; i < metadata.num_handlers; ++i) {
     IMetaData::Handler handler{};
-    constexpr uint64_t fixed_size = offsetof(IMetaData::Handler, opcode);
     if (handler_offset > data.size() ||
         fixed_size > data.size() - handler_offset) {
       std::cerr << "Truncated handler record " << i << '\n';
-      printBytes(handler_offset, data.size() - handler_offset,
-                 "unparsed handler data");
-      handler_tail_dumped = true;
-      break;
+      return;
     }
     std::memcpy(&handler, data.data() + handler_offset, fixed_size);
-    const uint64_t record_size =
-        fixed_size + handler.oplen +
-        (handler.type == 0 ? uint64_t{handler.oprnum} * sizeof(uint16_t) : 0);
-    if (handler.type > 4 || record_size > data.size() - handler_offset) {
+    uint64_t record_size = recordSize(handler);
+    if (handler.type > HandlerType::OHT_PrebuiltMapped ||
+        record_size > data.size() - handler_offset) {
       std::cerr << "Invalid or truncated handler record " << i << '\n';
-      printBytes(handler_offset, data.size() - handler_offset,
-                 "unparsed handler data");
-      handler_tail_dumped = true;
-      break;
+      return;
     }
 
+    computed_offsets.insert(
+        static_cast<uint32_t>(handler_offset - metadata.off_handlers));
     const auto *record = data.data() + handler_offset;
     std::cout << "  [" << i << "] section-offset=0x" << std::hex
               << handler_offset - metadata.off_handlers << std::dec
-              << ", implementation-index=" << handler.impl
-              << ", type=" << handlerTypeName(handler.type) << " ("
-              << static_cast<unsigned>(handler.type)
+              << (handler.type == HandlerType::OHT_Dynamic
+                      ? ", implementation-size="
+                      : ", implementation-index=")
+              << handler.impl << ", type=" << handlerTypeName(handler.type)
+              << " (" << static_cast<unsigned>(handler.type)
               << "), opcode-length=" << static_cast<unsigned>(handler.oplen)
               << ", operand-count=" << static_cast<unsigned>(handler.oprnum)
               << ", opcode=";
@@ -778,7 +767,7 @@ void PreEncoder::dump(std::string_view path) {
                 << std::setfill('0')
                 << static_cast<unsigned>(record[fixed_size + j]);
     std::cout << std::dec << std::setfill(' ');
-    if (handler.type == 0) {
+    if (handler.type == HandlerType::OHT_Remill) {
       std::cout << ", operands=[";
       for (uint8_t j = 0; j < handler.oprnum; ++j) {
         uint16_t value = 0;
@@ -792,24 +781,32 @@ void PreEncoder::dump(std::string_view path) {
       std::cout << ']';
     }
     std::cout << '\n';
-    handler_offset += record_size;
 
-    if (handler.type == 2 && !fixed_handler_layout) {
-      std::cout << "  Dynamic handler implementations may include AOT code "
-                   "and alignment bytes; this format does not store their "
-                   "length, so the remaining handler records are shown raw.\n";
-      printBytes(handler_offset, data.size() - handler_offset,
-                 "dynamic handler and remaining handler data");
-      handler_tail_dumped = true;
-      break;
+    if (!aotimpl) {
+      handler_offset += record_size;
+      continue;
     }
+
+    // skip the aot implementation (impl holds its size), 4-byte aligned
+    if (handler.type == HandlerType::OHT_Dynamic)
+      record_size = ((record_size + 3u) & ~uint64_t{3}) + handler.impl;
+    record_size = (record_size + 3u) & ~uint64_t{3};
+    handler_offset += record_size;
   }
 
-  if (!handler_tail_dumped && handler_offset < data.size())
-    printBytes(handler_offset, data.size() - handler_offset,
-               "trailing handler data (including possible AOT code/padding)");
-  else if (handler_size == 0 && metadata.num_handlers != 0)
-    std::cerr << "Handler count is nonzero but the handler section is empty\n";
+  // verify the calculated handler offsets against the instruction metadata
+  size_t mismatches = 0;
+  for (auto offset : referenced_offsets) {
+    if (computed_offsets.contains(offset))
+      continue;
+    ++mismatches;
+    std::cerr << "Instruction references handler offset 0x" << std::hex
+              << offset << std::dec
+              << " which does not match any calculated handler offset\n";
+  }
+  if (mismatches)
+    std::cerr << "Handler offset verification failed: " << mismatches
+              << " mismatch(es)\n";
 }
 
 } // namespace aether

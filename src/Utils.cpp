@@ -42,6 +42,7 @@ std::vector<std::string_view> string_view_split(std::string_view str,
 bool encode_aevm(std::string_view path, std::string_view outpath) {
   // only iOS app bundles have a parent directory with the ".app" extension
   auto haswx = fs::path(path).parent_path().extension() != ".app";
+  log_print(Runtime, "Loading and analyzing binary from path: {}...", path);
   auto bin = aether::New(path.data());
   if (!bin) {
     log_print(Runtime, "Failed to create Aether binary from path: {}", path);
@@ -49,8 +50,10 @@ bool encode_aevm(std::string_view path, std::string_view outpath) {
   }
   BinaryEngine engine(bin);
   PreEncoder encoder(bin, outpath, haswx);
+  log_print(Runtime, "Encoding Aether VM binary...");
   auto result = encoder.encode();
   aether::Delete(bin);
+  log_print(Runtime, "Finished encoding with result: {}.", outpath);
   return result;
 }
 

@@ -54,4 +54,6 @@
 #define Orchestrator OrchestratorICPP
 #define opcode_generator opcode_generator_icpp
 #define opcret_generator opcret_generator_icpp
+#define encode_aevm encode_aevm_icpp
+#define dump_aevm dump_aevm_icpp
 #endif
