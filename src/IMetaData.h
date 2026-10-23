@@ -14,6 +14,8 @@ struct IMetaData {
 
   enum {
     kFlag_HasWX = 1 << 0, // writable and executable memory region
+    kFlag_ARM64 = 1 << 1, // arm64 architecture
+    kFlag_X64 = 1 << 2    // x64 architecture
   };
 
   // Operand fields use fixed-width values and register state offsets, never

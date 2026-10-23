@@ -7,9 +7,11 @@
 #include "Handler.h"
 
 #include <AetherBinary.h>
+#include <Disassembler.h>
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -22,6 +24,29 @@
 namespace aether {
 
 namespace {
+
+std::string flagsString(uint32_t flags) {
+  static constexpr std::pair<uint32_t, const char *> names[] = {
+      {IMetaData::kFlag_HasWX, "HasWX"},
+      {IMetaData::kFlag_ARM64, "ARM64"},
+      {IMetaData::kFlag_X64, "X64"},
+  };
+  std::string result;
+  for (const auto &[bit, name] : names) {
+    if (!(flags & bit))
+      continue;
+    result += result.empty() ? "" : " | ";
+    result += name;
+    flags &= ~bit;
+  }
+  if (flags) {
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "0x%x", flags);
+    result += result.empty() ? "" : " | ";
+    result += std::string("unknown(") + buf + ")";
+  }
+  return result.empty() ? "none" : result;
+}
 
 const char *operandTypeName(uint8_t type) {
   using Operand = remill::Operand;
@@ -82,6 +107,17 @@ const char *expressionKindName(uint8_t kind) {
   }
 }
 
+std::string disasOpcode(Disassembler &diser, std::span<const uint8_t> opcode,
+                        uint32_t *oplen) {
+  std::string result;
+  *oplen = diser.disassemble(opcode.data(),
+                             static_cast<uint32_t>(opcode.size()), result);
+  // remove the first \t if it exists
+  if (!result.empty() && result[0] == '\t')
+    result.erase(0, 1);
+  return result;
+}
+
 } // namespace
 
 PreEncoder::PreEncoder(const Binary *bin, std::string_view outpath, bool haswx)
@@ -94,16 +130,10 @@ PreEncoder::PreEncoder(const Binary *bin, std::string_view outpath, bool haswx)
 PreEncoder::~PreEncoder() {}
 
 void PreEncoder::prefetch() {
-  auto &sect = m_bin->sections();
-  auto &sectbuff = m_bin->sectBuffers();
-  auto sectit = sect.begin();
-  auto sbufit = sectbuff.begin();
-  for (auto endit = sect.end(); sectit != endit; sectit++, sbufit++) {
-    auto &sect = sectit->second;
-    if (sect.type == TEXT) {
-      auto buff = reinterpret_cast<const uint8_t *>(sbufit->second);
-      m_engine.prefetch({buff, sect.size});
-    }
+  for (auto &fnit : m_bin->functions()) {
+    auto &func = fnit.second;
+    auto fnbuf = (const uint8_t *)m_bin->addrBuff(func.start);
+    m_engine.prefetch({fnbuf, func.end - func.start});
   }
 
   // put all the handlers in an indexed sequence so that we can refer and
@@ -392,6 +422,10 @@ bool PreEncoder::serialize() {
   metadata.num_handlers = static_cast<uint32_t>(handlers.size());
   if (m_haswx)
     metadata.flags |= IMetaData::kFlag_HasWX;
+  if (m_bin->archType() == ARM64)
+    metadata.flags |= IMetaData::kFlag_ARM64;
+  else
+    metadata.flags |= IMetaData::kFlag_X64;
 
   std::memcpy(outbuf.data(), &metadata, sizeof(metadata));
   if (!instructions.empty()) {
@@ -497,7 +531,7 @@ void PreEncoder::dump(std::string_view path) {
             << "  version: " << metadata.version << '\n'
             << "  declared size: " << metadata.size << " bytes\n"
             << "  actual size: " << file_size << " bytes\n"
-            << "  flags: 0x" << std::hex << metadata.flags << std::dec << '\n'
+            << "  flags: " << flagsString(metadata.flags) << '\n'
             << "  instructions: offset " << metadata.off_instruction
             << ", count " << metadata.num_instruction << '\n'
             << "  operands: offset " << metadata.off_operands << ", count "
@@ -525,6 +559,8 @@ void PreEncoder::dump(std::string_view path) {
     return;
   }
 
+  Disassembler diser(
+      Binary::arch((metadata.flags & IMetaData::kFlag_ARM64) ? ARM64 : X86_64));
   const uint64_t instruction_bytes =
       uint64_t{metadata.num_instruction} * sizeof(InsnMeta);
   const uint64_t operand_bytes =
@@ -767,6 +803,12 @@ void PreEncoder::dump(std::string_view path) {
                 << std::setfill('0')
                 << static_cast<unsigned>(record[fixed_size + j]);
     std::cout << std::dec << std::setfill(' ');
+    {
+      uint32_t len = 0;
+      auto text =
+          disasOpcode(diser, {record + fixed_size, handler.oplen}, &len);
+      std::cout << ", asm=\"" << (len ? text : std::string("(invalid)")) << '"';
+    }
     if (handler.type == HandlerType::OHT_Remill) {
       std::cout << ", operands=[";
       for (uint8_t j = 0; j < handler.oprnum; ++j) {
@@ -787,9 +829,35 @@ void PreEncoder::dump(std::string_view path) {
       continue;
     }
 
-    // skip the aot implementation (impl holds its size), 4-byte aligned
-    if (handler.type == HandlerType::OHT_Dynamic)
-      record_size = ((record_size + 3u) & ~uint64_t{3}) + handler.impl;
+    // the aot implementation (impl holds its size) follows 4-byte aligned
+    if (handler.type == HandlerType::OHT_Dynamic) {
+      const uint64_t code_offset = (record_size + 3u) & ~uint64_t{3};
+      record_size = code_offset + handler.impl;
+      if (record_size > data.size() - handler_offset) {
+        std::cerr << "Truncated aot implementation of handler " << i << '\n';
+        return;
+      }
+      const auto *code = record + code_offset;
+      std::cout << "    aotimpl (" << handler.impl << " bytes):\n";
+      for (uint32_t pos = 0; pos < handler.impl;) {
+        uint32_t len = 0;
+        auto text = disasOpcode(
+            diser, {code + pos, std::min<uint32_t>(16, handler.impl - pos)},
+            &len);
+        if (!len) {
+          std::cout << "      +" << std::hex << pos << std::dec
+                    << ": (invalid) bytes:";
+          std::cout << std::hex << std::setfill('0');
+          for (uint32_t j = pos; j < handler.impl; ++j)
+            std::cout << ' ' << std::setw(2) << static_cast<unsigned>(code[j]);
+          std::cout << std::dec << std::setfill(' ') << '\n';
+          break;
+        }
+        std::cout << "      +" << std::hex << pos << std::dec << ": " << text
+                  << '\n';
+        pos += len;
+      }
+    }
     record_size = (record_size + 3u) & ~uint64_t{3};
     handler_offset += record_size;
   }
