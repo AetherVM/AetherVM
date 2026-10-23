@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
+#include <AetherBinary.h>
+#include <AetherVM.h>
 #include <Utils.h>
-#include <xxhash.h>
 #include <functional>
 #include <vector>
+#include <xxhash.h>
+
+#include "PreEncoder.h"
 
 namespace aether {
 
@@ -34,5 +38,22 @@ std::vector<std::string_view> string_view_split(std::string_view str,
   result.emplace_back(str.substr(start));
   return result;
 }
+
+bool encode_aevm(std::string_view path, std::string_view outpath) {
+  // only iOS app bundles have a parent directory with the ".app" extension
+  auto haswx = fs::path(path).parent_path().extension() != ".app";
+  auto bin = aether::New(path.data());
+  if (!bin) {
+    log_print(Runtime, "Failed to create Aether binary from path: {}", path);
+    return false;
+  }
+  BinaryEngine engine(bin);
+  PreEncoder encoder(bin, outpath, haswx);
+  auto result = encoder.encode();
+  aether::Delete(bin);
+  return result;
+}
+
+void dump_aevm(std::string_view path) { PreEncoder::dump(path); }
 
 } // namespace aether

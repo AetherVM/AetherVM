@@ -12,10 +12,74 @@
 #include <cstddef>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 #include <optional>
+#include <string>
 
 namespace aether {
+
+namespace {
+
+const char *operandTypeName(uint8_t type) {
+  switch (type) {
+  case 0:
+    return "invalid";
+  case 1:
+    return "register";
+  case 2:
+    return "shift-register";
+  case 3:
+    return "immediate";
+  case 4:
+    return "address";
+  case 5:
+    return "expression";
+  case 6:
+    return "register-expression";
+  case 7:
+    return "immediate-expression";
+  case 8:
+    return "address-expression";
+  default:
+    return "unknown";
+  }
+}
+
+const char *handlerTypeName(uint8_t type) {
+  switch (type) {
+  case 0:
+    return "Remill";
+  case 1:
+    return "MCInst";
+  case 2:
+    return "Dynamic";
+  case 3:
+    return "Prebuilt";
+  case 4:
+    return "PrebuiltMapped";
+  default:
+    return "unknown";
+  }
+}
+
+const char *expressionKindName(uint8_t kind) {
+  switch (kind) {
+  case IMetaData::Expression::kInvalid:
+    return "invalid";
+  case IMetaData::Expression::kOperation:
+    return "operation";
+  case IMetaData::Expression::kRegister:
+    return "register";
+  case IMetaData::Expression::kConstant:
+    return "constant";
+  default:
+    return "unknown";
+  }
+}
+
+} // namespace
 
 PreEncoder::PreEncoder(const Binary *bin, std::string_view outpath, bool haswx)
     : m_bin(bin), m_outpath(outpath), m_haswx(haswx) {
@@ -363,6 +427,389 @@ bool PreEncoder::encode() {
 
   // serialize all the metadatas to output file
   return serialize();
+}
+
+void PreEncoder::dump(std::string_view path) {
+  std::ifstream input(std::string(path), std::ios::binary | std::ios::ate);
+  if (!input) {
+    std::cerr << "Unable to open metadata file: " << path << '\n';
+    return;
+  }
+
+  const auto file_end = input.tellg();
+  if (file_end < 0 || static_cast<uint64_t>(file_end) < sizeof(IMetaData)) {
+    std::cerr << "Metadata file is too small to contain its header: " << path
+              << '\n';
+    return;
+  }
+  if (static_cast<uint64_t>(file_end) > UINT32_MAX) {
+    std::cerr << "Metadata file exceeds the 32-bit format size limit: " << path
+              << '\n';
+    return;
+  }
+  const auto file_size = static_cast<size_t>(file_end);
+  std::vector<uint8_t> data(file_size);
+  input.seekg(0);
+  if (!input.read(reinterpret_cast<char *>(data.data()),
+                  static_cast<std::streamsize>(data.size()))) {
+    std::cerr << "Unable to read metadata file: " << path << '\n';
+    return;
+  }
+
+  auto readAt = [&](uint64_t offset, auto &value) {
+    if (offset > data.size() || sizeof(value) > data.size() - offset)
+      return false;
+    std::memcpy(&value, data.data() + offset, sizeof(value));
+    return true;
+  };
+  auto printBytes = [&](uint64_t offset, uint64_t length,
+                        std::string_view label) {
+    std::cout << "  " << label << " (" << length << " bytes):\n";
+    constexpr size_t bytes_per_line = 16;
+    for (uint64_t i = 0; i < length; i += bytes_per_line) {
+      const auto line_size =
+          static_cast<size_t>(std::min<uint64_t>(bytes_per_line, length - i));
+      std::cout << "    +" << std::hex << std::setw(8) << std::setfill('0')
+                << offset + i << ":";
+      for (size_t j = 0; j < line_size; ++j)
+        std::cout << ' ' << std::setw(2)
+                  << static_cast<unsigned>(data[offset + i + j]);
+      std::cout << std::dec << std::setfill(' ') << '\n';
+    }
+  };
+
+  IMetaData metadata{};
+  if (!readAt(0, metadata)) {
+    std::cerr << "Unable to read metadata header: " << path << '\n';
+    return;
+  }
+
+  std::cout << "AetherVM metadata: " << path << '\n'
+            << "Header:\n"
+            << "  magic: ";
+  if (metadata.magic == IMetaData::kMagic)
+    std::cout << "AEVM";
+  else
+    std::cout << "unknown";
+  std::cout << " (0x" << std::hex << metadata.magic << std::dec << ")\n"
+            << "  version: " << metadata.version << '\n'
+            << "  declared size: " << metadata.size << " bytes\n"
+            << "  actual size: " << file_size << " bytes\n"
+            << "  instructions: offset " << metadata.off_instruction
+            << ", count " << metadata.num_instruction << '\n'
+            << "  operands: offset " << metadata.off_operands << ", count "
+            << metadata.num_operands << '\n'
+            << "  expressions: offset " << metadata.off_expressions
+            << ", count " << metadata.num_expressions << '\n'
+            << "  handlers: offset " << metadata.off_handlers << ", count "
+            << metadata.num_handlers << '\n';
+
+  if (metadata.magic != IMetaData::kMagic) {
+    std::cerr << "Invalid metadata magic; remaining bytes are not decoded\n";
+    printBytes(0, data.size(), "file");
+    return;
+  }
+  if (metadata.version != IMetaData::kVersion) {
+    std::cerr << "Unsupported metadata version; remaining bytes are not "
+                 "decoded\n";
+    printBytes(0, data.size(), "file");
+    return;
+  }
+  if (metadata.size != data.size()) {
+    std::cerr << "Metadata size does not match the file length; remaining "
+                 "sections are not decoded\n";
+    printBytes(0, data.size(), "file");
+    return;
+  }
+
+  const uint64_t instruction_bytes =
+      uint64_t{metadata.num_instruction} * sizeof(InsnMeta);
+  const uint64_t operand_bytes =
+      uint64_t{metadata.num_operands} * sizeof(IMetaData::Operand);
+  const uint64_t expression_bytes =
+      uint64_t{metadata.num_expressions} * sizeof(IMetaData::Expression);
+  const uint64_t instruction_end =
+      uint64_t{metadata.off_instruction} + instruction_bytes;
+  const uint64_t operand_end = uint64_t{metadata.off_operands} + operand_bytes;
+  const uint64_t expression_end =
+      uint64_t{metadata.off_expressions} + expression_bytes;
+
+  const bool sections_valid = metadata.off_instruction == sizeof(IMetaData) &&
+                              instruction_end == metadata.off_operands &&
+                              operand_end == metadata.off_expressions &&
+                              expression_end == metadata.off_handlers &&
+                              metadata.off_handlers <= data.size();
+  if (!sections_valid) {
+    std::cerr << "Invalid or overlapping metadata section offsets/counts; "
+                 "remaining bytes are not decoded\n";
+    printBytes(0, data.size(), "file");
+    return;
+  }
+
+  std::cout << "\nInstructions (" << metadata.num_instruction << "):\n";
+  for (uint32_t i = 0; i < metadata.num_instruction; ++i) {
+    InsnMeta instruction{};
+    const uint64_t offset =
+        uint64_t{metadata.off_instruction} + uint64_t{i} * sizeof(instruction);
+    readAt(offset, instruction);
+    std::cout << "  [" << i << "] rva=0x" << std::hex << instruction.rva
+              << " handler-offset=";
+    if (instruction.handler == UINT32_MAX)
+      std::cout << "none";
+    else
+      std::cout << "0x" << instruction.handler;
+    std::cout << std::dec << '\n';
+  }
+
+  std::cout << "\nOperands (" << metadata.num_operands << "):\n";
+  for (uint32_t i = 0; i < metadata.num_operands; ++i) {
+    IMetaData::Operand operand{};
+    const uint64_t offset =
+        uint64_t{metadata.off_operands} + uint64_t{i} * sizeof(operand);
+    readAt(offset, operand);
+    std::cout << "  [" << i << "] type=" << operandTypeName(operand.type)
+              << " (" << static_cast<unsigned>(operand.type) << "), action=";
+    switch (operand.action) {
+    case 0:
+      std::cout << "invalid";
+      break;
+    case 1:
+      std::cout << "read";
+      break;
+    case 2:
+      std::cout << "write";
+      break;
+    default:
+      std::cout << "unknown(" << static_cast<unsigned>(operand.action) << ')';
+      break;
+    }
+    std::cout << ", size=" << operand.size << " bits";
+    switch (operand.type) {
+    case 1:
+      std::cout << ", register={offset=" << operand.value.reg.offset
+                << ", size=" << operand.value.reg.size << '}';
+      break;
+    case 2: {
+      const auto &value = operand.value.shift_register;
+      std::cout << ", shift-register={register={offset=" << value.reg.offset
+                << ", size=" << value.reg.size
+                << "}, shift-size=" << static_cast<unsigned>(value.shift_size)
+                << ", extract-size="
+                << static_cast<unsigned>(value.extract_size)
+                << ", shift-first=" << static_cast<unsigned>(value.shift_first)
+                << ", can-shift-op-size="
+                << static_cast<unsigned>(value.can_shift_op_size)
+                << ", shift-op=" << static_cast<unsigned>(value.shift_op)
+                << ", extend-op=" << static_cast<unsigned>(value.extend_op)
+                << '}';
+      break;
+    }
+    case 3:
+      std::cout << ", immediate={value=0x" << std::hex
+                << operand.value.immediate.value << std::dec << ", signed="
+                << static_cast<unsigned>(operand.value.immediate.is_signed)
+                << '}';
+      break;
+    case 4: {
+      const auto &value = operand.value.address;
+      std::cout << ", address={segment-register={offset="
+                << value.regs[0].offset << ", size=" << value.regs[0].size
+                << "}, base-register={offset=" << value.regs[1].offset
+                << ", size=" << value.regs[1].size
+                << "}, index-register={offset=" << value.regs[2].offset
+                << ", size=" << value.regs[2].size << "}, scale=" << value.scale
+                << ", displacement=" << value.displacement << ", address-size="
+                << static_cast<unsigned>(value.address_size)
+                << ", kind=" << static_cast<unsigned>(value.kind) << '}';
+      break;
+    }
+    case 5:
+    case 6:
+    case 7:
+    case 8: {
+      const auto &value = operand.value.expression;
+      std::cout << ", expression={kind=" << expressionKindName(value.kind)
+                << " (" << static_cast<unsigned>(value.kind)
+                << "), opcode=" << static_cast<unsigned>(value.opcode)
+                << ", width=" << static_cast<unsigned>(value.width)
+                << ", reserved=" << static_cast<unsigned>(value.reserved);
+      switch (value.kind) {
+      case IMetaData::Expression::kOperation:
+        std::cout << ", operation={lhs=" << value.payload.operation.lhs
+                  << ", rhs=" << value.payload.operation.rhs << '}';
+        break;
+      case IMetaData::Expression::kRegister:
+        std::cout << ", register={offset=" << value.payload.reg.offset
+                  << ", size=" << value.payload.reg.size << '}';
+        break;
+      case IMetaData::Expression::kConstant:
+        std::cout << ", constant={low=0x" << std::hex
+                  << value.payload.constant.low << ", high=0x"
+                  << value.payload.constant.high << std::dec << '}';
+        break;
+      case IMetaData::Expression::kInvalid:
+      default:
+        std::cout << ", payload-bytes=[";
+        for (size_t j = 0; j < sizeof(value.payload); ++j)
+          std::cout << (j ? " " : "") << std::hex << std::setw(2)
+                    << std::setfill('0')
+                    << static_cast<unsigned>(reinterpret_cast<const uint8_t *>(
+                           &value.payload)[j]);
+        std::cout << std::dec << std::setfill(' ') << ']';
+        break;
+      }
+      std::cout << '}';
+      break;
+    }
+    case 0:
+      break;
+    default:
+      std::cout << ", payload-bytes=[";
+      for (size_t j = 0; j < sizeof(operand.value); ++j)
+        std::cout << (j ? " " : "") << std::hex << std::setw(2)
+                  << std::setfill('0')
+                  << static_cast<unsigned>(
+                         reinterpret_cast<const uint8_t *>(&operand.value)[j]);
+      std::cout << std::dec << std::setfill(' ') << ']';
+      break;
+    }
+    std::cout << '\n';
+  }
+
+  std::cout << "\nExpressions (" << metadata.num_expressions << "):\n";
+  for (uint32_t i = 0; i < metadata.num_expressions; ++i) {
+    IMetaData::Expression expression{};
+    const uint64_t offset =
+        uint64_t{metadata.off_expressions} + uint64_t{i} * sizeof(expression);
+    readAt(offset, expression);
+    std::cout << "  [" << i << "] kind=" << expressionKindName(expression.kind)
+              << " (" << static_cast<unsigned>(expression.kind)
+              << "), opcode=" << static_cast<unsigned>(expression.opcode)
+              << ", width=" << static_cast<unsigned>(expression.width)
+              << ", reserved=" << static_cast<unsigned>(expression.reserved);
+    switch (expression.kind) {
+    case IMetaData::Expression::kOperation:
+      std::cout << ", operation={lhs=" << expression.payload.operation.lhs
+                << ", rhs=" << expression.payload.operation.rhs << '}';
+      break;
+    case IMetaData::Expression::kRegister:
+      std::cout << ", register={offset=" << expression.payload.reg.offset
+                << ", size=" << expression.payload.reg.size << '}';
+      break;
+    case IMetaData::Expression::kConstant:
+      std::cout << ", constant={low=0x" << std::hex
+                << expression.payload.constant.low << ", high=0x"
+                << expression.payload.constant.high << std::dec << '}';
+      break;
+    case IMetaData::Expression::kInvalid:
+    default:
+      std::cout << ", payload-bytes=[";
+      for (size_t j = 0; j < sizeof(expression.payload); ++j)
+        std::cout << (j ? " " : "") << std::hex << std::setw(2)
+                  << std::setfill('0')
+                  << static_cast<unsigned>(reinterpret_cast<const uint8_t *>(
+                         &expression.payload)[j]);
+      std::cout << std::dec << std::setfill(' ') << ']';
+      break;
+    }
+    std::cout << '\n';
+  }
+
+  const uint64_t handler_size = data.size() - metadata.off_handlers;
+  std::cout << "\nHandlers (" << metadata.num_handlers << "):\n";
+  bool fixed_handler_layout = true;
+  uint64_t fixed_layout_end = metadata.off_handlers;
+  for (uint32_t i = 0; i < metadata.num_handlers; ++i) {
+    IMetaData::Handler handler{};
+    constexpr uint64_t fixed_size = offsetof(IMetaData::Handler, opcode);
+    if (fixed_layout_end > data.size() ||
+        fixed_size > data.size() - fixed_layout_end) {
+      fixed_handler_layout = false;
+      break;
+    }
+    std::memcpy(&handler, data.data() + fixed_layout_end, fixed_size);
+    const uint64_t record_size =
+        fixed_size + handler.oplen +
+        (handler.type == 0 ? uint64_t{handler.oprnum} * sizeof(uint16_t) : 0);
+    if (handler.type > 4 || record_size > data.size() - fixed_layout_end) {
+      fixed_handler_layout = false;
+      break;
+    }
+    fixed_layout_end += record_size;
+  }
+  fixed_handler_layout &= fixed_layout_end == data.size();
+
+  uint64_t handler_offset = metadata.off_handlers;
+  bool handler_tail_dumped = false;
+  for (uint32_t i = 0; i < metadata.num_handlers; ++i) {
+    IMetaData::Handler handler{};
+    constexpr uint64_t fixed_size = offsetof(IMetaData::Handler, opcode);
+    if (handler_offset > data.size() ||
+        fixed_size > data.size() - handler_offset) {
+      std::cerr << "Truncated handler record " << i << '\n';
+      printBytes(handler_offset, data.size() - handler_offset,
+                 "unparsed handler data");
+      handler_tail_dumped = true;
+      break;
+    }
+    std::memcpy(&handler, data.data() + handler_offset, fixed_size);
+    const uint64_t record_size =
+        fixed_size + handler.oplen +
+        (handler.type == 0 ? uint64_t{handler.oprnum} * sizeof(uint16_t) : 0);
+    if (handler.type > 4 || record_size > data.size() - handler_offset) {
+      std::cerr << "Invalid or truncated handler record " << i << '\n';
+      printBytes(handler_offset, data.size() - handler_offset,
+                 "unparsed handler data");
+      handler_tail_dumped = true;
+      break;
+    }
+
+    const auto *record = data.data() + handler_offset;
+    std::cout << "  [" << i << "] section-offset=0x" << std::hex
+              << handler_offset - metadata.off_handlers << std::dec
+              << ", implementation-index=" << handler.impl
+              << ", type=" << handlerTypeName(handler.type) << " ("
+              << static_cast<unsigned>(handler.type)
+              << "), opcode-length=" << static_cast<unsigned>(handler.oplen)
+              << ", operand-count=" << static_cast<unsigned>(handler.oprnum)
+              << ", opcode=";
+    for (uint8_t j = 0; j < handler.oplen; ++j)
+      std::cout << (j ? " " : "") << std::hex << std::setw(2)
+                << std::setfill('0')
+                << static_cast<unsigned>(record[fixed_size + j]);
+    std::cout << std::dec << std::setfill(' ');
+    if (handler.type == 0) {
+      std::cout << ", operands=[";
+      for (uint8_t j = 0; j < handler.oprnum; ++j) {
+        uint16_t value = 0;
+        std::memcpy(&value,
+                    record + fixed_size + handler.oplen +
+                        uint64_t{j} * sizeof(value),
+                    sizeof(value));
+        std::cout << (j ? ", " : "") << "index=" << (value & 0x7fff)
+                  << ", pointer=" << ((value & 0x8000) != 0);
+      }
+      std::cout << ']';
+    }
+    std::cout << '\n';
+    handler_offset += record_size;
+
+    if (handler.type == 2 && !fixed_handler_layout) {
+      std::cout << "  Dynamic handler implementations may include AOT code "
+                   "and alignment bytes; this format does not store their "
+                   "length, so the remaining handler records are shown raw.\n";
+      printBytes(handler_offset, data.size() - handler_offset,
+                 "dynamic handler and remaining handler data");
+      handler_tail_dumped = true;
+      break;
+    }
+  }
+
+  if (!handler_tail_dumped && handler_offset < data.size())
+    printBytes(handler_offset, data.size() - handler_offset,
+               "trailing handler data (including possible AOT code/padding)");
+  else if (handler_size == 0 && metadata.num_handlers != 0)
+    std::cerr << "Handler count is nonzero but the handler section is empty\n";
 }
 
 } // namespace aether

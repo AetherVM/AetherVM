@@ -135,5 +135,7 @@ AETHER_VMAPI size_t opcode_generator(std::string_view path);
 AETHER_VMAPI std::size_t opcret_generator(std::string_view path);
 AETHER_VMAPI std::vector<std::string_view>
 string_view_split(std::string_view str, char delimiter);
+AETHER_VMAPI bool encode_aevm(std::string_view path, std::string_view outpath);
+AETHER_VMAPI void dump_aevm(std::string_view path);
 
 } // namespace aether

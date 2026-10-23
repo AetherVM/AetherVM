@@ -17,6 +17,7 @@ public:
   ~PreEncoder();
 
   bool encode();
+  static void dump(std::string_view path);
 
 private:
   void prefetch();
