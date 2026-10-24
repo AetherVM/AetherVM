@@ -133,7 +133,9 @@ public:
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement, it should return the
   // loaded runtime virtual address of the main entry.
-  virtual addr_t recursiveLoad();
+  virtual addr_t recursiveLoad(
+      std::function<std::string(std::string_view path, addr_t base, addr_t end)>
+          on_loaded_module);
 
   // Unload all the binaries and release any associated resources.
   virtual void Unload();

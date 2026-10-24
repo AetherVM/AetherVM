@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+
 namespace aether {
 
 struct IMetaData {

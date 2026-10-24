@@ -62,6 +62,8 @@ set(SOURCE_FILES
   src/AetherVM.cpp
   src/BinaryEngine.cpp
   src/BinaryEngine.h 
+  src/ChainedInterp.cpp
+  src/ChainedInterp.h
   src/CPUState.cpp    
   src/CPUState.h 
   src/Event.cpp
