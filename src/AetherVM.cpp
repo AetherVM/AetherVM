@@ -329,11 +329,17 @@ bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath,
   return encoder.encode();
 }
 
-int BinaryEngine::runMain(int argc, const char *argv[]) {
+addr_t BinaryEngine::recursiveLoad() { return 0; }
+
+void BinaryEngine::Unload() {}
+
+int BinaryEngine::runMain(int argc, const char *argv[],
+                          std::string_view cacheroot) {
   auto mainva = recursiveLoad();
   if (!mainva)
     return -1;
 
+  Unload();
   return -1;
 }
 

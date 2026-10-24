@@ -62,7 +62,7 @@ public:
   // override recursiveLoad to do stuffs like relocation binding, segment
   // mapping, and dependent libraries loading, and pre-encode its runtime
   // metadata, otherwise it fails instantly.
-  virtual int runMain(int argc, const char *argv[]);
+  virtual int runMain(int argc, const char *argv[], std::string_view cacheroot);
 
   // Make an executable function pointer from a virtual guest target, in cases
   // like: 1.the target of relocation is directly called by host system; 2.the
@@ -132,8 +132,11 @@ public:
 
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement, it should return the
-  // virtual address of the main entry.
-  virtual addr_t recursiveLoad() { return 0; }
+  // loaded runtime virtual address of the main entry.
+  virtual addr_t recursiveLoad();
+
+  // Unload all the binaries and release any associated resources.
+  virtual void Unload();
 
   // Lift the opcodes for engine runtime.
   void liftOpcodes(const Binary *bin, addr_t addr,
