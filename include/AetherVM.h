@@ -17,6 +17,9 @@ namespace aether {
 // Must be the same as remill's definition.
 using addr_t = uint64_t;
 
+using OnLoadedModule =
+    std::function<std::string(std::string_view path, addr_t base, addr_t end)>;
+
 class Machine;
 class Binary;
 struct BinaryEngineImpl;
@@ -133,9 +136,10 @@ public:
 protected:
   // For MachOEngine, ELFEngine, and PEEngine to implement, it should return the
   // loaded runtime virtual address of the main entry.
-  virtual addr_t recursiveLoad(
-      std::function<std::string(std::string_view path, addr_t base, addr_t end)>
-          on_loaded_module);
+  // After loaded every guest module, subengine should notify through this
+  // callback so that the engine can track the loaded modules and load their
+  // metadata accordingly.
+  virtual addr_t recursiveLoad(const OnLoadedModule &on_loaded_module);
 
   // Unload all the binaries and release any associated resources.
   virtual void Unload();

@@ -330,9 +330,7 @@ bool BinaryEngine::preEncode(const Binary *bin, std::string_view outpath,
   return encoder.encode();
 }
 
-addr_t BinaryEngine::recursiveLoad(
-    std::function<std::string(std::string_view path, addr_t base, addr_t end)>
-        on_loaded_module) {
+addr_t BinaryEngine::recursiveLoad(const OnLoadedModule &on_loaded_module) {
   return 0;
 }
 
