@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <compare>
 #include <cstdint>
 
 namespace aether {
@@ -144,6 +145,8 @@ struct IMetaData {
     uint32_t rva; // relative virtual address of the instruction
     uint32_t
         handler; // offset to the handler from the start of the handler section
+
+    auto operator<=>(const InsnMeta &other) const { return rva <=> other.rva; }
   };
 
   const InsnMeta *insns() const {
