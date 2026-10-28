@@ -139,6 +139,22 @@ struct IMetaData {
   // operand meta
   // expression meta
   // handler meta
+
+  struct InsnMeta {
+    uint32_t rva; // relative virtual address of the instruction
+    uint32_t
+        handler; // offset to the handler from the start of the handler section
+  };
+
+  const InsnMeta *insns() const {
+    return reinterpret_cast<const InsnMeta *>(
+        reinterpret_cast<const uint8_t *>(this) + off_instruction);
+  }
+
+  const Handler *handler(const InsnMeta *insn) const {
+    return reinterpret_cast<const Handler *>(
+        reinterpret_cast<const uint8_t *>(this) + off_handlers + insn->handler);
+  }
 };
 
 } // namespace aether

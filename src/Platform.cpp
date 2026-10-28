@@ -14,8 +14,10 @@
 #include <Windows.h>
 #else
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #if AETHER_OS_DARWIN
 #include <mach/mach.h>
@@ -333,6 +335,75 @@ bool memory_write(uintptr_t address, const void *buffer, size_t size,
     ::CloseHandle(process_handle);
 
   return (result != FALSE) && (bytes_written == size);
+#endif
+}
+
+uintptr_t map_file_readonly(std::string_view path, size_t *size) {
+  if (!size)
+    return 0;
+
+#if defined(AETHER_OS_WINDOWS)
+  HANDLE hFile = ::CreateFileA(path.data(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (hFile == INVALID_HANDLE_VALUE)
+    return 0;
+
+  // Get file size
+  LARGE_INTEGER fileSize;
+  if (!::GetFileSizeEx(hFile, &fileSize)) {
+    ::CloseHandle(hFile);
+    return 0;
+  }
+  size_t sz = static_cast<size_t>(fileSize.QuadPart);
+  if (sz == 0) {
+    ::CloseHandle(hFile);
+    return 0;
+  }
+
+  HANDLE hMap = ::CreateFileMappingA(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+  ::CloseHandle(hFile); // file handle no longer needed
+  if (!hMap)
+    return 0;
+
+  void *map = ::MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
+  ::CloseHandle(hMap); // mapping handle can be closed after mapping
+  if (!map)
+    return 0;
+
+  *size = sz;
+  return reinterpret_cast<uintptr_t>(map);
+#elif defined(AETHER_OS_POSIX)
+  int fd = ::open(path.data(), O_RDONLY);
+  if (fd < 0)
+    return 0;
+
+  struct ::stat st;
+  if (::fstat(fd, &st) != 0) {
+    ::close(fd);
+    return 0;
+  }
+  size_t sz = static_cast<size_t>(st.st_size);
+  if (sz == 0) {
+    ::close(fd);
+    return 0;
+  }
+  void *map = ::mmap(nullptr, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+  ::close(fd);
+  if (map == MAP_FAILED)
+    return 0;
+
+  *size = sz;
+  return reinterpret_cast<uintptr_t>(map);
+#else
+  return 0;
+#endif
+}
+
+void unmap_file(uintptr_t address, size_t size) {
+#if defined(AETHER_OS_WINDOWS)
+  ::UnmapViewOfFile(reinterpret_cast<void *>(address));
+#elif defined(AETHER_OS_POSIX)
+  ::munmap(reinterpret_cast<void *>(address), size);
 #endif
 }
 

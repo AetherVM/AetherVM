@@ -14,9 +14,21 @@
 namespace aether {
 
 struct RuntimeMetaData {
-  std::string_view path;     // path to the original binary
-  const IMetaData *metaData; // pointer to the read-only mapped metadata
-  uint64_t rtbase, rtend;    // runtime memory range of the original binary
+  std::string_view path; // path to the original binary
+
+  const IMetaData *metadata; // pointer to the read-only mapped metadata
+  size_t mdsize;             // size of the metadata binary
+
+  const IMetaData::InsnMeta *insns; // pointer to the instruction metadata array
+
+  // the next instruction index cache for each instruction
+  std::vector<uint32_t> nexticache;
+
+  uint64_t rtbase, rtend; // runtime memory range of the original binary
+
+  RuntimeMetaData(std::string_view path, std::string_view aevmpath,
+                  uint64_t rtbase, uint64_t rtend);
+  ~RuntimeMetaData();
 };
 
 struct ChainedInterp {

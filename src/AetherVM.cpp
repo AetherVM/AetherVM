@@ -338,6 +338,10 @@ void BinaryEngine::Unload() { chainedInterp.reset(); }
 
 int BinaryEngine::runMain(int argc, const char *argv[],
                           std::string_view cacheroot) {
+  // set the cache root for the chained interpreter to load and map the aevm
+  // metadata
+  chainedInterp.cacheRoot = cacheroot;
+
   // load and map the main binary and its dependencies into memory
   auto mainva =
       recursiveLoad([](std::string_view path, addr_t base, addr_t end) {
@@ -345,10 +349,6 @@ int BinaryEngine::runMain(int argc, const char *argv[],
       });
   if (!mainva)
     return -1;
-
-  // set the cache root for the chained interpreter to load and map the aevm
-  // metadata
-  chainedInterp.cacheRoot = cacheroot;
 
   // execute the main function of the binary through the chained interpreter
   auto result = chainedInterp.main(mainva, argc, argv);
