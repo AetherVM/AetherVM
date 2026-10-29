@@ -148,6 +148,30 @@ int ChainedInterp::main(uint64_t entry, int argc, const char *argv[]) {
 }
 
 void ChainedInterp::vmEntry(const RuntimeMetaData *rt,
-                            const IMetaData::InsnMeta *insn) {}
+                            const IMetaData::InsnMeta *insn) {
+  /*
+  Runtime ABI
+
+  ARM64
+  x19: CPUState *CPU ; the current thread's CPU state
+  x20: const IMetaData::InsnMeta *insn ; the current instruction meta
+  x21: const uint32_t *nexticache
+  x22: const Handler *remillhandlers
+  x23: const RuntimeMetaData *rt ; the current module runtime meta
+  x24: const IMetaData::InsnMeta *insns ; the instruction meta array
+  x25: const llvm::MCInst *mcinsts
+  x26: const OpcodeHandler<uint32_t> *prebuiltinsts
+
+  X86_64
+  r12: CPUState *CPU ; the current thread's CPU state
+  r13: const IMetaData::InsnMeta *insn ; the current instruction meta
+  r14: const uint32_t *nexticache
+  r15: const Handler *remillhandlers
+  rbx[0x00]: const RuntimeMetaData *rt ; the current module runtime meta
+  rbx[0x08]: const IMetaData::InsnMeta *insns ; the instruction meta array
+  rbx[0x10]: const llvm::MCInst *mcinsts
+  rbx[0x18]: const OpcodeHandler<uint32_t> *prebuiltinsts
+  */
+}
 
 } // namespace aether
