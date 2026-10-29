@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: Apache License, Version 2.0
 // See LICENSE file in the root directory for full license text.
 
-#include "ChainedInterp.h"
+#include "InterpMetaData.h"
 #include "BinaryEngine.h"
 #include "CPUState.h"
+#include "Orchestrator.h"
 
 #include <Platform.h>
 #include <Utils.h>
@@ -20,7 +21,7 @@
 
 namespace aether {
 
-ChainedInterp chainedInterp;
+InterpMetaData mdInterp;
 
 RuntimeMetaData::RuntimeMetaData(std::string_view path,
                                  std::string_view aevmpath, uint64_t rtbase,
@@ -87,8 +88,8 @@ const IMetaData::InsnMeta *RuntimeMetaData::find(uint64_t addr) const {
   return found->rva == key.rva ? found : nullptr;
 }
 
-std::string ChainedInterp::add(std::string_view path, uint64_t rtbase,
-                               uint64_t rtend) {
+std::string InterpMetaData::add(std::string_view path, uint64_t rtbase,
+                                uint64_t rtend) {
   auto aevm =
       (fs::path(cacheRoot) / fs::path(path).filename()).string() + ".aevm";
   if (!fs::exists(aevm))
@@ -101,10 +102,10 @@ std::string ChainedInterp::add(std::string_view path, uint64_t rtbase,
   return "";
 }
 
-void ChainedInterp::reset() { runtimes.clear(); }
+void InterpMetaData::reset() { runtimes.clear(); }
 
 const RuntimeMetaData *
-ChainedInterp::find(uint64_t addr, const IMetaData::InsnMeta **insn) const {
+InterpMetaData::find(uint64_t addr, const IMetaData::InsnMeta **insn) const {
   RuntimeMetaData key;
   key.rtbase = addr;
   auto rtfound = binary_search(runtimes.data(), runtimes.size(), key);
@@ -117,7 +118,7 @@ ChainedInterp::find(uint64_t addr, const IMetaData::InsnMeta **insn) const {
   return rtfound;
 }
 
-int ChainedInterp::main(uint64_t entry, int argc, const char *argv[]) {
+int InterpMetaData::main(uint64_t entry, int argc, const char *argv[]) {
   const IMetaData::InsnMeta *insn = nullptr;
   auto runtime = find(entry, &insn);
   if (!runtime)
@@ -129,10 +130,25 @@ int ChainedInterp::main(uint64_t entry, int argc, const char *argv[]) {
   // guest main function
 #if AETHER_ARCH_ARM64
   auto result = []() { return CPU.getRegisterAArch64(Register::X0)->u4; };
+  auto returnPtr = []() -> uint64_t * {
+    auto lr = const_cast<RegisterValue *>(CPU.getRegisterAArch64(Register::LR));
+    // the return address storage pointer
+    return &lr->u8;
+  };
   CPU.setRegisterAArch64(Register::X0, {.u8 = (uint64_t)argc});
   CPU.setRegisterAArch64(Register::X1, {.ptr = argv});
 #else
   auto result = []() { return CPU.getRegisterX86(Register::RAX)->u4; };
+  auto returnPtr = []() -> uint64_t * {
+    auto sp = const_cast<RegisterValue *>(CPU.getRegisterX86(Register::SP));
+#if AETHER_OS_WINDOWS
+    sp->uptr -= (1 + 4); // 1 for return address and 4 shadow space
+#else
+    sp->uptr -= (1 + 0);
+#endif
+    // the return address storage pointer
+    return &sp->uptr[0];
+  };
 #if AETHER_OS_WINDOWS
   CPU.setRegisterX86(Register::RCX, {.u8 = (uint64_t)argc});
   CPU.setRegisterX86(Register::RDX, {.ptr = argv});
@@ -142,36 +158,34 @@ int ChainedInterp::main(uint64_t entry, int argc, const char *argv[]) {
 #endif
 #endif
   CPU.pcptr[0] = entry;
+  // flag the top return address as this pointer
+  *returnPtr() = (uint64_t)this;
 
   vmEntry(runtime, insn);
   return result();
 }
 
-void ChainedInterp::vmEntry(const RuntimeMetaData *rt,
-                            const IMetaData::InsnMeta *insn) {
-  /*
-  Runtime ABI
-
-  ARM64
-  x19: CPUState *CPU ; the current thread's CPU state
-  x20: const IMetaData::InsnMeta *insn ; the current instruction meta
-  x21: const uint32_t *nexticache
-  x22: const Handler *remillhandlers
-  x23: const RuntimeMetaData *rt ; the current module runtime meta
-  x24: const IMetaData::InsnMeta *insns ; the instruction meta array
-  x25: const llvm::MCInst *mcinsts
-  x26: const OpcodeHandler<uint32_t> *prebuiltinsts
-
-  X86_64
-  r12: CPUState *CPU ; the current thread's CPU state
-  r13: const IMetaData::InsnMeta *insn ; the current instruction meta
-  r14: const uint32_t *nexticache
-  r15: const Handler *remillhandlers
-  rbx[0x00]: const RuntimeMetaData *rt ; the current module runtime meta
-  rbx[0x08]: const IMetaData::InsnMeta *insns ; the instruction meta array
-  rbx[0x10]: const llvm::MCInst *mcinsts
-  rbx[0x18]: const OpcodeHandler<uint32_t> *prebuiltinsts
-  */
+void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
+                             const IMetaData::InsnMeta *insn) {
+  auto pcptr = CPU.pcptr;
+  auto metadata = rt->metadata;
+  while (pcptr[0] != (uint64_t)this) {
+    auto handler = metadata->handler(insn);
+    switch (handler->type) {
+    case OpcodeHandler<uint32_t>::OHT_Remill:
+      break;
+    case OpcodeHandler<uint32_t>::OHT_MCInst:
+      break;
+    case OpcodeHandler<uint32_t>::OHT_Dynamic:
+      break;
+    case OpcodeHandler<uint32_t>::OHT_Prebuilt:
+    case OpcodeHandler<uint32_t>::OHT_PrebuiltMapped:
+      break;
+    default:
+      abort();
+      break;
+    }
+  }
 }
 
 } // namespace aether

@@ -62,8 +62,6 @@ set(SOURCE_FILES
   src/AetherVM.cpp
   src/BinaryEngine.cpp
   src/BinaryEngine.h 
-  src/ChainedInterp.cpp
-  src/ChainedInterp.h
   src/CPUState.cpp    
   src/CPUState.h 
   src/Event.cpp
@@ -73,6 +71,8 @@ set(SOURCE_FILES
   src/HandlerX86.cpp
   src/IMetaData.cpp
   src/IMetaData.h
+  src/InterpMetaData.cpp
+  src/InterpMetaData.h
   src/Intrinsic.cpp
   src/Lifter.cpp
   src/Lifter.h

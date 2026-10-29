@@ -9,8 +9,8 @@
 #include <Utils.h>
 
 #include "BinaryEngine.h"
-#include "ChainedInterp.h"
 #include "Handler.h"
+#include "InterpMetaData.h"
 #include "OpcodeEngine.h"
 #include "Orchestrator.h"
 #include "PreEncoder.h"
@@ -334,24 +334,24 @@ addr_t BinaryEngine::recursiveLoad(const OnLoadedModule &on_loaded_module) {
   return 0;
 }
 
-void BinaryEngine::Unload() { chainedInterp.reset(); }
+void BinaryEngine::Unload() { mdInterp.reset(); }
 
 int BinaryEngine::runMain(int argc, const char *argv[],
                           std::string_view cacheroot) {
   // set the cache root for the chained interpreter to load and map the aevm
   // metadata
-  chainedInterp.cacheRoot = cacheroot;
+  mdInterp.cacheRoot = cacheroot;
 
   // load and map the main binary and its dependencies into memory
   auto mainva =
       recursiveLoad([](std::string_view path, addr_t base, addr_t end) {
-        return chainedInterp.add(path, base, end);
+        return mdInterp.add(path, base, end);
       });
   if (!mainva)
     return -1;
 
   // execute the main function of the binary through the chained interpreter
-  auto result = chainedInterp.main(mainva, argc, argv);
+  auto result = mdInterp.main(mainva, argc, argv);
 
   // unload the binary and its dependencies from memory
   Unload();

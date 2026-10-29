@@ -52,7 +52,7 @@ struct RuntimeMetaData {
   }
 };
 
-struct ChainedInterp {
+struct InterpMetaData {
   std::vector<RuntimeMetaData> runtimes; // list of runtime metadata
   std::string_view cacheRoot;            // path to the cache root directory
 
@@ -68,6 +68,6 @@ private:
   void vmEntry(const RuntimeMetaData *rt, const IMetaData::InsnMeta *insn);
 };
 
-extern ChainedInterp chainedInterp;
+extern InterpMetaData mdInterp;
 
 } // namespace aether
