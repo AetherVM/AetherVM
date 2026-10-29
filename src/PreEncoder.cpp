@@ -83,7 +83,7 @@ const char *handlerTypeName(uint8_t type) {
     return "MCInst";
   case Handler::OHT_Dynamic:
     return "Dynamic";
-  case Handler::OHT_Prebuit:
+  case Handler::OHT_Prebuilt:
     return "Prebuilt";
   case Handler::OHT_PrebuiltMapped:
     return "PrebuiltMapped";

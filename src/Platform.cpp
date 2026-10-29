@@ -338,7 +338,7 @@ bool memory_write(uintptr_t address, const void *buffer, size_t size,
 #endif
 }
 
-uintptr_t map_file_readonly(std::string_view path, size_t *size) {
+uintptr_t map_file_readonly(std::string_view path, size_t *size, bool exec) {
   if (!size)
     return 0;
 
@@ -360,12 +360,14 @@ uintptr_t map_file_readonly(std::string_view path, size_t *size) {
     return 0;
   }
 
-  HANDLE hMap = ::CreateFileMappingA(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+  HANDLE hMap = ::CreateFileMappingA(
+      hFile, NULL, exec ? PAGE_EXECUTE_READ : PAGE_READONLY, 0, 0, NULL);
   ::CloseHandle(hFile); // file handle no longer needed
   if (!hMap)
     return 0;
 
-  void *map = ::MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
+  void *map = ::MapViewOfFile(
+      hMap, exec ? (FILE_MAP_EXECUTE | FILE_MAP_READ) : FILE_MAP_READ, 0, 0, 0);
   ::CloseHandle(hMap); // mapping handle can be closed after mapping
   if (!map)
     return 0;
@@ -387,7 +389,8 @@ uintptr_t map_file_readonly(std::string_view path, size_t *size) {
     ::close(fd);
     return 0;
   }
-  void *map = ::mmap(nullptr, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+  void *map = ::mmap(nullptr, sz, exec ? (PROT_READ | PROT_EXEC) : PROT_READ,
+                     MAP_PRIVATE, fd, 0);
   ::close(fd);
   if (map == MAP_FAILED)
     return 0;

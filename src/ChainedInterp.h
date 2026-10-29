@@ -5,7 +5,11 @@
 
 #pragma once
 
+#include "Handler.h"
 #include "IMetaData.h"
+#include "OpcodeEngine.h"
+
+#include <llvm/MC/MCInst.h>
 
 #include <string>
 #include <string_view>
@@ -20,6 +24,15 @@ struct RuntimeMetaData {
   size_t mdsize;             // size of the metadata binary
 
   const IMetaData::InsnMeta *insns; // pointer to the instruction metadata array
+
+  // for OHT_Remill instruction type
+  const Handler *remillhandlers;
+
+  // for OHT_MCInst instruction type
+  std::vector<llvm::MCInst> mcinsts;
+
+  // for OHT_Prebuilt* instruction type for iOS
+  std::vector<OpcodeHandler<uint32_t>> prebuiltinsts;
 
   // the next instruction index cache for each instruction
   std::vector<uint32_t> nexticache;

@@ -1116,7 +1116,7 @@ template <typename T> bool OpcodeHandler<T>::interpret() const {
   case OHT_Dynamic:
     execDynamic();
     break;
-  case OHT_Prebuit:
+  case OHT_Prebuilt:
     execPrebuilt();
     break;
   case OHT_PrebuiltMapped:

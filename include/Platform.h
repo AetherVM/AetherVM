@@ -35,7 +35,8 @@ AETHER_VMAPI bool memory_read(uintptr_t address, void *buffer, size_t size,
 AETHER_VMAPI bool memory_write(uintptr_t address, const void *buffer,
                                size_t size, int32_t pid = -1);
 
-AETHER_VMAPI uintptr_t map_file_readonly(std::string_view path, size_t *size);
+AETHER_VMAPI uintptr_t map_file_readonly(std::string_view path, size_t *size,
+                                         bool exec = false);
 AETHER_VMAPI void unmap_file(uintptr_t address, size_t size);
 
 } // namespace aether

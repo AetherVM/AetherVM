@@ -40,7 +40,7 @@ template <typename T> struct OpcodeHandler {
     OHT_Remill,         // interpreted by remill
     OHT_MCInst,         // interpreted by OpcodeHandler
     OHT_Dynamic,        // dynamically generated on page-wx system
-    OHT_Prebuit,        // prebuilt handlers on no-page-wx system like iOS
+    OHT_Prebuilt,       // prebuilt handlers on no-page-wx system like iOS
     OHT_PrebuiltMapped, // prebuilt handlers with register mapped
   };
 
@@ -64,6 +64,10 @@ template <typename T> struct OpcodeHandler {
   bool init();
   void init(remill::Instruction &inst);
   bool interpret() const;
+
+#if AETHER_OS_DARWIN_IOS
+  void preInitPrebuilt() { initPrebuilt(); }
+#endif
 
 private:
   void initRemill(remill::Instruction &inst);

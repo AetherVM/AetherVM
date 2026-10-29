@@ -113,6 +113,14 @@ struct IMetaData {
     uint8_t opcode[0];
     uint16_t operands[0];
     uint8_t aotimpl[0]; // aot implementation bytes
+
+    const uint16_t *operand() const {
+      return reinterpret_cast<const uint16_t *>(&opcode[oplen]);
+    }
+
+    const uint8_t *handler() const {
+      return reinterpret_cast<const uint8_t *>(operand() + oprnum);
+    }
   };
 
   // header

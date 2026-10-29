@@ -4,12 +4,19 @@
 // See LICENSE file in the root directory for full license text.
 
 #include "ChainedInterp.h"
+#include "BinaryEngine.h"
 #include "CPUState.h"
 
 #include <Platform.h>
 #include <Utils.h>
 
 #include <algorithm>
+
+#if AETHER_OS_DARWIN_IOS
+#define IMETADATA_EXEC false
+#else
+#define IMETADATA_EXEC true
+#endif
 
 namespace aether {
 
@@ -19,14 +26,53 @@ RuntimeMetaData::RuntimeMetaData(std::string_view path,
                                  std::string_view aevmpath, uint64_t rtbase,
                                  uint64_t rtend)
     : path(path), rtbase(rtbase), rtend(rtend) {
-  metadata =
-      reinterpret_cast<const IMetaData *>(map_file_readonly(aevmpath, &mdsize));
+  metadata = reinterpret_cast<const IMetaData *>(
+      map_file_readonly(aevmpath, &mdsize, IMETADATA_EXEC));
   insns = metadata->insns();
 
+  if (metadata->flags & IMetaData::kFlag_ARM64)
+    remillhandlers = &Handler::aarch64[0];
+  else
+    remillhandlers = &Handler::x86[0];
+
   nexticache.resize(metadata->num_instruction);
-  // Initialize the next instruction cache with sequential indices
-  for (size_t i = 0; i < nexticache.size(); ++i)
+  for (size_t i = 0; i < nexticache.size(); ++i) {
+    // Initialize the next instruction cache with sequential indices
     nexticache[i] = i + 1;
+
+    auto handler = metadata->handler(&insns[i]);
+    switch (handler->type) {
+    case OpcodeHandler<uint32_t>::OHT_MCInst: {
+      // make sure the implementation index matches the current size of mcinsts
+      assert(handler->impl == mcinsts.size());
+
+      llvm::MCInst mcinst;
+      CPU.runtime->diser.disassemble(&handler->opcode[0], handler->oplen,
+                                     mcinst);
+      mcinsts.push_back(mcinst);
+      break;
+    }
+    case OpcodeHandler<uint32_t>::OHT_Prebuilt:
+    case OpcodeHandler<uint32_t>::OHT_PrebuiltMapped: {
+#if AETHER_OS_DARWIN_IOS
+      // make sure the implementation index matches the current size of
+      // prebuiltinsts
+      assert(handler->impl == prebuiltinsts.size());
+
+      OpcodeHandler<uint32_t> opchandler;
+      opchandler.opcode = *(uint32_t *)&handler->opcode[0];
+      opchandler.oplen = 4;
+      opchandler.preInitPrebuilt();
+      prebuiltinsts.push_back(opchandler);
+#else
+      abort();
+#endif
+      break;
+    }
+    default:
+      break;
+    }
+  }
 }
 
 RuntimeMetaData::~RuntimeMetaData() {
@@ -95,6 +141,8 @@ int ChainedInterp::main(uint64_t entry, int argc, const char *argv[]) {
   CPU.setRegisterX86(Register::RSI, {.ptr = argv});
 #endif
 #endif
+  CPU.pcptr[0] = entry;
+
   vmEntry(runtime, insn);
   return result();
 }
