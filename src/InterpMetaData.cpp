@@ -506,11 +506,19 @@ void interpMCInstARM64(const llvm::MCInst &inst);
 
 void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
                              const IMetaData::InsnMeta *insn) {
+  auto engine = CPU.runtime;
+  auto dbgctx = (engine->eventConf.debug && engine->eventConf.watchdog)
+                    ? &engine->dbgContext
+                    : nullptr;
   auto pcptr = CPU.pcptr;
   auto metadata = rt->metadata;
   auto operands = metadata->operands();
   auto expressions = metadata->expressions();
   while (pcptr[0] != (uint64_t)this) {
+    // debug helper
+    if (dbgctx)
+      dbgctx->insn_handler(&CPU.aarch64, CPU.pcptr[0], nullptr);
+
     auto handler = metadata->handler(insn);
     switch (handler->type) {
     case OpcodeHandler<uint32_t>::OHT_Remill: {
