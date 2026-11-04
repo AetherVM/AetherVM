@@ -352,6 +352,9 @@ RuntimeMetaData::RuntimeMetaData(std::string_view path,
 }
 
 RuntimeMetaData::~RuntimeMetaData() {
+  if (path.empty())
+    return;
+
   // Unmap the metadata file
   unmap_file(reinterpret_cast<uintptr_t>(metadata), mdsize);
 }
