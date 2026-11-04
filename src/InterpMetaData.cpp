@@ -349,6 +349,8 @@ RuntimeMetaData::RuntimeMetaData(std::string_view path,
       break;
     }
   }
+  if (CPU.runtime->eventConf.debug)
+    log_print(Runtime, "Loaded {}: 0x{:x} - 0x{:x}", path, rtbase, rtend);
 }
 
 RuntimeMetaData::~RuntimeMetaData() {
