@@ -12,6 +12,9 @@
 #include <Utils.h>
 
 #include <algorithm>
+#include <cstring>
+
+#include <llvm/IR/Instruction.h>
 
 #if AETHER_OS_DARWIN_IOS
 #define IMETADATA_EXEC false
@@ -22,6 +25,269 @@
 namespace aether {
 
 InterpMetaData mdInterp;
+
+namespace {
+
+inline uint64_t MaskToBits(uint64_t value, unsigned bits) {
+  if (bits == 0)
+    return 0;
+  if (bits >= 64)
+    return value;
+  return value & ((uint64_t{1} << bits) - 1);
+}
+
+inline uint64_t SignExtend(uint64_t value, unsigned bits) {
+  if (bits == 0 || bits >= 64)
+    return value;
+  value = MaskToBits(value, bits);
+  const uint64_t sign_bit = uint64_t{1} << (bits - 1);
+  return (value ^ sign_bit) - sign_bit;
+}
+
+inline void *GetState() {
+#if AETHER_ARCH_ARM64
+  return &CPU.aarch64;
+#else
+  return &CPU.x86;
+#endif
+}
+
+template <typename Register>
+inline uint64_t LoadRegValueRaw(void *state, const Register &reg) {
+  const auto *address = reinterpret_cast<const uint8_t *>(state) + reg.offset;
+  const size_t num_bytes = (static_cast<size_t>(reg.size) + 7u) / 8u;
+  if (num_bytes > sizeof(uint64_t))
+    return reinterpret_cast<uint64_t>(address);
+
+  uint64_t value = 0;
+  std::memcpy(&value, address, num_bytes);
+  return value;
+}
+
+template <typename Register>
+inline uint64_t LoadWordRegValOrZeroRaw(void *state, const Register &reg,
+                                        unsigned word_size_bits) {
+  if (!reg.size)
+    return 0;
+  return MaskToBits(LoadRegValueRaw(state, reg), word_size_bits);
+}
+
+uint64_t LiftShiftRegisterOperandRaw(void *state,
+                                     const IMetaData::Operand &operand) {
+  const auto &shift = operand.value.shift_register;
+  auto reg = LoadRegValueRaw(state, shift.reg);
+  auto curr_size = static_cast<unsigned>(shift.reg.size);
+  const auto word_size = sizeof(uintptr_t) * 8;
+
+  const uint64_t zero = 0;
+  const uint64_t one = 1;
+  const uint64_t shift_size = shift.shift_size;
+
+  using enum remill::Operand::ShiftRegister::Shift;
+  using enum remill::Operand::ShiftRegister::Extend;
+  if (kExtendInvalid != shift.extend_op) {
+    const auto extract_size = static_cast<unsigned>(shift.extract_size);
+    if (shift.reg.size > extract_size) {
+      curr_size = extract_size;
+      reg = MaskToBits(reg, extract_size);
+    }
+
+    if (operand.size > shift.extract_size) {
+      switch (shift.extend_op) {
+      case kExtendSigned:
+        reg = SignExtend(reg, extract_size);
+        curr_size = operand.size;
+        break;
+      case kExtendUnsigned:
+        curr_size = operand.size;
+        break;
+      default:
+        abort();
+      }
+    }
+  }
+
+  if (curr_size < operand.size) {
+    reg = MaskToBits(reg, curr_size);
+    curr_size = operand.size;
+  }
+
+  if (kShiftInvalid != shift.shift_op) {
+    const auto op_bits = static_cast<unsigned>(operand.size);
+    switch (shift.shift_op) {
+    case kShiftLeftWithZeroes:
+      reg = MaskToBits(reg << shift_size, op_bits);
+      break;
+    case kShiftLeftWithOnes: {
+      const uint64_t mask_val = ~((~zero) << shift_size);
+      reg = MaskToBits((reg << shift_size) | mask_val, op_bits);
+      break;
+    }
+    case kShiftUnsignedRight:
+      reg = MaskToBits(reg >> shift_size, op_bits);
+      break;
+    case kShiftSignedRight: {
+      const auto signed_reg = static_cast<int64_t>(SignExtend(reg, op_bits));
+      reg =
+          MaskToBits(static_cast<uint64_t>(signed_reg >> shift_size), op_bits);
+      break;
+    }
+    case kShiftLeftAround: {
+      const uint64_t shr_amount = (~shift_size + one) & (operand.size - one);
+      const auto val1 = reg >> shr_amount;
+      const auto val2 = reg << shift_size;
+      reg = MaskToBits(val1 | val2, op_bits);
+      break;
+    }
+    case kShiftRightAround: {
+      const uint64_t shl_amount = (~shift_size + one) & (operand.size - one);
+      const auto val1 = reg >> shift_size;
+      const auto val2 = reg << shl_amount;
+      reg = MaskToBits(val1 | val2, op_bits);
+      break;
+    }
+    case kShiftInvalid:
+      break;
+    }
+  }
+
+  if (word_size > operand.size)
+    reg = MaskToBits(reg, static_cast<unsigned>(operand.size));
+  return reg;
+}
+
+uint64_t LiftAddressOperandRaw(void *state, const IMetaData::Operand &operand) {
+  const auto &address = operand.value.address;
+  const auto word_size = sizeof(uintptr_t) * 8;
+  auto segment = LoadWordRegValOrZeroRaw(state, address.regs[0], word_size);
+  auto value = LoadWordRegValOrZeroRaw(state, address.regs[1], word_size);
+  auto index = LoadWordRegValOrZeroRaw(state, address.regs[2], word_size);
+  const auto scale = static_cast<uint64_t>(address.scale);
+
+  if (index)
+    value = MaskToBits(value + index * scale, word_size);
+
+  if (address.displacement) {
+    if (0 < address.displacement) {
+      value = MaskToBits(value + static_cast<uint64_t>(address.displacement),
+                         word_size);
+    } else {
+      value = MaskToBits(value - static_cast<uint64_t>(-address.displacement),
+                         word_size);
+    }
+  }
+
+  if (segment)
+    value = MaskToBits(value + segment, word_size);
+
+  if (address.address_size < word_size)
+    value = MaskToBits(value, static_cast<unsigned>(address.address_size));
+  return value;
+}
+
+uint64_t LiftExpressionOperandRecRaw(void *state,
+                                     const IMetaData::Expression &expression,
+                                     const IMetaData::Expression *expressions) {
+  using MetadataExpression = IMetaData::Expression;
+  switch (static_cast<MetadataExpression::Kind>(expression.kind)) {
+  case MetadataExpression::kOperation: {
+    const auto &operation = expression.payload.operation;
+    const auto lhs = LiftExpressionOperandRecRaw(
+        state, expressions[operation.lhs], expressions);
+    uint64_t rhs = 0;
+    if (operation.rhs != MetadataExpression::no_child) {
+      rhs = LiftExpressionOperandRecRaw(state, expressions[operation.rhs],
+                                        expressions);
+    }
+
+    switch (expression.opcode) {
+    case llvm::Instruction::Add:
+      return lhs + rhs;
+    case llvm::Instruction::Sub:
+      return lhs - rhs;
+    case llvm::Instruction::Mul:
+      return lhs * rhs;
+    case llvm::Instruction::Shl:
+      return lhs << rhs;
+    case llvm::Instruction::LShr:
+      return lhs >> rhs;
+    case llvm::Instruction::AShr:
+      return static_cast<uint64_t>(static_cast<int64_t>(lhs) >>
+                                   static_cast<int64_t>(rhs));
+    case llvm::Instruction::ZExt:
+    case llvm::Instruction::Trunc:
+      return MaskToBits(lhs, expression.width);
+    case llvm::Instruction::SExt:
+      return SignExtend(lhs, expression.width);
+    case llvm::Instruction::And:
+      return lhs & rhs;
+    case llvm::Instruction::Or:
+      return lhs | rhs;
+    case llvm::Instruction::URem:
+      return rhs ? lhs % rhs : 0;
+    case llvm::Instruction::Xor:
+      return lhs ^ rhs;
+    default:
+      abort();
+    }
+  }
+  case MetadataExpression::kRegister:
+    return LoadRegValueRaw(state, expression.payload.reg);
+  case MetadataExpression::kConstant:
+    return (static_cast<uint64_t>(expression.payload.constant.high) << 32) |
+           expression.payload.constant.low;
+  default:
+    abort();
+  }
+}
+
+uint64_t LiftOperandRaw(void *state, const IMetaData::Operand &operand,
+                        const IMetaData::Expression *expressions) {
+  using remill::Operand;
+  switch (static_cast<Operand::Type>(operand.type)) {
+  case Operand::kTypeRegister:
+    return operand.action == Operand::kActionWrite
+               ? reinterpret_cast<uint64_t>(reinterpret_cast<uint8_t *>(state) +
+                                            operand.value.reg.offset)
+               : LoadRegValueRaw(state, operand.value.reg);
+  case Operand::kTypeShiftRegister:
+    return LiftShiftRegisterOperandRaw(state, operand);
+  case Operand::kTypeImmediate: {
+    const auto value = operand.value.immediate.value;
+    const auto bits = static_cast<unsigned>(operand.size);
+    return operand.value.immediate.is_signed ? SignExtend(value, bits)
+                                             : MaskToBits(value, bits);
+  }
+  case Operand::kTypeAddress:
+    return LiftAddressOperandRaw(state, operand);
+  case Operand::kTypeExpression:
+  case Operand::kTypeRegisterExpression:
+  case Operand::kTypeImmediateExpression:
+  case Operand::kTypeAddressExpression:
+    return LiftExpressionOperandRecRaw(state, operand.value.expression,
+                                       expressions);
+  default:
+    abort();
+  }
+}
+
+inline void SetNextPC(uint8_t oplen) {
+#if AETHER_ARCH_ARM64
+  CPU.aarch64.gpr._1 = CPU.pcptr[0] + oplen;
+#else
+  CPU.x86.gpr._1 = CPU.pcptr[0] + oplen;
+#endif
+}
+
+inline void UpdatePC() {
+#if AETHER_ARCH_ARM64
+  CPU.pcptr[0] = CPU.aarch64.gpr._1;
+#else
+  CPU.pcptr[0] = CPU.x86.gpr._1;
+#endif
+}
+
+} // namespace
 
 RuntimeMetaData::RuntimeMetaData(std::string_view path,
                                  std::string_view aevmpath, uint64_t rtbase,
@@ -165,6 +431,72 @@ int InterpMetaData::main(uint64_t entry, int argc, const char *argv[]) {
   return result();
 }
 
+void InterpMetaData::interpRemill(const IMetaData::Handler *handler,
+                                  const IMetaData::Operand *operands,
+                                  const IMetaData::Expression *expressions) {
+#if AETHER_ARCH_ARM64
+  auto handlerImpl = Handler::aarch64[handler->impl].impl;
+#else
+  auto handlerImpl = Handler::x86[handler->impl].impl;
+#endif
+  SetNextPC(handler->oplen);
+
+  uint64_t params[16];
+  auto state = GetState();
+  params[0] = 0;                                 // memory
+  params[1] = reinterpret_cast<uint64_t>(state); // cpu state
+  auto i = 2;
+  const auto *operand_indices = handler->operand();
+  for (uint8_t arg = 0; arg < handler->oprnum; ++arg) {
+    params[i++] =
+        LiftOperandRaw(state, operands[operand_indices[arg]], expressions);
+  }
+
+#define CASE_N(N, ...)                                                         \
+  case N:                                                                      \
+    ((void (*)(__VA_ARGS__))handlerImpl)(PARAMS_##N);                          \
+    break;
+
+#define PARAMS_2 params[0], params[1]
+#define PARAMS_3 PARAMS_2, params[2]
+#define PARAMS_4 PARAMS_3, params[3]
+#define PARAMS_5 PARAMS_4, params[4]
+#define PARAMS_6 PARAMS_5, params[5]
+#define PARAMS_7 PARAMS_6, params[6]
+#define PARAMS_8 PARAMS_7, params[7]
+#define PARAMS_9 PARAMS_8, params[8]
+#define PARAMS_10 PARAMS_9, params[9]
+#define PARAMS_11 PARAMS_10, params[10]
+#define PARAMS_12 PARAMS_11, params[11]
+#define PARAMS_13 PARAMS_12, params[12]
+#define PARAMS_14 PARAMS_13, params[13]
+#define PARAMS_15 PARAMS_14, params[14]
+
+#define REPEAT_6(T) T, T, T, T, T, T
+#define REPEAT_8(T) REPEAT_6(T), T, T
+#define REPEAT_14(T) REPEAT_8(T), REPEAT_6(T)
+
+  switch (i) {
+    CASE_N(2, uint64_t, uint64_t)
+    CASE_N(3, uint64_t, uint64_t, uint64_t)
+    CASE_N(4, uint64_t, uint64_t, uint64_t, uint64_t)
+    CASE_N(5, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t)
+    CASE_N(6, REPEAT_6(uint64_t))
+    CASE_N(7, REPEAT_6(uint64_t), uint64_t)
+    CASE_N(8, REPEAT_8(uint64_t))
+    CASE_N(9, REPEAT_8(uint64_t), uint64_t)
+    CASE_N(10, REPEAT_8(uint64_t), uint64_t, uint64_t)
+    CASE_N(11, REPEAT_8(uint64_t), uint64_t, uint64_t, uint64_t)
+    CASE_N(12, REPEAT_6(uint64_t), REPEAT_6(uint64_t))
+    CASE_N(13, REPEAT_6(uint64_t), REPEAT_6(uint64_t), uint64_t)
+    CASE_N(14, REPEAT_14(uint64_t))
+    CASE_N(15, REPEAT_14(uint64_t), uint64_t)
+  default:
+    abort();
+  }
+  UpdatePC();
+}
+
 #if AETHER_ARCH_ARM64
 void interpMCInstARM64(const llvm::MCInst &inst);
 #define interpMCInst(inst) interpMCInstARM64(inst)
@@ -176,10 +508,13 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
                              const IMetaData::InsnMeta *insn) {
   auto pcptr = CPU.pcptr;
   auto metadata = rt->metadata;
+  auto operands = metadata->operands();
+  auto expressions = metadata->expressions();
   while (pcptr[0] != (uint64_t)this) {
     auto handler = metadata->handler(insn);
     switch (handler->type) {
     case OpcodeHandler<uint32_t>::OHT_Remill: {
+      interpRemill(handler, operands, expressions);
       break;
     }
     case OpcodeHandler<uint32_t>::OHT_MCInst: {
@@ -200,7 +535,7 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
 #else
     case OpcodeHandler<uint32_t>::OHT_Dynamic: {
       OpcodeHandler<uint32_t> oneshot;
-      oneshot.impl = &handler->aotimpl[0];
+      oneshot.impl = handler->handler();
       oneshot.preExecDynamic();
       break;
     }

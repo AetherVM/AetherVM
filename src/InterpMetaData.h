@@ -66,6 +66,9 @@ struct InterpMetaData {
 
 private:
   void vmEntry(const RuntimeMetaData *rt, const IMetaData::InsnMeta *insn);
+  void interpRemill(const IMetaData::Handler *handler,
+                    const IMetaData::Operand *operands,
+                    const IMetaData::Expression *expressions);
 };
 
 extern InterpMetaData mdInterp;

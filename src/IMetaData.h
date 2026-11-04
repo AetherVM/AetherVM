@@ -166,6 +166,16 @@ struct IMetaData {
     return reinterpret_cast<const Handler *>(
         reinterpret_cast<const uint8_t *>(this) + off_handlers + insn->handler);
   }
+
+  const Operand *operands() const {
+    return reinterpret_cast<const Operand *>(
+        reinterpret_cast<const uint8_t *>(this) + off_operands);
+  }
+
+  const Expression *expressions() const {
+    return reinterpret_cast<const Expression *>(
+        reinterpret_cast<const uint8_t *>(this) + off_expressions);
+  }
 };
 
 } // namespace aether
