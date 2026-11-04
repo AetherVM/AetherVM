@@ -65,8 +65,13 @@ template <typename T> struct OpcodeHandler {
   void init(remill::Instruction &inst);
   bool interpret() const;
 
+  // for pre-encoded instructions interpreting
 #if AETHER_OS_DARWIN_IOS
   void preInitPrebuilt() { initPrebuilt(); }
+  void preExecPrebuilt() { execPrebuilt(); }
+  void preExecPrebuiltMapped() { execPrebuiltMapped(); }
+#else
+  void preExecDynamic() { execDynamic(); }
 #endif
 
 private:

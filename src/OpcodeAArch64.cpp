@@ -28,7 +28,7 @@ std::vector<llvm::MCInst> insts;
 // <opcode, index> of inst
 std::map<uint32_t, uint32_t> instmap;
 
-inline void interp_STPDpre(llvm::MCInst &inst) {
+inline void interp_STPDpre(const llvm::MCInst &inst) {
   // <MCInst 7577
   //  0: <MCOperand Reg:8>
   //  1: <MCOperand Reg:57>
@@ -48,7 +48,7 @@ inline void interp_STPDpre(llvm::MCInst &inst) {
   CPU.setRegisterAArch64(Register::SP, {.s8 = sp});
 }
 
-inline void interp_STRDpre(llvm::MCInst &inst) {
+inline void interp_STRDpre(const llvm::MCInst &inst) {
   // <MCInst 7601
   //  0: <MCOperand Reg:8>
   //  1: <MCOperand Reg:56>
@@ -64,7 +64,7 @@ inline void interp_STRDpre(llvm::MCInst &inst) {
   CPU.setRegisterAArch64(Register::SP, {.s8 = sp});
 }
 
-inline void interp_STPQi(llvm::MCInst &inst) {
+inline void interp_STPQi(const llvm::MCInst &inst) {
   // <MCInst 7578
   //  0: <MCOperand Reg:144>
   //  1: <MCOperand Reg:144>
@@ -111,17 +111,15 @@ bool OpcodeHandler<T>::initMCInstARM64(llvm::MCInst &inst) {
     interp_##I(inst);                                                          \
     break;
 
-template <typename T> void OpcodeHandler<T>::interpMCInstARM64() const {
-  auto &inst = insts[args[0].index];
+void interpMCInstARM64(const llvm::MCInst &inst) {
   switch (inst.getOpcode()) {
     case_interp(STPDpre);
     case_interp(STRDpre);
     case_interp(STPQi);
   default: {
     std::string strinst;
-    CPU.runtime->diser.print(inst, strinst);
-    log_print(Runtime, "Unimplemented aarch64 opcode at {:p}:{:x} {}.",
-              (void *)&opcode, *(uint32_t *)&opcode, strinst);
+    CPU.runtime->diser.print(const_cast<llvm::MCInst &>(inst), strinst);
+    log_print(Runtime, "Unimplemented aarch64 opcode: {}.", strinst);
     inst.print(llvm::errs());
     putchar('\n');
     exit(-1);
@@ -130,6 +128,10 @@ template <typename T> void OpcodeHandler<T>::interpMCInstARM64() const {
   // update pc to the next address
   auto pc = CPU.getRegisterAArch64(Register::PC)->u8;
   CPU.setRegisterAArch64(Register::PC, {.u8 = pc + 4});
+}
+
+template <typename T> void OpcodeHandler<T>::interpMCInstARM64() const {
+  aether::interpMCInstARM64(insts[args[0].index]);
 }
 
 template struct OpcodeHandler<uint8_t>;

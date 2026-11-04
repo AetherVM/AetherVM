@@ -165,6 +165,13 @@ int InterpMetaData::main(uint64_t entry, int argc, const char *argv[]) {
   return result();
 }
 
+#if AETHER_ARCH_ARM64
+void interpMCInstARM64(const llvm::MCInst &inst);
+#define interpMCInst(inst) interpMCInstARM64(inst)
+#else
+#define interpMCInst(inst) abort()
+#endif
+
 void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
                              const IMetaData::InsnMeta *insn) {
   auto pcptr = CPU.pcptr;
@@ -172,15 +179,32 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
   while (pcptr[0] != (uint64_t)this) {
     auto handler = metadata->handler(insn);
     switch (handler->type) {
-    case OpcodeHandler<uint32_t>::OHT_Remill:
+    case OpcodeHandler<uint32_t>::OHT_Remill: {
       break;
-    case OpcodeHandler<uint32_t>::OHT_MCInst:
+    }
+    case OpcodeHandler<uint32_t>::OHT_MCInst: {
+      interpMCInst(rt->mcinsts[handler->impl]);
       break;
-    case OpcodeHandler<uint32_t>::OHT_Dynamic:
+    }
+#if AETHER_OS_DARWIN_IOS
+    case OpcodeHandler<uint32_t>::OHT_Prebuilt: {
+      auto &oneshot = rt->prebuiltinsts[handler->impl];
+      oneshot.preExecPrebuilt();
       break;
-    case OpcodeHandler<uint32_t>::OHT_Prebuilt:
-    case OpcodeHandler<uint32_t>::OHT_PrebuiltMapped:
+    }
+    case OpcodeHandler<uint32_t>::OHT_PrebuiltMapped: {
+      auto &oneshot = rt->prebuiltinsts[handler->impl];
+      oneshot.preExecPrebuiltMapped();
       break;
+    }
+#else
+    case OpcodeHandler<uint32_t>::OHT_Dynamic: {
+      OpcodeHandler<uint32_t> oneshot;
+      oneshot.impl = &handler->aotimpl[0];
+      oneshot.preExecDynamic();
+      break;
+    }
+#endif
     default:
       abort();
       break;
