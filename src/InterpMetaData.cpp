@@ -287,6 +287,15 @@ inline void UpdatePC() {
 #endif
 }
 
+inline uint64_t CallHost(uint64_t addr) {
+#if AETHER_ARCH_ARM64
+  aarch64::call_host(&CPU.aarch64.gpr.x0, &CPU.aarch64.simd.v[0], addr);
+  return CPU.aarch64.gpr.x30.qword;
+#else
+  abort();
+#endif
+}
+
 } // namespace
 
 RuntimeMetaData::RuntimeMetaData(std::string_view path,
@@ -512,8 +521,11 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
                     : nullptr;
   auto pcptr = CPU.pcptr;
   auto metadata = rt->metadata;
+  auto mdinsns = metadata->insns();
   auto operands = metadata->operands();
   auto expressions = metadata->expressions();
+  auto rtstart = runtimes.begin()->rtbase;
+  auto rtend = runtimes.rbegin()->rtend;
   while (pcptr[0] != (uint64_t)this) {
     // debug helper
     if (dbgctx)
@@ -551,6 +563,50 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
     default:
       abort();
       break;
+    }
+    auto pc = CPU.pcptr[0];
+    while (true) {
+      if (rt->contain(pc)) {
+        // The current PC is within the same rt binary
+        if (rt->rtbase + insn[1].rva == pc) {
+          // sequencial instruction, advance to the next one
+          insn++;
+        } else {
+          // non-sequential instruction, likely a branch or jump
+          // update the next instruction from the cached index
+          insn = mdinsns + rt->nexticache[insn - mdinsns];
+          if (rt->rtbase + insn->rva != pc) {
+            // find the instruction corresponding to the current PC
+            insn = rt->find(pc);
+            assert(
+                insn &&
+                "Failed to find instruction corresponding to the current PC");
+            // update the next instruction cache with the newly found
+            // instruction
+            const_cast<RuntimeMetaData *>(rt)->nexticache[insn - mdinsns] =
+                insn - mdinsns;
+          }
+        }
+        break;
+      } else if (pc >= rtstart && pc < rtend) {
+        // The current PC is within some other rt binary
+        rt = find(pc, &insn);
+        assert(rt && insn &&
+               "Failed to find runtime and instruction for the current PC");
+        // update the instruction and metadata pointers for the new runtime
+        metadata = rt->metadata;
+        mdinsns = metadata->insns();
+        operands = metadata->operands();
+        expressions = metadata->expressions();
+        break;
+      } else if (pc == (uint64_t)this) {
+        // Finished executing the current function
+        return;
+      } else {
+        // Calling system function
+        pc = CallHost(pc);
+        continue;
+      }
     }
   }
 }

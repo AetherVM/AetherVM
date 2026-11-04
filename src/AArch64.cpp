@@ -124,6 +124,8 @@ AETHER_VM_ENTRY() {
       "ret");
 }
 
+void call_host(void *gpr, void *simd, uint64_t addr) { AETHER_ASM("brk #0"); }
+
 #else
 
 AETHER_VM_ENTRY() { AETHER_ASM("int3"); }

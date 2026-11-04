@@ -25,6 +25,8 @@ AETHER_VM_ENTRY();
 size_t offset_reg(Register reg);
 size_t offset_reg(std::string_view reg);
 
+AETHER_NAKED void call_host(void *gpr, void *simd, uint64_t addr);
+
 } // namespace aarch64
 
 } // namespace aether

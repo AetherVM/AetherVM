@@ -50,6 +50,8 @@ struct RuntimeMetaData {
     // Compare runtime metadata based on base addresses for ordering
     return rtbase <=> other.rtbase;
   }
+
+  bool contain(uint64_t addr) const { return addr >= rtbase && addr < rtend; }
 };
 
 struct InterpMetaData {
