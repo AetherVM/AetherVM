@@ -124,7 +124,59 @@ AETHER_VM_ENTRY() {
       "ret");
 }
 
-void call_host(void *gpr, void *simd, uint64_t addr) { AETHER_ASM("brk #0"); }
+// Call a host function on behalf of the VM, with the VM argument registers
+// and the VM stack. The VM x30 is left untouched, so it still holds the VM
+// return address after the host function returns.
+// Argument ABI:
+// x0: &state.gpr.x0, the GPRs are laid out with a 0x10 stride
+// x1: &state.simd.v[0], the vector registers are laid out with a 0x10 stride
+// x2: host function address
+void call_host(void *gpr, void *simd, uint64_t addr) {
+  AETHER_ASM(
+      // save the host callee-saved registers used below
+      "sub sp, sp, #0x30\n"
+      "stp x19, x20, [sp]\n"
+      "str x21, [sp, #0x10]\n"
+      "stp fp, lr, [sp, #0x20]\n"
+      "add fp, sp, #0x20\n"
+      // x19, x20, x21 are preserved by the host function
+      "mov x19, x0\n"
+      "mov x20, x1\n"
+      "mov x21, sp\n" // host stack
+      "mov x16, x2\n"
+      // switch to VM context: argument registers
+      "ldp q0, q1, [x20]\n"
+      "ldp q2, q3, [x20, #0x20]\n"
+      "ldp q4, q5, [x20, #0x40]\n"
+      "ldp q6, q7, [x20, #0x60]\n"
+      "ldr x0, [x19]\n"
+      "ldr x1, [x19, #0x10]\n"
+      "ldr x2, [x19, #0x20]\n"
+      "ldr x3, [x19, #0x30]\n"
+      "ldr x4, [x19, #0x40]\n"
+      "ldr x5, [x19, #0x50]\n"
+      "ldr x6, [x19, #0x60]\n"
+      "ldr x7, [x19, #0x70]\n"
+      "ldr x8, [x19, #0x80]\n"
+      // switch to VM context: stack buffer
+      "ldr x9, [x19, #0x1f0]\n"
+      "mov sp, x9\n"
+      "blr x16\n"
+      // switch back to host stack
+      "mov sp, x21\n"
+      // save the return values to VM context: x0-x1 for integers, q0-q3 for
+      // floating-point/vector values and HFA/HVA aggregates
+      "stp q0, q1, [x20]\n"
+      "stp q2, q3, [x20, #0x20]\n"
+      "str x0, [x19]\n"
+      "str x1, [x19, #0x10]\n"
+      // restore the host context
+      "ldp fp, lr, [sp, #0x20]\n"
+      "ldr x21, [sp, #0x10]\n"
+      "ldp x19, x20, [sp]\n"
+      "add sp, sp, #0x30\n"
+      "ret");
+}
 
 #else
 

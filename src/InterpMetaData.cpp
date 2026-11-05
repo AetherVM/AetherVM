@@ -610,7 +610,7 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
         return;
       } else {
         // Calling system function
-        pc = CallHost(pc);
+        CPU.pcptr[0] = pc = CallHost(pc);
         continue;
       }
     }
