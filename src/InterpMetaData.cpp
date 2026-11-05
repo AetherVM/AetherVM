@@ -242,11 +242,12 @@ uint64_t LiftExpressionOperandRecRaw(void *state,
 }
 
 uint64_t LiftOperandRaw(void *state, const IMetaData::Operand &operand,
+                        IMetaData::OperandInfo operand_info,
                         const IMetaData::Expression *expressions) {
   using remill::Operand;
   switch (static_cast<Operand::Type>(operand.type)) {
   case Operand::kTypeRegister:
-    return operand.action == Operand::kActionWrite
+    return operand_info.pointer
                ? reinterpret_cast<uint64_t>(reinterpret_cast<uint8_t *>(state) +
                                             operand.value.reg.offset)
                : LoadRegValueRaw(state, operand.value.reg);
@@ -462,8 +463,8 @@ void InterpMetaData::interpRemill(const IMetaData::Handler *handler,
   auto i = 2;
   const auto *operand_indices = handler->operand();
   for (uint8_t arg = 0; arg < handler->oprnum; ++arg) {
-    params[i++] =
-        LiftOperandRaw(state, operands[operand_indices[arg]], expressions);
+    params[i++] = LiftOperandRaw(state, operands[operand_indices[arg].index],
+                                 operand_indices[arg], expressions);
   }
 
 #define CASE_N(N, ...)                                                         \

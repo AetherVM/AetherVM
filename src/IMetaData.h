@@ -102,6 +102,11 @@ struct IMetaData {
     Value value;
   };
 
+  struct OperandInfo {
+    uint16_t index : 15;
+    uint16_t pointer : 1;
+  };
+
   // Note, when serializing for arm64 with valid aotimpl, each of Handler must
   // be aligned with 4 bytes, so that the aot implementation bytes can be
   // correctly aligned in memory at runtime to execute properly.
@@ -114,8 +119,8 @@ struct IMetaData {
     uint16_t operands[0];
     uint8_t aotimpl[0]; // aot implementation bytes
 
-    const uint16_t *operand() const {
-      return reinterpret_cast<const uint16_t *>(&opcode[oplen]);
+    const OperandInfo *operand() const {
+      return reinterpret_cast<const OperandInfo *>(&opcode[oplen]);
     }
 
     const uint8_t *handler() const {
