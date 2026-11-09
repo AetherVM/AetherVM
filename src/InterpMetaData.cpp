@@ -306,6 +306,7 @@ RuntimeMetaData::RuntimeMetaData(std::string_view path,
   metadata = reinterpret_cast<const IMetaData *>(
       map_file_readonly(aevmpath, &mdsize, IMETADATA_EXEC));
   insns = metadata->insns();
+  rttextend = rtbase + insns[metadata->num_instruction - 1].rva;
 
   if (metadata->flags & IMetaData::kFlag_ARM64)
     remillhandlers = &Handler::aarch64[0];
@@ -519,6 +520,56 @@ void interpMCInstARM64(const llvm::MCInst &inst);
 #define interpMCInst(inst) abort()
 #endif
 
+uint64_t InterpMetaData::callHost(const RuntimeMetaData *rt, uint64_t pc) {
+#if AETHER_ARCH_ARM64
+  auto gpr = &CPU.aarch64.gpr;
+  uint64_t *args[] = {(uint64_t *)&gpr->x0, (uint64_t *)&gpr->x1,
+                      (uint64_t *)&gpr->x2, (uint64_t *)&gpr->x3,
+                      (uint64_t *)&gpr->x4, (uint64_t *)&gpr->x5,
+                      (uint64_t *)&gpr->x6, (uint64_t *)&gpr->x7};
+#else
+  auto gpr = &CPU.x86.gpr;
+  auto sp = gpr.rsp + 0x8; // skip the return address
+#if AETHER_OS_WINDOWS
+  sp += 0x20; // skip the argument shadow space
+#endif
+  uint64_t *args[] = {
+#if AETHER_OS_WINDOWS
+      (uint64_t *)&gpr->rcx, (uint64_t *)&gpr->rdx, (uint64_t *)&gpr->r8,
+      (uint64_t *)&gpr->r9,  (uint64_t *)&sp[0],    (uint64_t *)&sp[1],
+      (uint64_t *)&sp[2],    (uint64_t *)&sp[3]
+#else
+      (uint64_t *)&gpr->rdi, (uint64_t *)&gpr->rsi, (uint64_t *)&gpr->rdx,
+      (uint64_t *)&gpr->rcx, (uint64_t *)&gpr->r8,  (uint64_t *)&gpr->r9,
+      (uint64_t *)&sp[0],    (uint64_t *)&sp[1]
+#endif
+  };
+#endif
+
+  uint64_t *wrapped_args[8], orig_args[8];
+  size_t wrapped_num = 0;
+  for (size_t i = 0; i < std::size(args); i++) {
+    auto addr = *args[i];
+    if (rt->containText(addr)) {
+      auto found = rt->wrapfns.find(addr);
+      if (found != rt->wrapfns.end()) {
+        orig_args[wrapped_num] = addr;
+        wrapped_args[wrapped_num] = args[i];
+        wrapped_num++;
+
+        // switch to executable address of the wrapped host function
+        *args[i] = found->second;
+      }
+    }
+  }
+  pc = CallHost(pc);
+  for (size_t i = 0; i < wrapped_num; i++) {
+    // restore the original argument value after the wrapped host call
+    *wrapped_args[i] = orig_args[i];
+  }
+  return pc;
+}
+
 void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
                              const IMetaData::InsnMeta *insn) {
   auto engine = CPU.runtime;
@@ -610,7 +661,7 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
         return;
       } else {
         // Calling system function
-        CPU.pcptr[0] = pc = CallHost(pc);
+        CPU.pcptr[0] = pc = callHost(rt, pc);
         continue;
       }
     }

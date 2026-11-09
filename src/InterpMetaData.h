@@ -11,6 +11,7 @@
 
 #include <llvm/MC/MCInst.h>
 
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -38,6 +39,11 @@ struct RuntimeMetaData {
   std::vector<uint32_t> nexticache;
 
   uint64_t rtbase, rtend; // runtime memory range of the original binary
+  uint64_t rttextend;     // the end of the text segment in the runtime memory
+
+  // the wrapped function addresses passed to the system runtime
+  // <vm, wrapped host>
+  std::map<uint64_t, uint64_t> wrapfns;
 
   RuntimeMetaData() {}
   RuntimeMetaData(std::string_view path, std::string_view aevmpath,
@@ -52,6 +58,9 @@ struct RuntimeMetaData {
   }
 
   bool contain(uint64_t addr) const { return addr >= rtbase && addr < rtend; }
+  bool containText(uint64_t addr) const {
+    return addr >= rtbase && addr < rttextend;
+  }
 };
 
 struct InterpMetaData {
@@ -71,6 +80,7 @@ private:
   void interpRemill(const IMetaData::Handler *handler,
                     const IMetaData::Operand *operands,
                     const IMetaData::Expression *expressions);
+  uint64_t callHost(const RuntimeMetaData *rt, uint64_t pc);
 };
 
 extern InterpMetaData mdInterp;
