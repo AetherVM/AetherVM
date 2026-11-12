@@ -189,6 +189,11 @@ struct IMetaData {
     return reinterpret_cast<const Expression *>(
         reinterpret_cast<const uint8_t *>(this) + off_expressions);
   }
+
+  const uint32_t *wraprvas() const {
+    return reinterpret_cast<const uint32_t *>(
+        reinterpret_cast<const uint8_t *>(this) + off_wraprvas);
+  }
 };
 
 } // namespace aether

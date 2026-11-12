@@ -118,4 +118,6 @@ void BinaryEngineImpl::startDebugger(ArchType type) {
   dbgContext.insn_handler = insn_handler;
 }
 
+const void *BinaryEngineImpl::makeExecutable(addr_t target) { return nullptr; }
+
 } // namespace aether

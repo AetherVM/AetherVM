@@ -132,7 +132,9 @@ bool BinaryEngine::execute(addr_t target) {
   return false;
 }
 
-const void *BinaryEngine::makeExecutable(addr_t target) { return nullptr; }
+const void *BinaryEngine::makeExecutable(addr_t target) {
+  return engine->makeExecutable(target);
+}
 
 const RegisterValue *BinaryEngine::getRegister(Register reg, bool cvtpc) {
   return getRegister(&CPU, reg, cvtpc);

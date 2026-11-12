@@ -351,6 +351,12 @@ RuntimeMetaData::RuntimeMetaData(std::string_view path,
       break;
     }
   }
+  for (auto ptr = metadata->wraprvas(),
+            end = metadata->wraprvas() + metadata->num_wraprvas;
+       ptr < end; ++ptr) {
+    auto va = rtbase + *ptr;
+    wrapfns.insert({va, (uint64_t)CPU.runtime->makeExecutable(va)});
+  }
   if (CPU.runtime->eventConf.debug)
     log_print(Runtime, "Loaded {}: 0x{:x} - 0x{:x}", path, rtbase, rtend);
 }

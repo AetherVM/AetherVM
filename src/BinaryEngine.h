@@ -57,6 +57,8 @@ struct BinaryEngineImpl {
     return opcodeEmu.emulate(opcode);
   }
 
+  const void *makeExecutable(addr_t target);
+
 private:
   void startDebugger(ArchType type);
 };
