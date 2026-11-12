@@ -109,6 +109,8 @@ extern "C" AETHER_NAKED void vm_enter_x64(void) {
       "jmp *%r10\n");
 }
 
+extern "C" AETHER_NAKED void wrapper_entry() { AETHER_ASM("int3"); }
+
 AETHER_VM_ENTRY() {
   AETHER_ASM(
 #if AETHER_OS_WINDOWS

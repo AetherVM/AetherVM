@@ -47,6 +47,12 @@ execute_process(COMMAND ${ICPP_PATH}
   ${CMAKE_BINARY_DIR}/generated
 )
 
+# generate wrapper entry for aarch64 and x86_64
+execute_process(COMMAND ${ICPP_PATH} 
+  ${CMAKE_SOURCE_DIR}/tool/wrapper_entry_generator.cc 
+  ${CMAKE_BINARY_DIR}/generated
+)
+
 set(HEADER_FILES
   include/AetherVM.h
   include/Event.h
@@ -90,6 +96,8 @@ set(SOURCE_FILES
   src/UtilsAArch64.cpp
   src/UtilsAArch64.h
   src/Workaround.cpp
+  src/WrapperStub.cpp
+  src/WrapperStub.h
   src/X86.cpp
   src/X86.h
 )

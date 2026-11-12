@@ -90,6 +90,8 @@ extern "C" AETHER_NAKED void vm_enter_aarch64(void) {
       "br x16\n");
 }
 
+extern "C" AETHER_NAKED void wrapper_entry() { AETHER_ASM("brk #0"); }
+
 AETHER_VM_ENTRY() {
   AETHER_ASM(
       /*
