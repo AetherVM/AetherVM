@@ -142,6 +142,13 @@ struct IMetaData {
   // expression node list referenced by remill operands
   uint32_t off_expressions; // expression node section offset
   uint32_t num_expressions; // number of expression nodes
+  // rva list of which each entry is referred by native instruction, e.g.:
+  // arm64: adrp/add, adr
+  // x86_64: lea
+  // these rva entries should be wrapped as executable addresses when passing to
+  // the system runtime
+  uint32_t off_wraprvas; // wrapped rva list section offset
+  uint32_t num_wraprvas; // number of wrapped rvas
   // handler list
   uint32_t off_handlers; // handler section offset
   uint32_t num_handlers; // number of handler
@@ -152,6 +159,7 @@ struct IMetaData {
   // instruction meta
   // operand meta
   // expression meta
+  // wrapped rva list
   // handler meta
 
   struct InsnMeta {

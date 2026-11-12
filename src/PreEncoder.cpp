@@ -199,11 +199,93 @@ uint32_t PreEncoder::handlerIndex(std::span<const uint8_t> opcode) {
   return search(4, (const OpcodeHandler<uint128_var_t> *)nullptr, tmp16);
 }
 
+bool PreEncoder::needWrapRva(uint32_t rva) const {
+  return m_bin->isTextCode(m_bin->imageBase() + rva);
+}
+
+void PreEncoder::addWrapRva(int64_t va) {
+  const int64_t base = static_cast<int64_t>(m_bin->imageBase());
+  if (va < base || va - base > UINT32_MAX)
+    return;
+  const auto rva = static_cast<uint32_t>(va - base);
+  if (needWrapRva(rva))
+    m_wraprvas.insert(rva);
+}
+
+void PreEncoder::collectWrapRvaAArch64(uint32_t rva, const uint8_t *opcode,
+                                       uint32_t oplen) {
+  // an adrp is only paired with an add that closely follows it
+  constexpr uint32_t adrp_window = 16 * 4;
+  if (oplen != 4)
+    return;
+
+  uint32_t insn;
+  std::memcpy(&insn, opcode, sizeof(insn));
+  const int64_t va = static_cast<int64_t>(m_bin->imageBase()) + rva;
+  const uint32_t rd = insn & 0x1f;
+
+  // adr/adrp: immlo = [30:29], immhi = [23:5], rd = [4:0]
+  if ((insn & 0x1f000000) == 0x10000000) {
+    const uint32_t imm21 = (((insn >> 5) & 0x7ffff) << 2) | ((insn >> 29) & 3);
+    const int64_t imm = static_cast<int32_t>(imm21 << 11) >> 11;
+    const bool adrp = insn >> 31;
+    const int64_t addr =
+        adrp ? (va & ~int64_t{0xfff}) + imm * 0x1000 : va + imm;
+    m_adrps[rd] = {};
+    if (adrp)
+      m_adrps[rd] = {true, rva, addr};
+    else
+      addWrapRva(addr);
+    return;
+  }
+
+  // add (immediate), 64-bit, no flags: sh = [22], imm12 = [21:10], rn = [9:5]
+  if ((insn & 0xff800000) == 0x91000000) {
+    const uint32_t rn = (insn >> 5) & 0x1f;
+    const auto &adrp = m_adrps[rn];
+    if (rn != 31 && adrp.valid && rva - adrp.rva <= adrp_window) {
+      const int64_t imm12 = (insn >> 10) & 0xfff;
+      addWrapRva(adrp.page + ((insn >> 22) & 1 ? imm12 << 12 : imm12));
+    }
+    if (rd != 31)
+      m_adrps[rd] = {};
+  }
+}
+
+void PreEncoder::collectWrapRvaX86_64(uint32_t rva, const uint8_t *opcode,
+                                      uint32_t oplen) {
+  uint32_t i = 0;
+  bool addr32 = false;
+  // legacy prefixes
+  for (; i < oplen; ++i) {
+    const uint8_t b = opcode[i];
+    if (b == 0x67)
+      addr32 = true;
+    else if (b != 0x66 && b != 0xf2 && b != 0xf3 && b != 0x2e && b != 0x36 &&
+             b != 0x3e && b != 0x26 && b != 0x64 && b != 0x65)
+      break;
+  }
+  // rex prefix
+  if (i < oplen && (opcode[i] & 0xf0) == 0x40)
+    ++i;
+
+  // lea r, [rip + disp32]: 8d /r with mod = 00, rm = 101, no immediate
+  if (addr32 || i + 6 != oplen || opcode[i] != 0x8d ||
+      (opcode[i + 1] & 0xc7) != 0x05)
+    return;
+  int32_t disp;
+  std::memcpy(&disp, opcode + i + 2, sizeof(disp));
+  addWrapRva(static_cast<int64_t>(m_bin->imageBase()) + rva + oplen + disp);
+}
+
 void PreEncoder::analyzeInsnMeta() {
+  auto arm64 = m_bin->archType() == ARM64;
   for (auto &fnit : m_bin->functions()) {
     auto &func = fnit.second;
     auto fnbuf = (const uint8_t *)m_bin->addrBuff(func.start);
     auto fnrva = func.start - m_bin->imageBase();
+    for (auto &adrp : m_adrps)
+      adrp = {};
     for (auto &insn : func.insns) {
       if (insn.info.type == IDATA)
         continue;
@@ -211,6 +293,11 @@ void PreEncoder::analyzeInsnMeta() {
       meta.rva = fnrva + insn.fnoff;
       meta.handler = handlerIndex({fnbuf + insn.fnoff, insn.info.oplen});
       m_insnmetas.push_back(meta);
+
+      if (arm64)
+        collectWrapRvaAArch64(meta.rva, fnbuf + insn.fnoff, insn.info.oplen);
+      else
+        collectWrapRvaX86_64(meta.rva, fnbuf + insn.fnoff, insn.info.oplen);
     }
   }
 }
@@ -390,10 +477,13 @@ bool PreEncoder::serialize() {
       off_instruction + instructions.size() * sizeof(InsnMeta);
   const uint64_t off_expressions =
       off_operands + operands.size() * sizeof(IMetaData::Operand);
-  const uint64_t off_handlers =
+  const uint64_t off_wraprvas =
       off_expressions + expressions.size() * sizeof(IMetaData::Expression);
+  const uint64_t off_handlers =
+      off_wraprvas + m_wraprvas.size() * sizeof(uint32_t);
   if (instructions.size() > UINT32_MAX || operands.size() > UINT32_MAX ||
-      expressions.size() > UINT32_MAX || handlers.size() > UINT32_MAX) {
+      expressions.size() > UINT32_MAX || m_wraprvas.size() > UINT32_MAX ||
+      handlers.size() > UINT32_MAX) {
     log_print(Runtime,
               "Metadata section count exceeds the 32-bit format limit");
     return false;
@@ -418,6 +508,8 @@ bool PreEncoder::serialize() {
   metadata.num_operands = static_cast<uint32_t>(operands.size());
   metadata.off_expressions = static_cast<uint32_t>(off_expressions);
   metadata.num_expressions = static_cast<uint32_t>(expressions.size());
+  metadata.off_wraprvas = static_cast<uint32_t>(off_wraprvas);
+  metadata.num_wraprvas = static_cast<uint32_t>(m_wraprvas.size());
   metadata.off_handlers = static_cast<uint32_t>(off_handlers);
   metadata.num_handlers = static_cast<uint32_t>(handlers.size());
   if (m_haswx)
@@ -439,6 +531,14 @@ bool PreEncoder::serialize() {
   if (!expressions.empty()) {
     std::memcpy(outbuf.data() + off_expressions, expressions.data(),
                 expressions.size() * sizeof(IMetaData::Expression));
+  }
+  if (!m_wraprvas.empty()) {
+    // std::set iterates in ascending order
+    auto *dst = outbuf.data() + off_wraprvas;
+    for (uint32_t rva : m_wraprvas) {
+      std::memcpy(dst, &rva, sizeof(rva));
+      dst += sizeof(rva);
+    }
   }
   size_t handler_offset = static_cast<size_t>(off_handlers);
   for (const auto &handler : handlers) {
@@ -538,6 +638,8 @@ void PreEncoder::dump(std::string_view path) {
             << metadata.num_operands << '\n'
             << "  expressions: offset " << metadata.off_expressions
             << ", count " << metadata.num_expressions << '\n'
+            << "  wrapped rvas: offset " << metadata.off_wraprvas << ", count "
+            << metadata.num_wraprvas << '\n'
             << "  handlers: offset " << metadata.off_handlers << ", count "
             << metadata.num_handlers << '\n';
 
@@ -572,11 +674,15 @@ void PreEncoder::dump(std::string_view path) {
   const uint64_t operand_end = uint64_t{metadata.off_operands} + operand_bytes;
   const uint64_t expression_end =
       uint64_t{metadata.off_expressions} + expression_bytes;
+  const uint64_t wraprva_end =
+      uint64_t{metadata.off_wraprvas} +
+      uint64_t{metadata.num_wraprvas} * sizeof(uint32_t);
 
   const bool sections_valid = metadata.off_instruction == sizeof(IMetaData) &&
                               instruction_end == metadata.off_operands &&
                               operand_end == metadata.off_expressions &&
-                              expression_end == metadata.off_handlers &&
+                              expression_end == metadata.off_wraprvas &&
+                              wraprva_end == metadata.off_handlers &&
                               metadata.off_handlers <= data.size();
   if (!sections_valid) {
     std::cerr << "Invalid or overlapping metadata section offsets/counts; "
@@ -755,6 +861,14 @@ void PreEncoder::dump(std::string_view path) {
       break;
     }
     std::cout << '\n';
+  }
+
+  std::cout << "\nWrapped RVAs (" << metadata.num_wraprvas << "):\n";
+  for (uint32_t i = 0; i < metadata.num_wraprvas; ++i) {
+    uint32_t rva = 0;
+    readAt(uint64_t{metadata.off_wraprvas} + uint64_t{i} * sizeof(rva), rva);
+    std::cout << "  [" << i << "] rva=0x" << std::hex << rva << std::dec
+              << '\n';
   }
 
   std::cout << "\nHandlers (" << metadata.num_handlers << "):\n";
