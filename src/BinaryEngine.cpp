@@ -5,6 +5,8 @@
 
 #include "BinaryEngine.h"
 #include "Orchestrator.h"
+#include "WrapperStub.h"
+
 #include <Platform.h>
 #include <Utils.h>
 
@@ -118,6 +120,24 @@ void BinaryEngineImpl::startDebugger(ArchType type) {
   dbgContext.insn_handler = insn_handler;
 }
 
-const void *BinaryEngineImpl::makeExecutable(addr_t target) { return nullptr; }
+const void *BinaryEngineImpl::makeExecutable(addr_t target) {
+  if (stubCount >= kMaxStubs)
+    return nullptr;
+
+  auto found = stubMap.find(target);
+  if (found == stubMap.end()) {
+    /*
+    arm64:  adr/b
+    x86_64: lea/jmp
+    see WrapperStub.cpp for implementation details.
+    */
+    auto stubsize =
+        remillArch->arch_name == remill::kArchAArch64LittleEndian ? 8 : 12;
+    auto stubptr = (const uint8_t *)&wrapper_entry_stub + stubCount * stubsize;
+    found = stubMap.insert({target, stubptr}).first;
+    stubCount++;
+  }
+  return found->second;
+}
 
 } // namespace aether

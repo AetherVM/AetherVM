@@ -36,6 +36,12 @@ struct BinaryEngineImpl {
   OpcodeEngine opcodeEmu;
   Disassembler diser;
 
+  // Maximum number of stubs that can be generated, see
+  // tools/wrapper_entry_generator.cc for details.
+  constexpr static int kMaxStubs = 100000;
+  int stubCount = 0;
+  std::map<uint64_t, const uint8_t *> stubMap; // vm address -> stub pointer
+
   BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
                    BinaryEngine *engine);
   ~BinaryEngineImpl();
