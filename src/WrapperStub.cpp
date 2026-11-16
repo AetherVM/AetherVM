@@ -10,8 +10,7 @@ namespace aether {
 #if AETHER_ARCH_ARM64
 #define AETHER_STUB "adr x16, .\nb " HOST_CALL_PREFIX "wrapper_entry\n"
 #else
-#define AETHER_STUB                                                            \
-  "lea (%rip), %r11\n call " HOST_CALL_PREFIX "wrapper_entry\n"
+#define AETHER_STUB "lea (%rip), %r11\njmp " HOST_CALL_PREFIX "wrapper_entry\n"
 #endif
 
 #include <generated/WrapperEntryStub.cpp>
