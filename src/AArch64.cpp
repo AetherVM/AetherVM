@@ -90,7 +90,39 @@ extern "C" AETHER_NAKED void vm_enter_aarch64(void) {
       "br x16\n");
 }
 
-extern "C" AETHER_NAKED void wrapper_entry() { AETHER_ASM("brk #0"); }
+extern "C" AETHER_NAKED void wrapper_entry() {
+  /*
+  Register Context:
+  x0-x7: argument registers
+  q0-q7: vector argument registers
+  x16: the current stub entry
+  */
+  AETHER_ASM(
+      // Save the callback arguments and preserve the original stack pointer.
+      "sub sp, sp, #0xd0\n"
+      "stp x0, x1, [sp]\n"
+      "stp x2, x3, [sp, #0x10]\n"
+      "stp x4, x5, [sp, #0x20]\n"
+      "stp x6, x7, [sp, #0x30]\n"
+      "stp q0, q1, [sp, #0x40]\n"
+      "stp q2, q3, [sp, #0x60]\n"
+      "stp q4, q5, [sp, #0x80]\n"
+      "stp q6, q7, [sp, #0xa0]\n"
+      "stp x30, x16, [sp, #0xc0]\n"
+      // wrapper_enter_aarch64(gprs, simd, origsp, stub)
+      "mov x0, sp\n"
+      "add x1, sp, #0x40\n"
+      "add x2, sp, #0xd0\n"
+      "ldr x3, [sp, #0xc8]\n"
+      "bl " HOST_CALL_PREFIX "wrapper_enter_aarch64\n"
+      // Return the callback's integer and vector result registers.
+      "ldp x0, x1, [sp]\n"
+      "ldp q0, q1, [sp, #0x40]\n"
+      "ldp q2, q3, [sp, #0x60]\n"
+      "ldr x30, [sp, #0xc0]\n"
+      "add sp, sp, #0xd0\n"
+      "ret");
+}
 
 AETHER_VM_ENTRY() {
   AETHER_ASM(

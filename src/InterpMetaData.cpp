@@ -674,4 +674,10 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
   }
 }
 
+extern "C" void wrapper_enter_aarch64(uint64_t *gprs, uint64_t *simd,
+                                      uint64_t origsp, uint64_t stub) {}
+
+extern "C" void wrapper_enter_x86_64(uint64_t *gprs, uint64_t *simd,
+                                     uint64_t origsp, uint64_t stub) {}
+
 } // namespace aether
