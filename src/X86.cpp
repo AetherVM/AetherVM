@@ -109,7 +109,72 @@ extern "C" AETHER_NAKED void vm_enter_x64(void) {
       "jmp *%r10\n");
 }
 
-extern "C" AETHER_NAKED void wrapper_entry() { AETHER_ASM("int3"); }
+extern "C" AETHER_NAKED void wrapper_entry() {
+  /*
+  Register Context:
+  Windows x64: rcx, rdx, r8, r9 and xmm0-xmm3
+  SysV x64: rdi, rsi, rdx, rcx, r8, r9 and xmm0-xmm7
+  r11: the current stub entry + 7
+  */
+  AETHER_ASM(
+#if AETHER_OS_WINDOWS
+      // Shadow space plus register snapshots; keep rsp 16-byte aligned.
+      "sub $0x98, %rsp\n"
+      "mov %rcx, 0x20(%rsp)\n"
+      "mov %rdx, 0x28(%rsp)\n"
+      "mov %r8, 0x30(%rsp)\n"
+      "mov %r9, 0x38(%rsp)\n"
+      "mov %rax, 0x40(%rsp)\n"
+      "movdqu %xmm0, 0x50(%rsp)\n"
+      "movdqu %xmm1, 0x60(%rsp)\n"
+      "movdqu %xmm2, 0x70(%rsp)\n"
+      "movdqu %xmm3, 0x80(%rsp)\n"
+      "mov %r11, 0x90(%rsp)\n"
+      // wrapper_enter_x86_64(gprs, simd, origsp, stub)
+      "leaq 0x20(%rsp), %rcx\n"
+      "leaq 0x50(%rsp), %rdx\n"
+      "leaq 0x98(%rsp), %r8\n"
+      "mov 0x90(%rsp), %r9\n"
+      "call " HOST_CALL_PREFIX "wrapper_enter_x86_64\n"
+      // The helper writes the integer return value to gprs[4].
+      "mov 0x40(%rsp), %rax\n"
+      "movdqu 0x50(%rsp), %xmm0\n"
+      "add $0x98, %rsp\n"
+#else
+      // Save six integer arguments, return slots, and eight vector registers.
+      "sub $0xc8, %rsp\n"
+      "mov %rdi, 0x00(%rsp)\n"
+      "mov %rsi, 0x08(%rsp)\n"
+      "mov %rdx, 0x10(%rsp)\n"
+      "mov %rcx, 0x18(%rsp)\n"
+      "mov %r8, 0x20(%rsp)\n"
+      "mov %r9, 0x28(%rsp)\n"
+      "mov %rax, 0x30(%rsp)\n"
+      "mov %rdx, 0x38(%rsp)\n"
+      "movdqu %xmm0, 0x40(%rsp)\n"
+      "movdqu %xmm1, 0x50(%rsp)\n"
+      "movdqu %xmm2, 0x60(%rsp)\n"
+      "movdqu %xmm3, 0x70(%rsp)\n"
+      "movdqu %xmm4, 0x80(%rsp)\n"
+      "movdqu %xmm5, 0x90(%rsp)\n"
+      "movdqu %xmm6, 0xa0(%rsp)\n"
+      "movdqu %xmm7, 0xb0(%rsp)\n"
+      "mov %r11, 0xc0(%rsp)\n"
+      // wrapper_enter_x86_64(gprs, simd, origsp, stub)
+      "mov %rsp, %rdi\n"
+      "leaq 0x40(%rsp), %rsi\n"
+      "leaq 0xc8(%rsp), %rdx\n"
+      "mov 0xc0(%rsp), %rcx\n"
+      "call " HOST_CALL_PREFIX "wrapper_enter_x86_64\n"
+      // The helper writes the integer return values to gprs[6..7].
+      "mov 0x30(%rsp), %rax\n"
+      "mov 0x38(%rsp), %rdx\n"
+      "movdqu 0x40(%rsp), %xmm0\n"
+      "movdqu 0x50(%rsp), %xmm1\n"
+      "add $0xc8, %rsp\n"
+#endif
+      "ret");
+}
 
 AETHER_VM_ENTRY() {
   AETHER_ASM(
