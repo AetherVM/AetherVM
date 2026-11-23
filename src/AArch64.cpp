@@ -158,14 +158,14 @@ AETHER_VM_ENTRY() {
       "ret");
 }
 
-// Call a host function on behalf of the VM, with the VM argument registers
-// and the VM stack. The VM x30 is left untouched, so it still holds the VM
-// return address after the host function returns.
+// Call a host function with the VM argument registers and a copy of the
+// guest's stack arguments. The VM x30 remains the VM return address.
 // Argument ABI:
 // x0: &state.gpr.x0, the GPRs are laid out with a 0x10 stride
 // x1: &state.simd.v[0], the vector registers are laid out with a 0x10 stride
 // x2: host function address
-void call_host(void *gpr, void *simd, uint64_t addr) {
+// x3: 1024 bytes of guest stack arguments
+void call_host(void *gpr, void *simd, uint64_t addr, const void *stack_args) {
   AETHER_ASM(
       // save the host callee-saved registers used below
       "sub sp, sp, #0x30\n"
@@ -173,11 +173,20 @@ void call_host(void *gpr, void *simd, uint64_t addr) {
       "str x21, [sp, #0x10]\n"
       "stp fp, lr, [sp, #0x20]\n"
       "add fp, sp, #0x20\n"
-      // x19, x20, x21 are preserved by the host function
       "mov x19, x0\n"
       "mov x20, x1\n"
       "mov x21, sp\n" // host stack
       "mov x16, x2\n"
+      // Copy the guest stack arguments onto the native stack.
+      "sub sp, sp, #0x400\n"
+      "mov x9, sp\n"
+      "mov x10, x3\n"
+      "mov x11, #64\n"
+      "1:\n"
+      "ldr q16, [x10], #16\n"
+      "str q16, [x9], #16\n"
+      "subs x11, x11, #1\n"
+      "b.ne 1b\n"
       // switch to VM context: argument registers
       "ldp q0, q1, [x20]\n"
       "ldp q2, q3, [x20, #0x20]\n"
@@ -192,12 +201,7 @@ void call_host(void *gpr, void *simd, uint64_t addr) {
       "ldr x6, [x19, #0x60]\n"
       "ldr x7, [x19, #0x70]\n"
       "ldr x8, [x19, #0x80]\n"
-      // switch to VM context: stack buffer
-      "ldr x9, [x19, #0x1f0]\n"
-      "mov sp, x9\n"
       "blr x16\n"
-      // switch back to host stack
-      "mov sp, x21\n"
       // save the return values to VM context: x0-x1 for integers, q0-q3 for
       // floating-point/vector values and HFA/HVA aggregates
       "stp q0, q1, [x20]\n"

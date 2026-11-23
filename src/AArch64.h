@@ -25,7 +25,8 @@ AETHER_VM_ENTRY();
 size_t offset_reg(Register reg);
 size_t offset_reg(std::string_view reg);
 
-AETHER_NAKED void call_host(void *gpr, void *simd, uint64_t addr);
+AETHER_NAKED void call_host(void *gpr, void *simd, uint64_t addr,
+                            const void *stack_args);
 
 } // namespace aarch64
 
