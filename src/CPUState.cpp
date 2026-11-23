@@ -12,6 +12,10 @@ thread_local CPUState CPU;
 
 CPUState::CPUState() {
   std::memset(&aarch64, 0, std::max(sizeof(aarch64), sizeof(x86)));
+  if (!stack_bounds(hostStackBottom, hostStackTop)) {
+    log_print(Runtime, "Failed to get host thread stack bounds");
+    abort();
+  }
 }
 
 bool CPUState::initContext(addr_t entry) {
@@ -31,7 +35,7 @@ bool CPUState::initContext(addr_t entry) {
                                   : getRegisterX86(reg);
   };
   RegisterValue pc{.u8 = entry};
-  RegisterValue sp{.ptr = stack + stacksize};
+  RegisterValue sp{.ptr = stack + stacksize - stackSwitchSize};
   // reset SP and PC
   setRegister(Register::PC, pc);
   setRegister(Register::SP, sp);
@@ -49,7 +53,11 @@ void CPUState::freeContext() {
     runtime->dbgContext.thread_handler(nullptr);
   if (stack)
     delete[] stack;
+  auto bottom = hostStackBottom;
+  auto top = hostStackTop;
   std::memset(static_cast<void *>(this), 0, sizeof(*this));
+  hostStackBottom = bottom;
+  hostStackTop = top;
 }
 
 const RegisterValue *CPUState::getRegisterAArch64(Register reg) {

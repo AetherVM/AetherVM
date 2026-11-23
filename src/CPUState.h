@@ -39,6 +39,9 @@ struct CPUState {
   uintptr_t retaddr = 0;
   char *stack = nullptr;
   size_t stacksize = 0;
+  uintptr_t hostStackBottom = 0;
+  uintptr_t hostStackTop = 0;
+  static constexpr size_t stackSwitchSize = 1024;
 
   CPUState();
   ~CPUState() {}
