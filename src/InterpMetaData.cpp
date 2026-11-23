@@ -12,7 +12,10 @@
 #include <Utils.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <limits>
+#include <memory>
 
 #include <llvm/IR/Instruction.h>
 
@@ -290,12 +293,46 @@ inline void UpdatePC() {
 
 inline uint64_t CallHost(uint64_t addr) {
 #if AETHER_ARCH_ARM64
-  aarch64::call_host(&CPU.aarch64.gpr.x0, &CPU.aarch64.simd.v[0], addr);
+  aarch64::call_host(&CPU.aarch64.gpr.x0, &CPU.aarch64.simd.v[0], addr,
+                     (void *)CPU.aarch64.gpr.sp.qword);
   return CPU.aarch64.gpr.x30.qword;
 #else
   abort();
 #endif
 }
+
+inline uint64_t FindWrapperTarget(uint64_t stub, size_t stub_offset) {
+  if (!CPU.runtime)
+    abort();
+
+  auto stubptr = reinterpret_cast<const uint8_t *>(stub - stub_offset);
+  auto found = CPU.runtime->stubTargets.find(stubptr);
+  if (found == CPU.runtime->stubTargets.end())
+    abort();
+  return found->second;
+}
+
+inline void StoreRegisterRaw(void *state, size_t offset, const void *value,
+                             size_t size) {
+  std::memcpy(static_cast<uint8_t *>(state) + offset, value, size);
+}
+
+inline void LoadRegisterRaw(const void *state, size_t offset, void *value,
+                            size_t size) {
+  std::memcpy(value, static_cast<const uint8_t *>(state) + offset, size);
+}
+
+struct WrapperRuntimeState {
+  RegisterValue pc = CPU.pc;
+  RegisterValue rvalue = CPU.rvalue;
+  uintptr_t retaddr = CPU.retaddr;
+
+  ~WrapperRuntimeState() {
+    CPU.pc = pc;
+    CPU.rvalue = rvalue;
+    CPU.retaddr = retaddr;
+  }
+};
 
 } // namespace
 
@@ -391,6 +428,35 @@ std::string InterpMetaData::add(std::string_view path, uint64_t rtbase,
 }
 
 void InterpMetaData::reset() { runtimes.clear(); }
+
+void InterpMetaData::executeWrapper(uint64_t entry, uintptr_t origsp) {
+  const IMetaData::InsnMeta *insn = nullptr;
+  auto runtime = find(entry, &insn);
+  if (!runtime || !insn)
+    abort();
+
+  const auto copy_size =
+      std::min(CPUState::stackSwitchSize, CPU.hostStackTop - origsp);
+#if AETHER_ARCH_ARM64
+  auto sp = CPU.getRegisterAArch64(Register::SP)->u8;
+#else
+  auto sp = CPU.getRegisterX86(Register::RSP)->u8;
+#endif
+  sp -= copy_size;
+  std::memcpy(reinterpret_cast<void *>(sp), reinterpret_cast<void *>(origsp),
+              copy_size);
+
+#if AETHER_ARCH_ARM64
+  CPU.setRegisterAArch64(Register::LR,
+                         {.u8 = reinterpret_cast<uint64_t>(this)});
+  CPU.setRegisterAArch64(Register::SP, {.u8 = sp});
+#else
+  // reset the return address on the guest stack
+  *reinterpret_cast<uint64_t *>(sp) = reinterpret_cast<uint64_t>(this);
+  CPU.setRegisterX86(Register::RSP, {.u8 = sp});
+#endif
+  vmEntry(runtime, insn);
+}
 
 const RuntimeMetaData *
 InterpMetaData::find(uint64_t addr, const IMetaData::InsnMeta **insn) const {
@@ -675,9 +741,84 @@ void InterpMetaData::vmEntry(const RuntimeMetaData *rt,
 }
 
 extern "C" void wrapper_enter_aarch64(uint64_t *gprs, uint64_t *simd,
-                                      uint64_t origsp, uint64_t stub) {}
+                                      uint64_t origsp, uint64_t stub) {
+  const auto entry = FindWrapperTarget(stub, 0);
+  const auto saved_state = CPU.aarch64;
+  WrapperRuntimeState saved_runtime;
+
+  for (size_t i = 0; i < 8; ++i) {
+    const auto reg = static_cast<Register>(static_cast<int>(Register::X0) + i);
+    StoreRegisterRaw(&CPU.aarch64, aarch64::offset_reg(reg), &gprs[i],
+                     sizeof(gprs[i]));
+    const auto simd_reg =
+        static_cast<Register>(static_cast<int>(Register::Q0) + i);
+    StoreRegisterRaw(&CPU.aarch64, aarch64::offset_reg(simd_reg), &simd[2 * i],
+                     sizeof(RegisterValueSIMD));
+  }
+
+  CPU.pcptr[0] = entry;
+  mdInterp.executeWrapper(entry, origsp);
+
+  gprs[0] = CPU.getRegisterAArch64(Register::X0)->u8;
+  gprs[1] = CPU.getRegisterAArch64(Register::X1)->u8;
+  for (size_t i = 0; i < 4; ++i) {
+    const auto reg = static_cast<Register>(static_cast<int>(Register::Q0) + i);
+    LoadRegisterRaw(&CPU.aarch64, aarch64::offset_reg(reg), &simd[2 * i],
+                    sizeof(RegisterValueSIMD));
+  }
+
+  CPU.aarch64 = saved_state;
+}
 
 extern "C" void wrapper_enter_x86_64(uint64_t *gprs, uint64_t *simd,
-                                     uint64_t origsp, uint64_t stub) {}
+                                     uint64_t origsp, uint64_t stub) {
+  const auto entry = FindWrapperTarget(stub, 7);
+  const auto saved_state = CPU.x86;
+  WrapperRuntimeState saved_runtime;
+
+#if AETHER_OS_WINDOWS
+  constexpr Register arg_regs[] = {Register::RCX, Register::RDX, Register::R8,
+                                   Register::R9};
+  constexpr size_t arg_reg_count = std::size(arg_regs);
+  constexpr size_t simd_reg_count = 4;
+#else
+  constexpr Register arg_regs[] = {Register::RDI, Register::RSI, Register::RDX,
+                                   Register::RCX, Register::R8,  Register::R9};
+  constexpr size_t arg_reg_count = std::size(arg_regs);
+  constexpr size_t simd_reg_count = 8;
+#endif
+
+  for (size_t i = 0; i < arg_reg_count; ++i)
+    StoreRegisterRaw(&CPU.x86, x86::offset_reg(arg_regs[i]), &gprs[i],
+                     sizeof(gprs[i]));
+#if !AETHER_OS_WINDOWS
+  StoreRegisterRaw(&CPU.x86, x86::offset_reg(Register::RAX), &gprs[6],
+                   sizeof(gprs[6]));
+#endif
+  for (size_t i = 0; i < simd_reg_count; ++i) {
+    const auto reg =
+        static_cast<Register>(static_cast<int>(Register::XMM0) + i);
+    StoreRegisterRaw(&CPU.x86, x86::offset_reg(reg), &simd[2 * i],
+                     sizeof(RegisterValueSIMD));
+  }
+
+  CPU.pcptr[0] = entry;
+  mdInterp.executeWrapper(entry, origsp);
+
+#if AETHER_OS_WINDOWS
+  gprs[4] = CPU.getRegisterX86(Register::RAX)->u8;
+#else
+  gprs[6] = CPU.getRegisterX86(Register::RAX)->u8;
+  gprs[7] = CPU.getRegisterX86(Register::RDX)->u8;
+#endif
+  for (size_t i = 0; i < simd_reg_count && i < 2; ++i) {
+    const auto reg =
+        static_cast<Register>(static_cast<int>(Register::XMM0) + i);
+    LoadRegisterRaw(&CPU.x86, x86::offset_reg(reg), &simd[2 * i],
+                    sizeof(RegisterValueSIMD));
+  }
+
+  CPU.x86 = saved_state;
+}
 
 } // namespace aether

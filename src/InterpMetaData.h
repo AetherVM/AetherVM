@@ -74,6 +74,7 @@ struct InterpMetaData {
                               const IMetaData::InsnMeta **insn = nullptr) const;
 
   int main(uint64_t entry, int argc, const char *argv[]);
+  void executeWrapper(uint64_t entry, uintptr_t origsp);
 
 private:
   void vmEntry(const RuntimeMetaData *rt, const IMetaData::InsnMeta *insn);
