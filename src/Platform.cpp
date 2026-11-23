@@ -6,6 +6,7 @@
 #include <Platform.h>
 #include <Utils.h>
 
+#include <limits>
 #include <vector>
 
 #if AETHER_OS_WINDOWS
@@ -166,6 +167,40 @@ size_t stack_size() {
   // defualt to 2MB
   return 2 * 1024 * 1024;
 #endif
+}
+
+bool stack_bounds(uintptr_t &bottom, uintptr_t &top) {
+#if AETHER_OS_DARWIN
+  auto stack_top =
+      reinterpret_cast<uintptr_t>(pthread_get_stackaddr_np(pthread_self()));
+  auto size = pthread_get_stacksize_np(pthread_self());
+  if (!stack_top || !size || size > stack_top)
+    return false;
+  bottom = stack_top - size;
+  top = stack_top;
+#elif AETHER_OS_WINDOWS
+  ULONG_PTR low = 0, high = 0;
+  ::GetCurrentThreadStackLimits(&low, &high);
+  if (!low || low >= high)
+    return false;
+  bottom = low;
+  top = high;
+#else
+  pthread_attr_t attr;
+  if (pthread_getattr_np(pthread_self(), &attr) != 0)
+    return false;
+  void *address = nullptr;
+  size_t size = 0;
+  auto result = pthread_attr_getstack(&attr, &address, &size);
+  pthread_attr_destroy(&attr);
+  auto low = reinterpret_cast<uintptr_t>(address);
+  if (result != 0 || !low || !size ||
+      size > std::numeric_limits<uintptr_t>::max() - low)
+    return false;
+  bottom = low;
+  top = low + size;
+#endif
+  return true;
 }
 
 const void *load_library(std::string_view path) {

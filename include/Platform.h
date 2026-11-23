@@ -24,6 +24,8 @@ AETHER_VMAPI void page_dealloc(uintptr_t pagestart, size_t size);
 AETHER_VMAPI std::string self_path();
 
 AETHER_VMAPI size_t stack_size();
+// Bounds of the current thread's native stack; top is exclusive.
+AETHER_VMAPI bool stack_bounds(uintptr_t &bottom, uintptr_t &top);
 AETHER_VMAPI int current_pid();
 
 AETHER_VMAPI const void *load_library(std::string_view path);
