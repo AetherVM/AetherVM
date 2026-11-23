@@ -16,6 +16,7 @@
 #include <Event.h>
 
 #include <mutex>
+#include <unordered_map>
 
 namespace aether {
 
@@ -41,6 +42,8 @@ struct BinaryEngineImpl {
   constexpr static int kMaxStubs = 100000;
   int stubCount = 0;
   std::map<uint64_t, const uint8_t *> stubMap; // vm address -> stub pointer
+  std::unordered_map<const uint8_t *, uint64_t>
+      stubTargets; // stub -> vm address
 
   BinaryEngineImpl(ArchType arch, FileType os, EventConfig cfg,
                    BinaryEngine *engine);

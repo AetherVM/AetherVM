@@ -135,6 +135,7 @@ const void *BinaryEngineImpl::makeExecutable(addr_t target) {
         remillArch->arch_name == remill::kArchAArch64LittleEndian ? 8 : 12;
     auto stubptr = (const uint8_t *)&wrapper_entry_stub + stubCount * stubsize;
     found = stubMap.insert({target, stubptr}).first;
+    stubTargets.emplace(stubptr, target);
     stubCount++;
   }
   return found->second;
